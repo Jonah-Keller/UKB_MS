@@ -1,0 +1,7 @@
+data/ukb/olink/processed/
+data/ukb/cohort/
+data/ukb/covariates/
+data/ukb/genetics/
+__pycache__/
+*.pyc
+.DS_Store

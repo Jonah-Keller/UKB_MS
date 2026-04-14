@@ -1,0 +1,788 @@
+Skip to main content
+Advertisement
+
+
+Nature Medicine
+View all journals
+Search
+Log in
+Explore content
+About the journal
+Publish with us
+Sign up for alerts
+RSS feed
+nature  nature medicine  articles  article
+Myelin injury precedes axonal injury and symptomatic onset in multiple sclerosis
+Download PDF
+Article
+Published: 20 October 2025
+Myelin injury precedes axonal injury and symptomatic onset in multiple sclerosis
+Ahmed Abdelhak, Gabriel Cerono, Fahime Sheikhzadeh, Adil Harroud, Kiarra Ning, Colin R. Zamecnik, Gavin M. Sowa, John Boscardin, Christian Cordano, Asritha Tubati, Camille Fouassier, Eric D. Chow, Refujia Gomez, Adam Santaniello, Kelsey C. Zorn, Jill A. Hollenbach, Jorge R. Oksenberg, Bruce A. C. Cree, Stephen L. Hauser, Jonah R. Chan, Sergio E. Baranzini, Mitchell T. Wallin, Michael R. Wilson & Ari J. Green 
+Nature Medicine volume 32, pages362–368 (2026)Cite this article
+
+7270 Accesses
+
+7 Citations
+
+345 Altmetric
+
+Metricsdetails
+
+Abstract
+The timing of the biological onset of multiple sclerosis (MS) is unclear. We used high-throughput discovery proteomics and samples from presymptomatic patients with MS and matched healthy controls to define the biological neurological onset and characterize the mechanisms involved. Remarkably, evidence of myelin injury was seen ~7 years before the symptomatic onset and preceded evidence of axonal injury by ~1 year. By contrast, astrocyte involvement became evident only at clinical onset. Numerous changes in the serum proteome indicate the involvement of interleukin 3 and nuclear factor kappa B pathways during the presymptomatic stage. Furthermore, people with MS with a previously reported distinct autoantibody signature showed increased immune cell activity compared to those without. We propose a protein biomarker panel that may help distinguish presymptomatic patients with MS from healthy controls, pending validation in future studies. Our findings can help understand the pathophysiology of MS as well as the cascade of central nervous system injury and might facilitate early detection of MS in high-risk people.
+
+Similar content being viewed by others
+
+Longitudinal proteomic profiling of cerebrospinal fluid in untreated multiple sclerosis defines evolving disease biology
+Article Open access
+03 December 2025
+
+Thinking outside the box: non-canonical targets in multiple sclerosis
+Article 06 June 2022
+
+The role of glial cells in multiple sclerosis disease progression
+Article 21 February 2022
+Main
+Multiple sclerosis (MS) is the most common cause of nontraumatic neurological disability in young adults, with a substantial socioeconomic impact1. MS etiology is complex and involves different genetic, environmental and infectious agents2,3,4. Those factors interact, in the presence of other potentially unknown host factors, to drive the development of MS-characteristic pathology and phenotype. Those changes can take place years before MS onset. Indeed, evidence suggestive of a long presymptomatic MS stage is growing5,6,7,8. Studying samples from the presymptomatic stage of MS enables valuable insights into MS pathophysiology, timing and the magnitude of central nervous system (CNS) injury2,3. Recently, we leveraged the Department of Defense Serum Repository (DODSR) to describe a predictive autoantibody signature in people with MS (pwMS). This particular immunological cluster (IC) was highly specific to MS and was evident years before onset2. The potential target motifs were related to putative infectious agents that drive MS pathology, especially Epstein–Barr virus. pwMS with this IC has a greater degree of neuroaxonal injury, as measured with blood levels of neurofilament light chain (NEFL/NfL)9 when compared to pwMS without evidence for this IC. In addition, NfL was higher in presymptomatic pwMS, regardless of their IC status, compared to healthy controls (HC)—a finding reported by other groups3,8,10,11. However, the full spectrum of CNS injury preceding MS clinical onset has not been defined. Little is known about the implicated immunological cellular components. Therefore, defining serum proteome changes in this presymptomatic or prodromal stage is of crucial relevance. To that end, we leveraged immunologically deeply phenotyped samples from DODSR and advanced Olink antibody-based proteomics to comprehensively assess the serum proteome, including CNS and immunological markers, preceding the clinical onset of MS and to unravel protein signature differences between pwMS with and without IC.
+
+Results
+Cohort description
+A total of 315 samples from 134 pwMS in the DODSR and 79 HC were included in this analysis. In addition, 26 MS participants from the University of California San Francisco (UCSF) ORIGINS study were included. This encompasses 24 and 13 participants with the predefined autoantibody immune cluster in DODSR and ORIGINS participants, respectively (Table 1). Samples collected before clinical onset were available for 117 pwMS (median lead time of −4.0 years; interquartile range (IQR) −6.0 to −2.0; Extended Data Fig. 1 and Supplementary Fig. 1). In total, 7/13 and 4/12 ORIGINS participants with and without IC, respectively, and available human leukocyte antigen (HLA) data were heterozygous, whereas 0/13 and 1/12 were homozygous for HLA-DRB1*15:01, respectively (Supplementary Table 1). Additional data leveraging full HLA sequencing from 22 of 26 ORIGINS participants are reported in Supplementary Table 2. All ORIGINS participants but one received disease-modifying treatment (DMT) at the time of sampling (Table 1). Of the post-onset MS DODSR samples, 78% (76 of 98) were from participants who received DMT over the course of their disease per available data. However, data on the exact time of DMT initiation in relation to sample collection, or the particular DMT used, were not available.
+
+Table 1 Characteristics of the included samples and participants
+Full size table
+Serum proteome changes in MS
+Out of the 341 samples, 1 outlier HC sample was excluded. All other samples passed the quality control (QC) criteria. Only 5 of 5,416 assays showed QC warning and were excluded from downstream analyses. The mean intra-run and inter-run coefficients of variation (CVs) were 12.8% (±5.4) and 10.0% (±5.4), respectively.
+
+In all samples from DODSR participants (combined preclinical and postclinical onset), 18 and 53 differentially expressed proteins (DEPs) were found in pwMS compared to HC with a false discovery rate (FDR) of 5% and 10%, respectively (Fig. 1a and Supplementary Table 3). Out of the top ten proteins, seven were higher in pwMS; interleukin 3 (IL-3), allograft inflammatory factor 1 (AIF1), sirtuin 6 (SIRT6), NEFL, myelin oligodendrocyte glycoprotein (MOG), metal regulatory transcription factor 1 (MTF1) and dedicator of cytokinesis 10 (DOCK10), whereas three proteins were more abundant in HC; SANT and BTB domain regulator of class switch recombination (SANBR), potassium voltage-gated channel subfamily D member 2 (KCND2) and T-box transcription factor 22 (TBX22).
+
+Fig. 1: Differentially expressed proteins between pwMS and HC from the DODSR.
+Fig. 1: Differentially expressed proteins between pwMS and HC from the DODSR.
+Full size image
+a–c, Combined pre-onset and post-onset samples from pwMS versus HC (a), presymptomatic versus HC (b) and post-onset versus HC (c) samples. Red labeled points represent protein hits with FDR P value < 0.1 and ≥0.05 log2FC in expression. Positive FCs indicate higher abundance in pwMS. Horizontal dashed and dotted lines reflect FDR values of 10% and 5%, respectively. Only DEPs with a FC of at least 0.5 (vertical lines) are labelled. All group comparisons were done with limma, correcting for age and sex. Models combining pre-onset and post-onset samples (a) corrected also for the average sample NPX value, calculated from all assays per sample.
+
+During the presymptomatic stage, 38 and 94 DEPs (FDR 5% and 10%, respectively) were found between participants who later developed MS and HC. Of the top ten hits, sperm-associated antigen 8 (SPAG8), CDAN1 interacting nuclease 1 (CDIN1), lactase-like (LCTL), DOCK10, von Willebrand factor A domain containing 1 (VWA1) were higher in presymptomatic MS samples, whereas INSM transcriptional repressor 2 (INSM2), KCND2, immunoglobulin superfamily member 11 (IGSF11), kinesin family member 26B (KIF26B) and coiled-coil domain containing 40 (CCDC40) were higher in HC (Fig. 1b and Supplementary Table 4). In all, 32 of 53 (60.4%) of the DEPs (FDR 10%) from the analysis of the combined pre-onset and post-onset DODSR samples were shared with the presymptomatic DEPs (P < 0.001). Following onset, few proteins were different between pwMS and HC; NEFL was higher, whereas SANBR was lower in pwMS (Fig. 1c).
+
+Protein signature related to immune cluster
+None of the evaluated proteins differed between DODSR pwMS with IC (pwMSIC) compared to pwMSnoIC as a whole group or in the presymptomatic stage (Fig. 2a). Following disease onset, two proteins showed a trend for being higher in pwMSIC, NAC alpha domain containing (NACAD) and Semaphorin 3 G (SEMA3G) (FDR-adjusted P = 0.074 for both) (Fig. 2b). In ORIGINS participants, numerous DEPs were detected between pwMSIC and pwMSnoIC (n = 13, FDR P < 0.05; Fig. 2c and Supplementary Table 5). When considering nominal P values, 19 DEPs were found to differ significantly between pwMSIC and pwMSnoIC in both cohorts and share the same directionality of difference (Fig. 2d and Supplementary Table 6).
+
+Fig. 2: Differentially expressed serum proteins in pwMS with evidence of distinct IC compared to those without.
+Fig. 2: Differentially expressed serum proteins in pwMS with evidence of distinct IC compared to those without.
+Full size image
+a,b, Proteomic changes in pwMSIC during the presymptomatic (a) and symptomatic (b) disease stage in the DODSR. c, In the UCSF ORIGINS study, numerous DEPs were evident in the early course of the disease. d, DEPs in the ORIGINS cohort with nominal P value < 0.05 and the same direction of change in both ORIGINS and DODSR. Positive FC indicates higher abundance in pwMSIC. Horizontal dashed lines reflect an FDR of 10%. Only DEPs with a FC of at least 0.5 (vertical lines) are labelled. All group comparisons were done with limma, correcting for age and sex.
+
+Myelin injury precedes neuroaxonal injury in presymptomatic MS
+In addition to identifying broader serum proteome changes related to MS pathogenesis, we leveraged our dataset to unravel the sequence of injury to different CNS cellular components. Indeed, in a hypothesis-driven approach, we explored the evolution of established CNS injury markers over the presymptomatic and early clinical MS, focusing on NEFL (axonal pathology), MOG (myelin injury) and glial fibrillary acidic protein (GFAP, astrocyte involvement). The levels of all three markers were higher in MS versus HC (P < 0.001, P < 0.001 and P = 0.024, respectively). NEFL and MOG elevation was evident in the presymptomatic (log fold change (logFC) 0.60 and 0.21, <0.001 and 0.001, respectively; Extended Data Figs. 2a and 3a) and post-onset stage (0.81 and 0.27, respectively, <0.001 and 0.002, respectively; Extended Data Figs. 2b and 3b). GFAP increase was most evident in post-MS-onset samples (logFC = 0.36, P < 0.001; Extended Data Fig. 4b), whereas no difference was seen before onset (P = 0.371; Extended Data Fig. 4a). Over the duration between the pre-onset and post-onset samples, GFAP levels increased at an accelerated rate compared to HC (interaction term, P = 0.017) (Extended Data Fig. 4c). MOG normalized protein expression (NPX) marginal means differed significantly from HC levels ~7 years before the first clinical manifestation, whereas NEFL elevation became evident ~1 year later (6 years before onset). GFAP NPX marginal means, on the other hand, started to deviate in pwMS from HC around the time of the clinical diagnosis (Fig. 3).
+
+Fig. 3: Predicted difference in abundance of selected CNS proteins in pwMS compared to controls.
+Fig. 3: Predicted difference in abundance of selected CNS proteins in pwMS compared to controls.
+Full size image
+Nominal P values extracted from a multivariant mixed model accounting for age at first sample, duration between the two sampling time points and sex, and involving an interaction term between group (MS versus HC) and duration between samples. The same model was conducted on the total average NPX (combined NPX) from all assays per sample to demonstrate the dynamics of NPX over the sample collection window.
+
+Immune cells’ network connectivity was higher in pwMS compared to HC
+Cell-specific protein network connectivity in pwMS compared to HC was explored. The highest connectivity was detected in B cells (P = 0.040), natural killer (NK) cells (P = 0.040), with a trend for involvement of T cells (P = 0.069), plasma cells as well as oligodendrocytes, excitatory and inhibitory neurons (P = 0.059 for all) (Extended Data Fig. 5). Looking specifically at samples from pwMS preceding disease onset, there was a trend for higher network connectivity in oligodendrocyte precursor cells (P = 0.050; Extended Data Fig. 6), immune cells showed a trend, without reaching significance; B, T and plasma cells (P = 0.079, P = 0.089 and P = 0.079, respectively). In pwMSIC versus pwMSnoIC, there was evidence for broad involvement of B cell and plasma cell network connectivity (P = 0.020 and P = 0.040, respectively) as well NK cells (P = 0.040) with a trend for increased T cell activity (P = 0.059) (Extended Data Fig. 7). None of the evaluated immune cells showed a significant increase in network connectivity during the presymptomatic stage of pwMSIC compared to those without the IC.
+
+To further explore the functional implication of DEPs, STRING protein–protein interaction (PPI) networks were constructed and related functional enrichment was conducted. Higher network connectivity was noted in presymptomatic MS stage in pwMS compared to HC for the IL-3 pathway (P = 1.37 × 10−5), NF kappa B (NF-κB) signaling pathway (P = 1.10 × 10−4), viral carcinogenesis (P = 1.21 × 10−8) and positive regulation of macromolecule metabolic process (P = 5.36 × 10−8n) (Fig. 4).
+
+Fig. 4: Protein–protein network analysis reveals protein networks involved in pwMS.
+Fig. 4: Protein–protein network analysis reveals protein networks involved in pwMS.
+Full size image
+Network demonstrating PPI focusing on DEPs in presymptomatic samples from pwMS versus HC in the DODSR. The color of nodes indicates the difference in abundance between pwMS versus HC for the DEPs. Color palette indicates pathway/GO term implicated in the STRING functional enrichment analysis. Only nonredundant terms with FDR P value < 0.05 were demonstrated.
+
+Differentiating presymptomatic pwMS from HC
+Finally, we explored the potential of our dataset to define a biomarker panel that could possibly differentiate presymptomatic pwMS from HC. Feature selection from the training dataset (n = 83 presymptomatic pwMS and 43 HC) revealed 21 features (proteins) that might be able to contribute to differentiation between presymptomatic cases and controls. Among the different machine learning classifiers, random forest showed the highest F1 score (0.89 (s.d. ± 0.04); Supplementary Table 7) during the cross-validation process. This model could correctly classify 95% presymptomatic pwMS (recall/sensitivity 0.95 (s.d. ± 0.02)), and specificity of 0.63 (s.d. ± 0.13) in the training dataset (Fig. 5a). This classifier showed good performance in the test dataset (34 and 17, presymptomatic pwMS and HC, respectively) with AUC of 0.81 and recall/sensitivity of 91% and 65% specificity (Fig. 5b). Optimizing model selection to maximize specificity, logistic regression using the same feature showed better specificity (0.70 (s.d. ± 0.13)) and area under the receiver operating characteristic (ROC) curve (AUC) in the training dataset (0.91 (s.d. ± 0.06)). This model had 0.79 (AUC), 0.76 (specificity) and 0.74 (sensitivity) in the test data.
+
+Fig. 5: ROC analysis and AUC showing performance of a biomarker panel discriminating presymptomatic pwMS and HC.
+Fig. 5: ROC analysis and AUC showing performance of a biomarker panel discriminating presymptomatic pwMS and HC.
+Full size image
+a,b, A biomarker panel of 21 proteins was selected in the training dataset (70%). Among different machine learning classifiers, a random forest model showed the highest performance in fivefold cross-validation (a). High performance was confirmed in a test dataset (30%, b).
+
+Discussion
+Our work demonstrates substantial changes in serum proteome in pwMS compared to HC, even during the presymptomatic stage of the disease. Numerous new potential proteins that are involved in clinical and presymptomatic MS were identified, extending beyond classical MS markers such as NEFL implicated in previous studies. As expected, some of the most significant DEPs in pwMS compared to HC are proteins related to the structural integrity of neurons (NEFL), myelin (MOG) and synapses (NRGN). However, IL-3 was the most DEP in pwMS (in terms of logFC and FDR P value), and involvement of the IL-3 signaling pathway was evident in the presymptomatic phase of the disease. Recent studies have described IL-3 secretion by astrocytes and infiltrating T cells in the CNS in MS12. IL-3 levels are also elevated in CSF from pwMS and promote detrimental glial-immune cell crosstalk12. Our findings suggest a prominent role of IL-3 in the pathophysiology of MS in the early stage of the biological initiation of the disease. Current findings also implicate the NF-κB pathway in presymptomatic MS. Previous work with experimental autoimmune encephalomyelitis—an animal model of inflammatory demyelination—documents the role of the NF-κB pathway in peripheral immune cell activation and the initiation of disease pathology13. In addition, this pathway plays a role in neurotoxicity and neuronal death14. The signal identified here in serum probably reflects the role of immune cell involvement in the periphery. In this regard, our cell-specific pathway analysis highlighted the involvement of B cells, T cells and plasma cells in pwMS, particularly in pwMS with the previously identified IC. Those differences were, however, most notable after the symptomatic onset of the disease. Biologically, immune cell activation is indeed expected to be highest in early stages of symptomatic MS, a period of the disease characterized by highly inflammatory activity as evident with clinical relapses. It can be postulated that the magnitude of immune cell activation in the presymptomatic stage is more limited and is restricted to a subset of B cells/plasma cells that are crucial for disease pathogenesis. Therefore, we were not able to detect statistically significant differences in our limited sample size.
+
+We found minor differences between pwMS and HC after the clinical onset, in contrast to other recent publications15,16. One of the main reasons could be the limited number of matched HC samples to symptomatic pwMS samples, which limits the statistical power of the analysis conducted. Nevertheless, DEPs with larger effect sizes that were also seen in previous cohorts, such as NEFL, were among the DEPs in our group comparison. The limited sample size could also partially explain the lack of differences between pwMSIC and those without IC in the DODSR. However, another potential reason is sample stability. Indeed, in the UCSF ORIGINS study, we saw numerous DEPs between both groups in a similar number of samples. Most of those proteins were related to immune cell functions and cellular network analysis revealed substantial involvement of B cells, T cells and plasma cells compared to those without IC. DODSR samples included in this work were collected ~20 years earlier than ORIGINS samples. Previous work evaluated the stability of proteins measured with a more limited Olink kit and revealed that up to 20% of proteins exhibited notable variation with storage >10 years17.
+
+Our results provided valuable insights into CNS injury in the presymptomatic stage. Indeed, CNS-derived proteins enabled the timing and sequence of injury to different CNS cellular components to be explored. NEFL elevation was evident ~6 years before the first clinical manifestation. MOG abundance—a marker of myelin integrity—was higher in pwMS ~1 year before NEFL elevation became evident. Serum MOG elevation could, therefore, implicate myelin as the earliest CNS component involved presymptomatic MS, preceding axonal pathology. In line with that, serum MOG levels might allow earlier detection of CNS injury in presymptomatic stage than NEFL. Recent findings from our group support this temporal association between demyelination and neuroaxonal injury. Indeed, demyelination, regardless of the driving mechanism, preceded and was associated with rising tissue and blood markers of neuroaxonal injury18. Strikingly, GFAP elevation coincided with clinical onset and lags behind MOG and NEFL. This finding could suggest that astrocytes’ contribution to MS pathogenesis in the presymptomatic stage might be limited. However, GFAP levels in MS might reflect mainly the astrocyte scar that accumulates with CNS injury, not necessarily the pathological role of astrocytes in MS development. Nevertheless, our data indicate a limited role of GFAP in studying the presymptomatic stage of MS compared to NEFL and MOG. This sequence of events could suggest a multi-hit model, in which one ‘hit’ would lead to the initiation of subclinical tissue injury (myelin and axon injury) in susceptible people, whereas another ‘hit’ might be associated with symptomatic onset of the disease—the timepoint at which GFAP elevation is evident.
+
+Yet, NEFL and MOG alone cannot be used to diagnose presymptomatic MS, as they lack specificity for MS and the degree of elevation could vary between participants. Therefore, we developed a preliminary biomarker panel that might be able to identify presymptomatic pwMS in our cohort with 91% sensitivity compared to HC. Such a panel, if validated in future independent studies, may be useful for identification of high-risk people who might develop MS in the future (within ~5 years) and promote additional confirmatory imaging and cerebrospinal fluid studies in this population. Such high-risk groups could include twins and other relatives of pwMS19,20, people with high genetic risk scores21 or potentially people with radiologically isolated syndrome22. Further validation of this panel composition, and performance in corresponding cohorts is crucial before clinical applicability and implications can be defined. Of note, this test was developed only using presymptomatic samples and its performance in early symptomatic MS should be evaluated in sufficiently powered studies. In this stage of the disease, a more relevant panel should also be able to differentiate pwMS from people with other inflammatory and demyelinating conditions.
+
+Although DODSR is an exceptional resource for presymptomatic samples, it has some inherited limitations that must be acknowledged. First, limited sample availability in the DODSR resulted in slightly unbalanced groups. Due to demographics in the US military, which has a male bias, our cohort differed from the typical relapsing remitting MS population, which might limit the generalizability of our results. Further, a validation dataset of presymptomatic MS patients was not available and the unique features of the DODSR dataset could bias the results. There are more non-whites in this military MS cohort, which makes the dataset more diverse than most MS observational and clinical trial populations, but could introduce additional bias. In addition, long sample storage might have impacted the stability of some proteins, which limits the detection of some potential markers. Finally, data on HLA were not available from DODSR participants. Similarly, there were no data on medication use at the time of sampling, particularly on DMT use at time of post-onset sampling. It is indeed expected that different DMTs categories might cause selective alterations in serum proteome, based on their mechanism of action. This limitation is, however, not expected to impact any of the findings reported in our presymptomatic MS as it is exceptionally unlikely that a DMT would be given before the diagnosis is formally established following symptom appearance. Although the DMT data was available from the ORIGINS cohort, the heterogeneity of DMT did not allow selective correction for DMT categories based on their mechanism of action, which could impose a limitation. Despite that, we replicated previously reported NEFL elevation in pwMSIC compared to those without IC, in both DODSR and ORIGINS, which supports the validity of our findings.
+
+In summary, our work unravels substantial changes in serum proteome in pwMS years before the clinical onset and highlights the utility of the discovery of protein tools to define different components of the disease, contributing cellular mechanisms, as well as the development of potential early detection tools.
+
+Methods
+Cohorts
+The DODSR presymptomatic MS participants were described previously2. This cohort was established in 2019 to assess environmental and genetic risk factors for MS before the onset of symptoms and diagnosis. MS cases (n = 250) were selected from the population-based Gulf War Era MS (GWEMS) cohort described in several studies23. The GWEMS cohort (n = 2,691) consists of incident MS cases within the US military population with active-duty service between 1990 and 2007. The demographic and clinical phenotypes of this cohort have been characterized, and over 95% are linked within the integrated Department of Defense and Department of Veterans Affairs electronic medical record (EMR) system. The diagnosis of MS was confirmed using the 2017 McDonald criteria24. In collaboration with the Armed Forces Health Surveillance Branch, we used the DODSR to identify the earliest serum sample before the first symptom onset of MS and a second sample shortly after onset from deeply phenotyped pwMS2. For each MS case, one healthy serum donor was selected randomly and matched on age, self-reported sex, race/ethnicity, military branch and dates of blood collection. The UCSF ORIGINS cohort was established in 2015 to study early MS biology, namely at disease onset. People with first-time-ever CNS symptoms likely to be autoimmune in nature were recruited within fewer than 90 days following symptom onset. A complete clinical and research workup includes a neurological examination and blood sampling was conducted. Participants are followed at 3-month intervals, with additional blood samples at 6 months and 12 months, then yearly.
+
+Sample selection
+The sample selection process was based on the previously reported cohort2 by selecting all IDs from pwMSIC (n = 27). pwMSIC were defined if either the sample collected before symptomatic MS onset or, after that, exhibited the characteristic IC defined before2. For each ID, two age- and sex-matched pwMSnoIC (n = 54) were selected. An additional 46 pwMSnoIC were selected randomly to bring the total number of pwMSnoIC to 100. This sample size was deemed sufficient because it has >0.9 power to detect small effect differences between pwMS and HC (η2 = 0.13) with a Bonferroni-corrected alpha of 9.2 × 10−6 (α = 0.05/5,416). A matched number of age, sex, race and military branch-matched HC were selected from the HC pool from the initial cohort2. Repeat iterations of the matching were conducted due to limited aliquot availability in the DODSR. In fact, additional aliquots were available from only 134 pwMS and 79 HC. From the ORIGINS MS cohort, samples were selected from the 13 participants that were identified previously to have the IC, as well as age- sex- and EDSS-matched 13 pwMSnoIC samples (Supplementary Fig. 1). This sample size has 0.84 power to detect relevant differences (η2 = 0.13) at Bonferroni-corrected α of 9.2 × 10−6.
+
+Proteomics analysis
+All samples were centrifuged at 10,000g for 5 min, and 50 µl were aliquoted on 96-well plates and measured alongside QC samples, plate and negative controls. Proximity extension assay was conducted using Olink Explore HT panel (~5,400 proteins). The final sequencing step was conducted on an Illumina NovaSeqX instrument. Measured protein abundance is reported as NPX after normalization of each assay signal against five interplate controls. Intra-run and inter-run CVs were calculated using three control samples on each plate. Sample QC was assessed using three internal controls (incubation, extension and amplification controls) spiked into each sample. Assays with median NPX of the three negative controls deviating more than 5 s.d. from predefined values set for each assay received QC warning. Outliers were identified in principal component analysis (PCA) with ±5 s.d. from mean aggregated NPX. Any assay/sample exhibiting assay QC warning was excluded from the final analysis.
+
+HLA assessment
+As reported before2, for each sample, 100 ng of high-quality DNA was processed (fragmentation, repairing, poly(A) tails and Illumina-compatible dual index adapters with unique barcodes addition, library amplification and purification). Probes were designed specifically to target all exons, introns and regulatory regions of the classical HLA loci, including HLA-A, HLA-B, HLA-C, HLA-DPB1, HLA-DRB1 and HLA-DQB1. Final sequencing occurred on NovaSeq platform (Illumina). After sequencing, HLA genotypes were predicted using HLA Explorer (Omixon). In a subset of samples without full HLA sequencing data (n = 4), only HLA-DRB1*1501 was assessed as reported before25.
+
+Statistical analysis
+Summary statistics were used to describe the clinical characteristics of the included population. Processing the proteomic data and QC was conducted using the Olinkanalyze (v.3.8.2) package26. Comparing the proteomics profile between the groups was conducted with the limma (v.3.58.1) package27. Log2 fold change (logFC) of the DEPs were reported accounting for an FDR of 5%. DEPs with FDR of 10% were also reported to leverage the discovery potential of this cohort. All proteomic comparisons between the groups were corrected for age at collection and biological sex. In the analyses combining pre- and post-onset samples, we corrected for repeated measures per participant as well as for the combined NPX (average NPX of all assays per sample) to account for possible alternation in sample/protein stability over the storage time. The theoretical age of possible disease onset in each HC case was estimated based on the age of onset in the corresponding matched MS participant.
+
+In the hypothesis-driven analysis of CNS proteins of interest, mixed models, including pre-onset and post-onset samples, correcting for age at first sample and sex, were conducted with an interaction term between group and time in relation to onset28 (lmerTest, v.3.1.3). Those models fitted random intercept to account for recurrent sampling per participant. In this predefined hypothesis-driven analysis, the nominal P values were used. Using package splot29 (v.2.8.16), predicted means and CI of NPX for every group (MS and HC) at every year of the covered time range were generated, which was used to calculate the P value. The first year over the covered duration where the P < 0.05 was selected to define the earliest timepoint at which the protein of interest differs between pwMS and HC. Machine learning algorithms were evaluated in Python (v.3.12.5). Otherwise, all analyses were conducted using R (v.4.3.2). All P values provided were two-sided.
+
+Network analysis
+Two approaches for network analysis were conducted. In the first, cell-specific involvement in the different disease stages and immunological phenotypes was defined. To that end, first, we created cell type-specific ‘baseline’ networks representing functional interactions between proteins (or genes) probably expressed in each cell type. To accomplish this, we used the Human Protein Cell Atlas to identify genes with expression levels exceeding one transcript per million for each cell type, then merged this data with PPI information from STRING, using a confidence cutoff of 0.7 for interactions30. We extracted subnetworks from the baseline cell-specific networks by selecting only proteins present in both the cell-specific baseline networks and proteins that were significantly different in the proteomic analysis creating subgraphs. We then quantified the connectivity among these subgraphs and compared it against an empirical distribution of 10,000 randomly generated, size-matched subnetworks. We assessed connectivity for several immune cells (B cells, T cells, NK cells, monocytes and plasma cells) as well as CNS cellular components (excitatory and inhibitory neurons, oligodendrocytes, oligodendrocyte precursor cells, astrocytes and microglia). This network analysis was conducted in Python (v.3.10.11).
+
+In the second analysis, PPI networks were construed using the search tool for the retrieval of interacting genes/proteins (STRING) interactome database31. Network analysis and visualization were conducted in Cyotscape32 (v.3.10.2), and 0.4 was set as the cutoff of the interaction score. In addition, STRING functional enrichment for involved gene ontology33,34 (GO), Kyoto Encyclopedia of Genes and Genomes35,36,37 and WikiPathways38 terms were explored. Terms with FDR < 0.05 were considered significant. Redundant terms (cutoff 0.5) were excluded.
+
+Machine learning classifier
+Participants with available presymptomatic samples were stratified into training (70%) and test set (30%) using groupdata2 package39 (v.2.0.5), while maintaining sex and time between sampling and clinical MS onset balanced between the datasets. Following that, feature selection was conducted on the training dataset to define important features (proteins) that can differentiate between presymptomatic pwMS and HC using the Boruta feature selection algorithm on Python40. To ensure feature stability, we conducted feature selection over a leave-one-out fivefold stratification of the training set. Only features that were detected in at least two iterations were used for model training.
+
+Performance of the selected features was defined across different machine learning models, including support vector classification, logistic regression, K-nearest neighbors, decision tree, random forest, gradient boosting, Gaussian naive Bayes and AdaBoost. Each model was trained through fivefold cross-validation in the training dataset. Finally, the model with the highest performance (F1-scores) was selected and retrained on the whole training dataset. The model’s capacity to differentiate between presymptomatic MS versus HC was evaluated in the test dataset.
+
+Ethical approval
+The study was approved by the Institutional Review Board of the UCSF (IRB number 23-38764).
+
+Reporting summary
+Further information on research design is available in the Nature Portfolio Reporting Summary linked to this article.
+
+Data availability
+The complete proteomic dataset generated from the DODSR participants and related demographics, and clinical data are available via Dryad at https://doi.org/10.5061/dryad.fttdz093t (ref. 41). Data from the ORIGINS cohort can be provided upon request to the study investigators.
+
+Code availability
+No original tool was developed for this paper. All the applied approaches have been previously published or are publicly available and referenced in the paper. The R/Python code can be provided upon request to the study investigators.
+
+References
+The changing demographic pattern of multiple sclerosis epidemiology. Lancet Neurol. 9, 520–532 (2020).
+
+Zamecnik, C. R. et al. An autoantibody signature predictive for multiple sclerosis. Nat. Med. 30, 1300–1308 (2024).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Bjornevik, K. et al. Longitudinal analysis reveals high prevalence of Epstein-Barr virus associated with multiple sclerosis. Science 375, 296–301 (2022).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Lanz, T. V. et al. Clonally expanded B cells in multiple sclerosis bind EBV EBNA1 and GlialCAM. Nature 603, 321–327 (2022).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Makhani, N. & Tremlett, H. The multiple sclerosis prodrome. Nat. Rev. Neurol. 17, 515–521 (2021).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Cortese, M. et al. Preclinical disease activity in multiple sclerosis: a prospective study of cognitive performance prior to first symptom. Ann. Neurol. 80, 616–624 (2016).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Hosseiny, M., Newsome, S. D. & Yousem, D. M. Radiologically isolated syndrome: a review for neuroradiologists. AJNR Am. J. Neuroradiol. 41, 1542–1549 (2020).
+
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Bjornevik, K. et al. Serum neurofilament light chain levels in patients with presymptomatic multiple sclerosis. JAMA Neurol. 77, 58–64 (2020).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Khalil, M. et al. Neurofilaments as biomarkers in neurological disorders. Nat. Rev. Neurol. 14, 577–589 (2018).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Britze, J. et al. Temporal dynamics of plasma neurofilament light in blood donors with preclinical multiple sclerosis. Neurol. Neuroimmunol. Neuroinflamm. 12, e200335 (2025).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Jons, D. et al. Seroreactivity against lytic, latent and possible cross-reactive EBV antigens appears on average 10 years before MS induced preclinical neuroaxonal damage. J. Neurol. Neurosurg. Psychiatry 95, 325–332 (2024).
+
+PubMed
+ 
+Google Scholar
+ 
+
+Kiss, M. G. et al. Interleukin-3 coordinates glial-peripheral immune crosstalk to incite multiple sclerosis. Immunity 56, 1502–1514 (2023).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Mc Guire, C., Prinz, M., Beyaert, R. & van Loo, G. Nuclear factor kappa B (NF-kappaB) in multiple sclerosis pathology. Trends Mol. Med. 19, 604–613 (2013).
+
+Article
+ 
+Google Scholar
+ 
+
+Kaltschmidt, B. & Kaltschmidt, C. NF-kappaB in the nervous system. Cold Spring Harb. Perspect. Biol. 1, a001271 (2009).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Jacobs, B. M. et al. Plasma proteomic profiles of UK Biobank participants with multiple sclerosis. Ann. Clin. Transl. Neurol. 11, 698–709 (2024).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Akesson, J. et al. Proteomics reveal biomarkers for diagnosis, disease activity and long-term disability outcomes in multiple sclerosis. Nat. Commun. 14, 6903 (2023).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Haslam, D. E. et al. Stability and reproducibility of proteomic profiles in epidemiological studies: comparing the Olink and SOMAscan platforms. Proteomics 22, e2100170 (2022).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Abdelhak, A., et al. Markers of axonal injury in blood and tissue triggered by acute and chronic demyelination. Brain https://doi.org/10.1093/brain/awaf144 (2025).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Kavaka, V. et al. Twin study identifies early immunological and metabolic dysregulation of CD8(+) T cells in multiple sclerosis. Sci. Immunol. 9, eadj8094 (2024).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Gerdes, L. A. et al. Immune signatures of prodromal multiple sclerosis in monozygotic twins. Proc. Natl Acad. Sci. USA 117, 21546–21556 (2020).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Shams, H. et al. Polygenic risk score association with multiple sclerosis susceptibility and phenotype in Europeans. Brain 146, 645–656 (2023).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Lebrun-Frenay, C. et al. Radiologically isolated syndrome: 10-year risk estimate of a clinical event. Ann. Neurol. 88, 407–417 (2020).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Wallin, M. T. et al. The Gulf War era multiple sclerosis cohort: age and incidence rates by race, sex and service. Brain 135, 1778–1785 (2012).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Thompson, A. J. et al. Diagnosis of multiple sclerosis: 2017 revisions of the McDonald criteria. Lancet Neurol. 17, 162–173 (2018).
+
+Article
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Caillier, S. J. et al. Uncoupling the roles of HLA-DRB1 and HLA-DRB5 genes in multiple sclerosis. J. Immunol. 181, 5473–5480 (2008).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Nevola, K. et al. OlinkAnalyze: facilitate analysis of proteomic data from Olink. CRAN https://CRAN.R-project.org/package=OlinkAnalyze (2025).
+
+Ritchie, M. E. et al. limma powers differential expression analyses for RNA-sequencing and microarray studies. Nucleic Acids Res. 43, e47 (2015).
+
+Article
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Kuznetsova, A., Brockhoff, P. B. & Christensen, R. H. B. lmerTest package: tests in linear mixed effects models. J. Stat. Softw. 82, https://doi.org/10.18637/jss.v082.i13 (2017).
+
+Lüdecke, D. sjPlot: data visualization for statistics in social science. CRAN https://CRAN.R-project.org/package=sjPlot (2025).
+
+International Multiple Sclerosis Genetics Consortium A systems biology approach uncovers cell-specific gene regulatory effects of genetic associations in multiple sclerosis. Nat. Commun. 10, 2236 (2019).
+
+Article
+ 
+Google Scholar
+ 
+
+Doncheva, N. T., Morris, J. H., Gorodkin, J. & Jensen, L. J. Cytoscape StringApp: network analysis and visualization of proteomics data. J. Proteome Res. 18, 623–632 (2019).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Shannon, P. et al. Cytoscape: a software environment for integrated models of biomolecular interaction networks. Genome Res. 13, 2498–2504 (2003).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Ashburner, M. et al. Gene ontology: tool for the unification of biology. Nat. Genet. 25, 25–29 (2000).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Gene Ontology Consortium et al. The gene ontology knowledgebase in 2023. Genetics https://doi.org/10.1093/genetics/iyad031 (2023).
+
+Ogata, H. et al. KEGG: Kyoto Encyclopedia of Genes and Genomes. Nucleic Acids Res 27, 29–34 (1999).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Kanehisa, M. Toward understanding the origin and evolution of cellular organisms. Protein Sci. 28, 1947–1951 (2019).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+PubMed Central
+ 
+Google Scholar
+ 
+
+Kanehisa, M., Furumichi, M., Sato, Y., Kawashima, M. & Ishiguro-Watanabe, M. KEGG for taxonomy-based analysis of pathways and genomes. Nucleic Acids Res. 51, D587–D592 (2023).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Agrawal, A. et al. WikiPathways 2024: next generation pathway database. Nucleic Acids Res. 52, D679–D689 (2024).
+
+Article
+ 
+CAS
+ 
+PubMed
+ 
+Google Scholar
+ 
+
+Olsen, L. groupdata2: creating groups from data. CRAN https://CRAN.R-project.org/package=groupdata2 (2024).
+
+Kursa, M. B. & Rudnicki, W. R. Feature selection with the Boruta package. J. Stat. Softw. 36, 1–13 (2010).
+
+Article
+ 
+Google Scholar
+ 
+
+Abdelhak, A., Wilson, M. R., Wallin, M., Cree, B. & Green, A. Serum proteome characterizes sequence of CNS injury in pre-symptomatic multiple sclerosis. Dryad https://doi.org/10.5061/dryad.fttdz093t (2025).
+
+Download references
+
+Acknowledgements
+This study was conducted through an early investigator award from the Department of Defense (HT94252310499 (A.A., A.J.G., M.R.W., M.T.W., B.A.C.C.)). Opinions, interpretations, conclusions and recommendations are those of the authors and are not necessarily endorsed by the Department of Defense. Sequencing was performed at the UCSF CAT, supported by UCSF PBBR, RRP IMIA, and NIH 1S10OD028511-01 grants. The authors of this work are supported by the Valhalla Foundation (S.L.H., M.R.W., J.R.O. and B.A.C.C.); the Westridge Foundation (M.R.W. and A.J.G.); National Institute of Neurological Disorders and Stroke R35NS111644 (S.L.H. and M.R.W.), National Multiple Sclerosis Society RFA-2104-37504 (M.R.W., M.T.W. and B.A.C.C.); National Multiple Sclerosis Society SI-2001-35751 (J.R.O.); the Water Cove Charitable Foundation (M.R.W., M.T.W., B.A.C.C. and C.R.Z.); Tim and Laura O’Shaughnessy (M.R.W.); Dr. Miriam and Sheldon G. Adelson Medical Research Foundation (APND grant to J.R.C.), the Littera Family (M.R.W.); The funders had no role in study design, data collection and analysis, decision to publish or preparation of the manuscript. Data were obtained from the Defense Medical Surveillance System, Armed Forces Health Surveillance Branch, and Defense Health Agency (data from 1987–2007, released 2010).
+
+Author information
+Author notes
+These authors jointly supervised this work: Ahmed Abdelhak, Ari J. Green.
+
+Authors and Affiliations
+Department of Neurology, Weill Institute for Neurosciences, University of California at San Francisco, San Francisco, CA, USA
+
+Ahmed Abdelhak, Gabriel Cerono, Kiarra Ning, Colin R. Zamecnik, Gavin M. Sowa, Christian Cordano, Asritha Tubati, Camille Fouassier, Refujia Gomez, Adam Santaniello, Jill A. Hollenbach, Jorge R. Oksenberg, Bruce A. C. Cree, Stephen L. Hauser, Jonah R. Chan, Sergio E. Baranzini, Michael R. Wilson & Ari J. Green
+
+Independent researcher, San Francisco, CA, USA
+
+Fahime Sheikhzadeh
+
+The Neuro (Montreal Neurological Institute-Hospital), Montréal, Quebec, Canada
+
+Adil Harroud
+
+Department of Neurology and Neurosurgery, McGill University, Montréal, Quebec, Canada
+
+Adil Harroud
+
+Department of Human Genetics, McGill University, Montréal, Quebec, Canada
+
+Adil Harroud
+
+Department of Medicine, Northwestern Medicine, Chicago, IL, USA
+
+Gavin M. Sowa
+
+Departments of Medicine and Epidemiology and Biostatistics, University of California at San Francisco, San Francisco, CA, USA
+
+John Boscardin
+
+Department of Biochemistry and Biophysics, University of California at San Francisco, San Francisco, CA, USA
+
+Eric D. Chow & Kelsey C. Zorn
+
+Departments of Epidemiology and Biostatistics, University of California at San Francisco, San Francisco, CA, USA
+
+Jill A. Hollenbach
+
+Department of Veterans Affairs, Multiple Sclerosis Center of Excellence, Washington, DC, USA
+
+Mitchell T. Wallin
+
+University of Maryland School of Medicine, Baltimore, MD, USA
+
+Mitchell T. Wallin
+
+Department of Ophthalmology, University of California at San Francisco, San Francisco, CA, USA
+
+Ari J. Green
+
+Contributions
+A.A., A.J.G., M.R.W., M.T.W., S.L.H. and B.A.C.C. designed the study. A.A., K.N., M.R.W., M.T.W., C.R.Z., G.M.S., A.T., C.F., C.C., R.G., A.S., K.C.Z., E.D.C. and J.R.O. collected data. A.A., G.C., A.H., K.N., J.B., B.A.C.C., S.L.H., S.E.B., M.R.W., M.T.W. and A.J.G. analyzed data. All authors drafted and reviewed the paper. A.A., A.J.G., M.R.W., M.T.W., S.L.H. and B.A.C.C. acquired funding.
+
+Corresponding author
+Correspondence to Ahmed Abdelhak.
+
+Ethics declarations
+Competing interests
+A preliminary patent application has been filed for a new method to diagnose presymptomatic multiple sclerosis using protein biomarker panel, as described in this study. The patent application number is 63/750,666, filed on 28 January 2025. A.A. received consultation/speaker fees from Roche, OctaveBio, EMD Serono and Sanofi. F.S. reports a relationship with F. Hoffmann-La Roche Ltd. that includes employment and equity or stocks. E.D.C. is a founder of Survey Genomics. A.J.G. reports research support and grants from NINDS R01 NS105741 R01AG062562 R01AG038791, NMSS RG-1707-28564, All May See, Westridge Foundation, JAMA Neurology, Roche, Pipeline Pharmaceuticals and Cognito Therapeutics. A.J.G. is also an associate editor for JAMA Neurology. S.L.H. currently serves on the scientific advisory boards of Accure, Alector, Annexon and Hinge Bio; previously consulted for BD, Gilead, Moderna, NGM Bio, Nurix Therapeutics and Pheno Therapeutics; previously served on the Board of Directors of Neurona and currently serves as an advisor. S.L.H. also has received nonfinancial support (travel reimbursement and writing support for anti-CD20-therapy-related meetings and presentations) from F. Hoffmann-La Roche and Novartis AG; and has received no personal compensation from any entity that sells or tests therapeutics for MS. The other authors declare no competing interests.
+
+Peer review
+Peer review information
+Nature Medicine thanks Enric Monreal and the other, anonymous, reviewer(s) for their contribution to the peer review of this work. Primary Handling Editor: Jerome Staal, in collaboration with the Nature Medicine team.
+
+Additional information
+Publisher’s note Springer Nature remains neutral with regard to jurisdictional claims in published maps and institutional affiliations.
+
+Extended data
+Extended Data Fig. 1 Sample collection time in relation to symptomatic onset of multiple sclerosis.
+Box-plot figure demonstrating the distribution of samples in relation to symptomatic onset of multiple sclerosis in the Department of Defense Serum Repository.
+
+Extended Data Fig. 2 Neurofilament light chain abundance in the DODSR study population.
+Neurofilament light chain (NEFL) normalized protein expression (NPX) in samples from people with multiple sclerosis (MS) compared to healthy controls (HC) in the Department of Defense Serum Repository (DODSR), and in relation to symptomatic onset of the disease. A shows NPX values in pre-symptomatic MS samples, their controls and the p-value for comparison (nominal p from limma models correcting for age and sex). B shows the same comparison using post-onset samples. C shows predicted NEFL NPX evolution over time between pre- and post-onset samples and p-value for interaction term between NPX and duration between samples using linear mixed model accounting for age at pre-onset sample, and sex.
+
+Extended Data Fig. 3 Myelin oligodendrocyte glycoprotein abundance in the DODSR study population.
+Myelin oligodendrocyte glycoprotein (MOG) normalized protein expression (NPX) in samples from people with multiple sclerosis (MS) compared to healthy controls (HC) in the Department of Defense Serum Repository (DODSR), and in relation to symptomatic onset of the disease. A shows NPX values in pre-symptomatic MS samples, their controls and the p-value for comparison (nominal p from limma models correcting for age and sex). B shows the same comparison using post-onset samples. C shows predicted MOG NPX evolution over time between pre- and post-onset samples and p-value for interaction term between NPX and duration between samples using linear mixed model accounting for age at pre-onset sample, and sex.
+
+Extended Data Fig. 4 Glial fibrillary acidic protein abundance in the DODSR study population.
+Glial fibrillary acidic protein (GFAP) normalized protein expression (NPX) in samples from people with multiple sclerosis (MS) compared to healthy controls (HC) in the Department of Defense Serum Repository (DODSR), and in relation to symptomatic onset of the disease. A shows NPX values in pre-symptomatic MS samples, their controls and the p-value for comparison (nominal p from limma models correcting for age and sex). B shows the same comparison using post-onset samples. C shows predicted GFAP NPX evolution over time between pre- and post-onset samples and p-value for interaction term between NPX and duration between samples using linear mixed model accounting for age at pre-onset sample, and sex.
+
+Extended Data Fig. 5 Cellular involvement in people with multiple sclerosis compared to healthy controls.
+Cellular network analysis of differentially expressed proteins in people with multiple sclerosis (pwMS) compared to healthy controls (HC) indicates the involvement of different cells, mostly of the immune system (B, natural killer, monocyte, and plasma cells) as well as trends for involvement of neuronal and oligodendrocyte cellular components.
+
+Extended Data Fig. 6 Cellular involvement during the pre-symptomatic stage of disease pathology in people with multiple sclerosis compared to healthy controls.
+Cellular network analysis of differentially expressed proteins in pre-symptomatic samples from people with multiple sclerosis (pwMS) compared to healthy controls (HC) indicates the involvement of oligodendrocyte precursor cells (OPCs) during the pre-symptomatic stage of MS.
+
+Extended Data Fig. 7 Cellular involvement in people with multiple sclerosis (pwMS) with evidence of signature immune cluster immune cluster compared to those without.
+Cellular network analysis of differentially expressed proteins in pwMS with immune cluster compared to those without indicates the involvement of B-, plasma- and natural killer (NK) cells with a trend for increased network activity in T- cells.
+
+Supplementary information
+Supplementary Information (download PDF )
+Supplementary Tables 1–4 and Fig. 1.
+
+Reporting Summary (download PDF )
+Rights and permissions
+Springer Nature or its licensor (e.g. a society or other partner) holds exclusive rights to this article under a publishing agreement with the author(s) or other rightsholder(s); author self-archiving of the accepted manuscript version of this article is solely governed by the terms of such publishing agreement and applicable law.
+
+Reprints and permissions
+
+About this article
+Check for updates. Verify currency and authenticity via CrossMark
+Cite this article
+Abdelhak, A., Cerono, G., Sheikhzadeh, F. et al. Myelin injury precedes axonal injury and symptomatic onset in multiple sclerosis. Nat Med 32, 362–368 (2026). https://doi.org/10.1038/s41591-025-04014-w
+
+Download citation
+
+Received
+02 March 2025
+
+Accepted
+11 September 2025
+
+Published
+20 October 2025
+
+Version of record
+20 October 2025
+
+Issue date
+January 2026
+
+DOI
+https://doi.org/10.1038/s41591-025-04014-w
+
+Share this article
+Anyone you share the following link with will be able to read this content:
+
+Get shareable link
+Provided by the Springer Nature SharedIt content-sharing initiative
+
+Subjects
+Diagnostic markers
+Multiple sclerosis
+You have full access to this article via Icahn School of Medicine at Mount Sinai.
+
+Download PDF
+Sections
+Figures
+References
+Fig. 1: Differentially expressed proteins between pwMS and HC from the DODSR.
+Fig. 1: Differentially expressed proteins between pwMS and HC from the DODSR.
+View in article
+Full size image
+
+Fig. 2: Differentially expressed serum proteins in pwMS with evidence of distinct IC compared to those without.
+Fig. 2: Differentially expressed serum proteins in pwMS with evidence of distinct IC compared to those without.
+View in article
+Full size image
+
+Fig. 3: Predicted difference in abundance of selected CNS proteins in pwMS compared to controls.
+Fig. 3: Predicted difference in abundance of selected CNS proteins in pwMS compared to controls.
+View in article
+Full size image
+
+Fig. 4: Protein–protein network analysis reveals protein networks involved in pwMS.
+Fig. 4: Protein–protein network analysis reveals protein networks involved in pwMS.
+View in article
+Full size image
+
+Fig. 5: ROC analysis and AUC showing performance of a biomarker panel discriminating presymptomatic pwMS and HC.
+Fig. 5: ROC analysis and AUC showing performance of a biomarker panel discriminating presymptomatic pwMS and HC.
+View in article
+Full size image
+
+Extended Data Fig. 1 Sample collection time in relation to symptomatic onset of multiple sclerosis.
+extended data figure 6
+View in article
+Full size image
+
+Extended Data Fig. 2 Neurofilament light chain abundance in the DODSR study population.
+extended data figure 7
+View in article
+Full size image
+
+Extended Data Fig. 3 Myelin oligodendrocyte glycoprotein abundance in the DODSR study population.
+extended data figure 8
+View in article
+Full size image
+
+Extended Data Fig. 4 Glial fibrillary acidic protein abundance in the DODSR study population.
+extended data figure 9
+View in article
+Full size image
+
+Extended Data Fig. 5 Cellular involvement in people with multiple sclerosis compared to healthy controls.
+extended data figure 10
+View in article
+Full size image
+
+Extended Data Fig. 6 Cellular involvement during the pre-symptomatic stage of disease pathology in people with multiple sclerosis compared to healthy controls.
+extended data figure 11
+View in article
+Full size image
+
+Extended Data Fig. 7 Cellular involvement in people with multiple sclerosis (pwMS) with evidence of signature immune cluster immune cluster compared to those without.
+extended data figure 12
+View in article
+Full size image
+
+Nature Medicine (Nat Med) ISSN 1546-170X (online) ISSN 1078-8956 (print)
+nature.com footer links
+About Nature Portfolio
+About us
+Press releases
+Press office
+Contact us
+Discover content
+Journals A-Z
+Articles by subject
+protocols.io
+Nature Index
+Publishing policies
+Nature portfolio policies
+Open access
+Author & Researcher services
+Reprints & permissions
+Research data
+Language editing
+Scientific editing
+Nature Masterclasses
+Research Solutions
+Libraries & institutions
+Librarian service & tools
+Librarian portal
+Open research
+Recommend to library
+Advertising & partnerships
+Advertising
+Partnerships & Services
+Media kits
+Branded content
+Professional development
+Nature Awards
+Nature Careers
+Nature Conferences
+Regional websites
+Nature Africa
+Nature China
+Nature India
+Nature Japan
+Nature Middle East
+Privacy Policy Use of cookies Your privacy choices/Manage cookies Legal notice Accessibility statement Terms & Conditions Your US state privacy rights
+Springer Nature
+© 2026 Springer Nature Limited
+
+Qualtrics Logo
+Do you publish research?
+If so, would you be willing to take 2 minutes to answer a few questions about your research plans for the near future?
+YesNo Thanks
