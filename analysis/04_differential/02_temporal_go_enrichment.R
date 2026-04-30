@@ -26,21 +26,44 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+suppressPackageStartupMessages({
+    library(glue)
+    library(here)
+})
 
-ROLLING_FILE <- file.path(PROJ_DIR, "results", "survival", "ms_protein_cox_rolling.csv")
+cfg     <- load_disease_config()
+COHORT  <- cfg$cohort_short
+DISEASE <- cfg$disease_short_caps
+
+ROLLING_FILE <- file.path(PROJ_DIR, "results", "survival",
+                          glue("{COHORT}_protein_cox_rolling.csv"))
 OUT_DIR      <- file.path(PROJ_DIR, "results", "survival")
 
-if (!file.exists(ROLLING_FILE)) stop("Run 01_ms_protein_cox.R first: ", ROLLING_FILE)
+# Bail gracefully when upstream Cox stage hasn't run for this cohort.
+if (!file.exists(ROLLING_FILE)) {
+    cat(sprintf("Temporal GO stage skipped: %s not found.\n",
+                basename(ROLLING_FILE)))
+    cat("  Run analysis/13_survival/01_ms_protein_cox.R first.\n")
+    quit(save = "no", status = 0)
+}
 
 roll <- fread(ROLLING_FILE)
+if (nrow(roll) == 0L) {
+    cat(sprintf("Temporal GO stage skipped: %s is empty (no time bins\n",
+                basename(ROLLING_FILE)))
+    cat("  reached the survival_min_events_per_bin threshold).\n")
+    quit(save = "no", status = 0)
+}
 # Standardise column names
 if ("protein" %in% names(roll)) roll[, protein := toupper(protein)]
 
 cat("Rolling HR table:\n")
 print(roll[, .N, by = time_bin])
 
-# Define time bin order
-BIN_ORDER <- c("0–4 yr", "4–8 yr", "8–12 yr", "12+ yr")
+# Bin order discovered from the rolling Cox output (so cohort-specific
+# bins from cfg$ytd_bins flow through automatically).
+BIN_ORDER <- unique(roll$time_bin)
 roll[, bin_f := factor(time_bin, levels = BIN_ORDER)]
 
 # ── For each bin: risk-associated proteins (HR>1, p<0.05) ────────────────────
@@ -48,7 +71,8 @@ cat("\nProteins per time bin (HR>1, p<0.05):\n")
 go_results <- list()
 
 # Use full Cox protein list as background (all proteins tested in Cox analysis)
-COX_ALL_FILE <- file.path(PROJ_DIR, "results", "survival", "ms_protein_cox_results.csv")
+COX_ALL_FILE <- file.path(PROJ_DIR, "results", "survival",
+                          glue("{COHORT}_protein_cox_results.csv"))
 bg_prots <- if (file.exists(COX_ALL_FILE)) {
     toupper(fread(COX_ALL_FILE)$protein)
 } else NULL
@@ -84,13 +108,15 @@ if (length(go_results) == 0) {
     cat("No enrichment results — protein lists too small for GO ORA.\n")
     cat("Writing empty placeholder and producing Cox-only heatmap.\n")
     # Fall back to just the rolling HR heatmap (no GO annotation)
-    fwrite(data.table(), file.path(OUT_DIR, "ms_temporal_go_enrichment.csv"))
+    fwrite(data.table(),
+           file.path(OUT_DIR, glue("{COHORT}_temporal_go_enrichment.csv")))
     cat("\n02_temporal_go_enrichment.R complete (no GO terms found).\n")
     quit(save = "no", status = 0)
 }
 
 all_go <- rbindlist(go_results, fill = TRUE)
-fwrite(all_go, file.path(OUT_DIR, "ms_temporal_go_enrichment.csv"))
+fwrite(all_go,
+       file.path(OUT_DIR, glue("{COHORT}_temporal_go_enrichment.csv")))
 cat(sprintf("\nTotal enriched terms: %d\n", nrow(all_go)))
 
 # ── Select top terms for display ──────────────────────────────────────────────
@@ -127,12 +153,8 @@ p_heat <- ggplot(heat_grid, aes(x = bin_f, y = term_f, fill = neg_log10_p)) +
     scale_fill_gradient(low = "grey92", high = "#CC0066",
                         name = expression(-log[10]~italic(p)[adj]),
                         guide = guide_colourbar(barwidth = 0.6, barheight = 4)) +
-    scale_x_discrete(expand = c(0, 0),
-                     labels = c("0–4 yr"  = "0–4 yr\nbefore Dx",
-                                "4–8 yr"  = "4–8 yr\nbefore Dx",
-                                "8–12 yr" = "8–12 yr\nbefore Dx",
-                                "12+ yr"  = ">12 yr\nbefore Dx")) +
-    labs(title    = "Temporal GO enrichment of pre-MS protein changes",
+    scale_x_discrete(expand = c(0, 0)) +
+    labs(title    = glue("Temporal GO enrichment of pre-{DISEASE} protein changes"),
          subtitle = "GO:BP terms enriched in risk-associated proteins (HR>1, p<0.05) per time window",
          x = NULL, y = NULL) +
     theme_ukb(base_size = 9) +
@@ -142,8 +164,8 @@ p_heat <- ggplot(heat_grid, aes(x = bin_f, y = term_f, fill = neg_log10_p)) +
           legend.position = "right")
 
 h_fig <- max(5, length(all_terms) * 0.32 + 2)
-ggsave(file.path(OUT_DIR, "ms_temporal_go_heatmap.pdf"),
+ggsave(file.path(OUT_DIR, glue("{COHORT}_temporal_go_heatmap.pdf")),
        p_heat, width = 7.5, height = h_fig, device = cairo_pdf)
-cat("  Saved: ms_temporal_go_heatmap.pdf\n")
+cat(sprintf("  Saved: %s_temporal_go_heatmap.pdf\n", COHORT))
 
 cat("\n02_temporal_go_enrichment.R complete.\n")

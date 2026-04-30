@@ -1,4 +1,10 @@
-"""ALS Differential Protein Abundance Analysis — replicating Chia et al. 2025.
+"""DEPRECATED — ALS-only legacy implementation. Use the cohort-agnostic R version:
+   analysis/04_differential/01_limma_ms_vs_hc.R
+   This file is retained for reproducing Chia et al. 2025 in the original
+   paper context. For new disease replications DO NOT run this; the templated
+   pipeline writes the same {cohort_short}_*_vs_hc.csv outputs config-style.
+
+ALS Differential Protein Abundance Analysis — replicating Chia et al. 2025.
 
 Three comparisons:
   1. All ALS (ALGO_MND refined) vs HC

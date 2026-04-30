@@ -180,15 +180,30 @@ run_cluster_psm_limma <- function(
         )
         psm_df[[time_var]] <- sub_all[[time_var]]
 
-        if (sum(psm_df$treat) < 3L) {
-            cat(sprintf("  %s: too few treated, skipping PSM\n", cl)); next
+        n_treat <- sum(psm_df$treat)
+        n_ctrl  <- sum(1L - psm_df$treat)
+        if (n_treat < 3L) {
+            cat(sprintf("  %s: too few treated (n=%d), skipping PSM\n",
+                        cl, n_treat))
+            next
+        }
+        # Scale PSM ratio down when controls are scarce relative to treated.
+        # The caller passes a target ratio (default 10:1); use it only if
+        # there are enough controls; otherwise drop to floor(n_ctrl/n_treat).
+        # Without this, MatchIt::matchit silently fails or matches without
+        # enough controls when a cluster is small (e.g. 8 cases in a
+        # disease where the "None" arm is also small).
+        eff_ratio <- min(psm_ratio, max(1L, floor(n_ctrl / max(1L, n_treat))))
+        if (eff_ratio != psm_ratio) {
+            cat(sprintf("  %s: scaled PSM ratio %d -> %d (n_treat=%d, n_ctrl=%d)\n",
+                        cl, psm_ratio, eff_ratio, n_treat, n_ctrl))
         }
         psm_form <- as.formula(
             paste("treat ~ age_at_sampling + sex_num +", time_var)
         )
         m <- tryCatch(
             MatchIt::matchit(psm_form, data = psm_df,
-                             method = "nearest", ratio = psm_ratio,
+                             method = "nearest", ratio = eff_ratio,
                              caliper = psm_cal, std.caliper = TRUE),
             error = function(e) {
                 cat(sprintf("  %s PSM failed: %s\n", cl, conditionMessage(e))); NULL

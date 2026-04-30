@@ -108,10 +108,26 @@ META_COLS <- c("eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
 prot_cols <- setdiff(names(qc), META_COLS)
 cat("  Protein columns:", length(prot_cols), "\n")
 
-# Temporal bins — spans full disease course (post-onset left, pre-onset right)
-BIN_BREAKS <- c(-Inf, -10, -5, -2, 0, 2, 5, 10, Inf)
-BIN_LABELS <- c("< -10", "[-10,-5)", "[-5,-2)", "[-2,0)",
-                 "[0,2)", "[2,5)", "[5,10)", "> 10")
+# Temporal bins — span the full disease course (post-onset left, pre-onset
+# right).  Prefer cfg$temporal_bins (numeric vector of cut breakpoints when
+# the disease has a non-MS-like window — e.g., acute stroke or chronic DM2);
+# otherwise default to the MS/ALS-validated -10..+10 year window.
+.cfg_bins_breaks <- cfg$temporal_bins
+if (!is.null(.cfg_bins_breaks) && length(.cfg_bins_breaks) >= 3L) {
+    BIN_BREAKS <- as.numeric(.cfg_bins_breaks)
+    BIN_LABELS <- vapply(seq_len(length(BIN_BREAKS) - 1L), function(i) {
+        lo <- BIN_BREAKS[i]; hi <- BIN_BREAKS[i + 1L]
+        if      (is.infinite(lo) && lo < 0) sprintf("< %g", hi)
+        else if (is.infinite(hi))           sprintf("> %g", lo)
+        else                                sprintf("[%g,%g)", lo, hi)
+    }, character(1))
+} else {
+    BIN_BREAKS <- c(-Inf, -10, -5, -2, 0, 2, 5, 10, Inf)
+    BIN_LABELS <- c("< -10", "[-10,-5)", "[-5,-2)", "[-2,0)",
+                     "[0,2)", "[2,5)", "[5,10)", "> 10")
+}
+cat(sprintf("  Temporal bin breaks: %s\n",
+            paste(BIN_BREAKS, collapse = ", ")))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Panel a — Sampling window

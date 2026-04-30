@@ -163,13 +163,26 @@ cat("\nRunning rolling HR by time-to-diagnosis bin...\n")
 # Use top 20 proteins (by overall significance) for rolling analysis
 top_prots <- cox_dt[1:min(20, .N), protein]
 
-# Define bins (years BEFORE diagnosis)
-time_bins <- list(
-    "0–4 yr"   = c(0,  4),
-    "4–8 yr"   = c(4,  8),
-    "8–12 yr"  = c(8, 12),
-    "12+ yr"   = c(12, MAX_FOLLOW_UP + 1)
-)
+# Time bins: prefer cfg$ytd_bins (named list of c(low, high) pairs), else
+# use disease-default 4-year segments out to MAX_FOLLOW_UP.  This lets a
+# replication cohort with a much shorter prodrome (e.g. acute stroke) or
+# decades-long prodrome (e.g. DM2) parameterize the rolling-HR window from
+# disease.yaml without editing this script.
+.cfg_bins <- cfg$ytd_bins
+if (!is.null(.cfg_bins) && length(.cfg_bins) > 0) {
+    time_bins <- lapply(.cfg_bins, function(p) as.numeric(p))
+    cat(sprintf("  Using cfg$ytd_bins: %d bin(s)\n", length(time_bins)))
+} else {
+    time_bins <- list(
+        "0–4 yr"  = c(0,  4),
+        "4–8 yr"  = c(4,  8),
+        "8–12 yr" = c(8, 12),
+        "12+ yr"  = c(12, MAX_FOLLOW_UP + 1)
+    )
+}
+
+# Minimum case count per bin: cfg$survival_min_events_per_bin defaults to 5.
+.min_events <- cfg$survival_min_events_per_bin %||% 5L
 
 roll_list <- list()
 for (bin_name in names(time_bins)) {
@@ -179,7 +192,7 @@ for (bin_name in names(time_bins)) {
                       (event == 1 & surv_time >= bin_range[1] & surv_time < bin_range[2])]
     n_cases <- sum(dt_bin$event)
     cat(sprintf("  %s: %d cases\n", bin_name, n_cases))
-    if (n_cases < 5) next
+    if (n_cases < .min_events) next
 
     for (prot in top_prots) {
         res <- run_cox(dt_bin, prot)
@@ -189,6 +202,13 @@ for (bin_name in names(time_bins)) {
             roll_list[[paste(bin_name, prot)]] <- res
         }
     }
+}
+
+if (length(roll_list) == 0L) {
+    cat(sprintf("  Rolling HR analysis skipped: no time bin has >= %d cases.\n",
+                .min_events))
+    cat("  Configure cfg$ytd_bins for a cohort with a different temporal\n")
+    cat("  window (acute stroke / chronic DM2) before re-running.\n")
 }
 
 if (length(roll_list) > 0) {
@@ -223,22 +243,30 @@ if (length(roll_list) > 0) {
            width = 6.5, height = 7, device = cairo_pdf)
     cat(sprintf("  Saved: %s\n", ROLLING_PDF))
 
-    # Also: line plot for NEFL specifically
-    nefl_roll <- roll_dt[protein == "nefl"]
-    if (nrow(nefl_roll) > 0) {
-        p_nefl <- ggplot(nefl_roll, aes(x = bin_f, y = HR, group = 1)) +
-            geom_ribbon(aes(ymin = HR_lo, ymax = HR_hi), fill = "#CC0066", alpha = 0.2) +
-            geom_line(colour = "#CC0066", linewidth = 0.8) +
-            geom_point(colour = "#CC0066", size = 2.5) +
-            geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.4) +
-            labs(x = glue("Years before {DISEASE} diagnosis"),
-                 y = "Hazard ratio (95% CI)",
-                 title = glue("NEFL: rolling HR for {DISEASE} incidence")) +
-            theme_ukb()
-        NEFL_PDF <- glue("{COHORT}_nefl_rolling_hr.pdf")
-        ggsave(file.path(OUT_DIR, NEFL_PDF), p_nefl,
-               width = 5, height = 3.5, device = cairo_pdf)
-        cat(sprintf("  Saved: %s\n", NEFL_PDF))
+    # Featured-protein single-panel rolling-HR line plot.  Was hardcoded to
+    # NEFL; now data-driven: takes the top protein by overall Cox p-value
+    # that survived to the rolling stage.  This matters for any disease
+    # without a NEFL signal (e.g. DM2, where myoglobin or HbA1c-correlated
+    # proteins would surface instead).
+    .feat_prot <- intersect(top_prots, unique(roll_dt$protein))[1]
+    if (!is.na(.feat_prot)) {
+        feat_roll <- roll_dt[protein == .feat_prot]
+        feat_disp <- toupper(.feat_prot)
+        if (nrow(feat_roll) > 0) {
+            p_feat <- ggplot(feat_roll, aes(x = bin_f, y = HR, group = 1)) +
+                geom_ribbon(aes(ymin = HR_lo, ymax = HR_hi), fill = "#CC0066", alpha = 0.2) +
+                geom_line(colour = "#CC0066", linewidth = 0.8) +
+                geom_point(colour = "#CC0066", size = 2.5) +
+                geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.4) +
+                labs(x = glue("Years before {DISEASE} diagnosis"),
+                     y = "Hazard ratio (95% CI)",
+                     title = glue("{feat_disp}: rolling HR for {DISEASE} incidence")) +
+                theme_ukb()
+            FEAT_PDF <- glue("{COHORT}_{tolower(feat_disp)}_rolling_hr.pdf")
+            ggsave(file.path(OUT_DIR, FEAT_PDF), p_feat,
+                   width = 5, height = 3.5, device = cairo_pdf)
+            cat(sprintf("  Saved: %s (top-protein rolling)\n", FEAT_PDF))
+        }
     }
 
     fwrite(roll_dt[, .(protein=toupper(protein), time_bin, HR, HR_lo, HR_hi, pval, n_bin_cases)],

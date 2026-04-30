@@ -1,4 +1,11 @@
-"""MS Differential Protein Abundance Analysis — replicating Abdelhak et al. 2026.
+"""DEPRECATED — MS-only legacy implementation. Use the cohort-agnostic R version:
+   analysis/04_differential/01_limma_ms_vs_hc.R
+   This file is retained for reproducing Abdelhak et al. 2026 in the original
+   paper context. For new disease replications (stroke, DM2, PD, ...) DO NOT
+   run this; the templated pipeline writes the same {cohort_short}_*_vs_hc.csv
+   outputs config-style.
+
+MS Differential Protein Abundance Analysis — replicating Abdelhak et al. 2026.
 
 Three comparisons, each using limma-style empirical Bayes:
   1. All MS vs HC (combined pre+post onset)

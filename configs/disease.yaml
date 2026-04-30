@@ -25,6 +25,18 @@ project_title:       "Pre-diagnostic comorbidity endophenotypes reveal proteomic
 # Leave as empty string ("") to skip cross-disease comparison.
 comparison_cohort_short: "als"
 
+# ── Sex handling ───────────────────────────────────────────────────────────
+# MS has well-powered sex-stratified separate analyses (post-onset n large
+# enough to split). For replication cohorts where this is not the case
+# (e.g. ALS at n=74 post-onset), set primary_use: "covariate" and stage
+# 09_sex_stratified will skip cleanly; sex × <factor> interactions are
+# tested by stages 07b (mendelian) and 17 (phenomic) instead.
+sex_handling:
+  primary_use: "stratifier"            # OR "covariate"
+  field:       31                      # self-reported; or 22001 for genetic
+  do_not_stratify_on_sex_alone: false
+  interaction_terms_to_test: []        # populate with "sex_x_<column_name>" entries
+
 # ── Cohort definition ──────────────────────────────────────────────────────
 # Read by analysis/01_cohort/ and analysis/helpers/ukb_disease_outcomes.py
 icd_codes: ["G35"]                          # primary case ICD-10 codes
