@@ -84,7 +84,7 @@ registry_reset <- function() {
 
 #' Load registry metadata from figures.yaml.
 #' Does NOT assign numbers — numbers come from first fig()/tbl() call order.
-registry_load <- function(yaml_path = here("figures.yaml")) {
+registry_load <- function(yaml_path = here("configs", "figures.yaml")) {
   raw <- yaml::read_yaml(yaml_path)
 
   for (kind in c("figures", "tables")) {

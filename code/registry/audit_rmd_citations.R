@@ -10,7 +10,7 @@ suppressPackageStartupMessages({
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
 rmd_path  <- here("analysis", "manuscript", "manuscript.Rmd")
-yaml_path <- here("figures.yaml")
+yaml_path <- here("configs", "figures.yaml")
 rmd <- readLines(rmd_path, warn = FALSE)
 
 # Strip YAML front matter (first two "---" lines)

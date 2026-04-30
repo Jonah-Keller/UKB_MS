@@ -508,7 +508,7 @@ compose_figure <- function(fig, panel_pdfs, letters_wanted, dpi = 300) {
 cat("\n[compose] generating composite PNGs via compose_figure.R\n")
 .dbg("compose: ", length(.REG$figures), " figures to compose")
 fig_composites  <- list()
-compose_script  <- here("compose_figure.R")
+compose_script  <- here("scripts", "build", "compose_figure.R")
 compose_log_dir <- file.path(DIR_BUILD_INT, "compose_logs")
 dir.create(compose_log_dir, showWarnings = FALSE, recursive = TRUE)
 for (f in .REG$figures) {
@@ -540,10 +540,10 @@ for (f in .REG$figures) {
 cat("\n[7/7] tables + supplementary + main_materials\n")
 
 # Standalone main tables
-source(here("build_tables_docx.R"), local = TRUE)
+source(here("scripts", "build", "build_tables_docx.R"), local = TRUE)
 
 # Supplementary_Material.docx
-source(here("build_supplementary.R"), local = TRUE)
+source(here("scripts", "build", "build_supplementary.R"), local = TRUE)
 
 # main_materials.docx ─────────────────────────────────────────────────────────
 cat("Building main_materials.docx...\n")

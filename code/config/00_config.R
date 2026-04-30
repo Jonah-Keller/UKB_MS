@@ -40,7 +40,7 @@ DIR_BUILD_INT       <- file.path(DIR_SUBMISSION, "_build_intermediates")
 
 DIR_TEMPLATES  <- here("manuscript", "templates")
 REFERENCE_DOCX <- file.path(DIR_TEMPLATES, "reference.docx")
-FIGURES_YAML   <- here("figures.yaml")
+FIGURES_YAML   <- here("configs", "figures.yaml")
 
 for (.d in c(DIR_MAIN_TEXT, DIR_MAIN_FIGURES, DIR_MAIN_TABLES,
              DIR_SUPP_EXTDATA, DIR_SUPP_TABLES, DIR_BUILD_INT))
