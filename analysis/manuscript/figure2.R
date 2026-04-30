@@ -23,6 +23,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(splines)
+    library(glue)
 })
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,6 +39,21 @@ SCRIPT_DIR <- if (length(file_arg)) {
 PROJ_DIR <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+DISEASE_LONG <- cfg$disease_long
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
+HLA_CARRIER  <- cfg$hla_carrier_col
+HLA_DOSAGE   <- cfg$hla_dosage_col
+PRS_COL      <- cfg$prs_combined_col
+HLA_LBL      <- paste0("HLA-", cfg$hla_allele)
+PRS_LABEL    <- cfg$prs_label
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
+POST_LBL     <- glue("post-{DISEASE_CAPS}")
 
 FIG_DIR <- file.path(PROJ_DIR, "results", "figures", "2")
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
@@ -55,16 +71,16 @@ DATA_DIR <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed")
 DIFF_DIR <- file.path(PROJ_DIR, "results", "differential")
 ML_DIR   <- file.path(PROJ_DIR, "results", "ml")
 
-QC_FILE         <- file.path(DATA_DIR, "ms_olink_qc.csv")
+QC_FILE         <- file.path(DATA_DIR, glue("{COHORT}_olink_qc.csv"))
 TRAJ_FILE       <- file.path(DIFF_DIR, "cns_trajectories.csv")
-PRE_FILE        <- file.path(DIFF_DIR, "ms_pre_vs_hc.csv")
-POST_FILE       <- file.path(DIFF_DIR, "ms_post_vs_hc.csv")
-COMB_FILE       <- file.path(DIFF_DIR, "ms_combined_vs_hc.csv")
-ML_FULL_FILE    <- file.path(ML_DIR, "ms_ml_results.csv")
-ML_PRE_FILE     <- file.path(ML_DIR, "ms_preonset_ml_results.csv")
-ML_PRE_IMP_FILE <- file.path(ML_DIR, "ms_preonset_ml_feature_importance.csv")
+PRE_FILE        <- file.path(DIFF_DIR, glue("{COHORT}_pre_vs_hc.csv"))
+POST_FILE       <- file.path(DIFF_DIR, glue("{COHORT}_post_vs_hc.csv"))
+COMB_FILE       <- file.path(DIFF_DIR, glue("{COHORT}_combined_vs_hc.csv"))
+ML_FULL_FILE    <- file.path(ML_DIR, glue("{COHORT}_ml_results.csv"))
+ML_PRE_FILE     <- file.path(ML_DIR, glue("{COHORT}_preonset_ml_results.csv"))
+ML_PRE_IMP_FILE <- file.path(ML_DIR, glue("{COHORT}_preonset_ml_feature_importance.csv"))
 MODEL_FULL_FILE <- file.path(ML_DIR, "models", "glmnet_model.rds")
-MODEL_PRE_FILE  <- file.path(ML_DIR, "models", "ms_pre_boruta_glmnet_model.rds")  # elastic net
+MODEL_PRE_FILE  <- file.path(ML_DIR, "models", glue("{COHORT}_pre_boruta_glmnet_model.rds"))  # elastic net
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Load and validate
@@ -72,6 +88,8 @@ MODEL_PRE_FILE  <- file.path(ML_DIR, "models", "ms_pre_boruta_glmnet_model.rds")
 cat("Loading data...\n")
 
 qc <- fread(QC_FILE)
+if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+    setnames(qc, STATUS_COL, "ms_status")
 
 # Exclude biologically impossible age_at_diagnosis values
 # (sign convention: years_to_diagnosis = age_at_diagnosis - age_at_sampling;
@@ -99,8 +117,8 @@ BIN_LABELS <- c("< -10", "[-10,-5)", "[-5,-2)", "[-2,0)",
 # ─────────────────────────────────────────────────────────────────────────────
 cat("Building panel a...\n")
 
-cases_a <- qc[ms_status %in% c("pre_onset", "post_onset") & qc_outlier == FALSE]
-cases_a[, ms_status := factor(ms_status, levels = c("pre_onset", "post_onset"))]
+cases_a <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE]
+cases_a[, ms_status := factor(ms_status, levels = c(SV$pre_onset, SV$post_onset))]
 
 pA <- ggplot(cases_a, aes(x = years_to_diagnosis, fill = ms_status)) +
     geom_histogram(binwidth = 1, colour = "white", linewidth = 0.2) +
@@ -109,19 +127,19 @@ pA <- ggplot(cases_a, aes(x = years_to_diagnosis, fill = ms_status)) +
     annotate("text", x = 0.5, y = Inf, label = "Dx",
              hjust = 0, vjust = 1.5, size = 2.5, colour = "grey30") +
     scale_fill_manual(
-        values = c(pre_onset = COL_PRE, post_onset = COL_POST),
+        values = setNames(c(COL_PRE, COL_POST), c(SV$pre_onset, SV$post_onset)),
         labels = c("Pre-onset", "Post-onset"),
         name   = NULL
     ) +
     scale_x_continuous(breaks = seq(-50, 20, by = 10)) +
     labs(
-        title    = "a  MS sampling window",
+        title    = glue("a  {DISEASE_CAPS} sampling window"),
         subtitle = sprintf("n=%d | %d pre-onset, %d post-onset",
                            nrow(cases_a),
-                           sum(cases_a$ms_status == "pre_onset"),
-                           sum(cases_a$ms_status == "post_onset")),
-        x        = "Years relative to MS diagnosis",
-        y        = "MS cases"
+                           sum(cases_a$ms_status == SV$pre_onset),
+                           sum(cases_a$ms_status == SV$post_onset)),
+        x        = glue("Years relative to {DISEASE_CAPS} diagnosis"),
+        y        = glue("{DISEASE_CAPS} cases")
     ) +
     theme_ukb(base_size = 9) +
     theme(legend.position = "bottom",
@@ -147,9 +165,9 @@ cat("  Proteins:", paste(unique(traj$protein), collapse = ", "),
 cat("  Computing PSM-matched HC reference...\n")
 suppressPackageStartupMessages(library(MatchIt))
 
-ms_pool <- qc[ms_status %in% c("pre_onset","post_onset") & qc_outlier == FALSE &
+ms_pool <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
                !is.na(age_at_sampling) & !is.na(sex) & !is.na(years_to_diagnosis)]
-hc_pool <- qc[ms_status == "control" & qc_outlier == FALSE &
+hc_pool <- qc[ms_status == SV$control & qc_outlier == FALSE &
                !is.na(age_at_sampling) & !is.na(sex)]
 
 pool_dt <- rbind(
@@ -213,7 +231,7 @@ for (prot in names(CNS_META)) {
     use_ref <- !is.null(ref_p)
 
     # Legend driven by colour aesthetic on the lines
-    col_map <- c("MS" = m$col, "HC (PSM-matched)" = "grey45")
+    col_map <- setNames(c(m$col, "grey45"), c(DISEASE_CAPS, "HC (PSM-matched)"))
 
     p <- ggplot(t_p, aes(x = years_to_dx)) +
         # PSM-matched HC ribbon + line
@@ -228,7 +246,7 @@ for (prot in names(CNS_META)) {
         )} +
         # MS spline ± CI
         geom_ribbon(aes(ymin = pred_lci, ymax = pred_uci), fill = m$col, alpha = 0.18) +
-        geom_line(aes(y = pred_npx, colour = "MS"), linewidth = 0.9) +
+        geom_line(aes(y = pred_npx, colour = DISEASE_CAPS), linewidth = 0.9) +
         # Diagnosis line
         geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4, colour = "grey40") +
         annotate("text", x = 0.3, y = Inf, label = "Dx",
@@ -236,8 +254,8 @@ for (prot in names(CNS_META)) {
         scale_colour_manual(values = col_map, name = NULL) +
         scale_x_continuous(breaks = seq(-8, 12, by = 4)) +
         labs(
-            title = paste0(substr(m$pid, 1, 1), "  ", prot, " — MS disease course"),
-            x     = "Years relative to MS diagnosis",
+            title = glue("{substr(m$pid, 1, 1)}  {prot} — {DISEASE_CAPS} disease course"),
+            x     = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y     = paste0(prot, " (NPX)")
         ) +
         theme_ukb(base_size = 9) +
@@ -261,8 +279,8 @@ top_immune <- pre[fdr < 0.20 & !toupper(protein) %in% c("BGN", "ERBB2")][
                   order(-abs(logFC)), protein][seq_len(3)]
 cat("  Top pre-onset immune proteins:", paste(top_immune, collapse = ", "), "\n")
 
-ms_all  <- qc[ms_status %in% c("pre_onset", "post_onset") & qc_outlier == FALSE]
-hc_only <- qc[ms_status == "control" & qc_outlier == FALSE]
+ms_all  <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE]
+hc_only <- qc[ms_status == SV$control & qc_outlier == FALSE]
 
 # Clip to reasonable display range (data: -107 to +16; display: -20 to +16)
 YTD_MIN <- -20; YTD_MAX <- 16
@@ -306,7 +324,7 @@ for (i in seq_along(top_immune)) {
 
     traj_i  <- data.table(ytd = x_grid, pred = pr$fit, pred_se = pr$se.fit)
     col_val <- IMM_COLS[i]
-    col_map <- c("MS" = col_val, "HC (PSM-matched)" = "grey45")
+    col_map <- setNames(c(col_val, "grey45"), c(DISEASE_CAPS, "HC (PSM-matched)"))
 
     p <- ggplot(traj_i, aes(x = ytd)) +
         # PSM-matched HC reference ribbon + line
@@ -320,7 +338,7 @@ for (i in seq_along(top_immune)) {
         geom_ribbon(aes(ymin = pred - 1.96 * pred_se,
                         ymax = pred + 1.96 * pred_se),
                     fill = col_val, alpha = 0.18) +
-        geom_line(aes(y = pred, colour = "MS"), linewidth = 0.9) +
+        geom_line(aes(y = pred, colour = DISEASE_CAPS), linewidth = 0.9) +
         geom_vline(xintercept = 0, linetype = "dashed",
                    linewidth = 0.4, colour = "grey40") +
         annotate("text", x = 0.4, y = Inf, label = "Dx",
@@ -329,7 +347,7 @@ for (i in seq_along(top_immune)) {
         scale_x_continuous(breaks = seq(-20, 15, by = 5)) +
         labs(
             title = paste0(pid, "  ", toupper(prot), " — pre-onset DEP trajectory"),
-            x     = "Years relative to MS diagnosis",
+            x     = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y     = paste0(toupper(prot), " (NPX, predicted)")
         ) +
         theme_ukb(base_size = 9) +
@@ -419,7 +437,7 @@ top30   <- comb_j[fdr < 0.05][order(-abs(logFC))][seq_len(min(30, .N)), protein]
 force_prots_j <- comb_j[tolower(protein) %in% c("nefl", "erbb2"), unique(protein)]
 top30         <- unique(c(top30, force_prots_j))
 
-ms_j <- qc[ms_status %in% c("pre_onset", "post_onset") & qc_outlier == FALSE]
+ms_j <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE]
 ms_j[, time_bin := cut(years_to_diagnosis,
                         breaks = BIN_BREAKS, labels = BIN_LABELS,
                         right = FALSE, include.lowest = TRUE)]
@@ -474,7 +492,7 @@ pJ <- ggplot(heat_dt, aes(x = time_bin, y = protein, fill = z_npx)) +
     ) +
     scale_x_discrete(labels = HEATMAP_XLABS) +
     labs(
-        title    = "j  Temporal protein dynamics across MS disease course",
+        title    = glue("j  Temporal protein dynamics across {DISEASE_CAPS} disease course"),
         subtitle = "Top 30 DEPs (FDR<0.05) plus CNS biomarkers NEFL/ERBB2; mean NPX per time bin, z-scored per protein",
         x        = "Time relative to diagnosis  ◄ post-Dx  |  pre-Dx ►",
         y        = NULL
@@ -530,7 +548,7 @@ get_cv_roc <- function(mod) {
     best <- mod$bestTune
     pd   <- as.data.table(mod$pred)
     for (nm in names(best)) pd <- pd[abs(get(nm) - best[[nm]]) < 1e-9]
-    compute_roc(as.integer(pd$obs == "MS"), pd$MS)
+    compute_roc(as.integer(pd$obs == DISEASE_CAPS), pd[[DISEASE_CAPS]])
 }
 
 tryCatch({
@@ -561,9 +579,9 @@ tryCatch({
 # ── Demographics baseline: age + sex logistic regression ─────────────────────
 # Shows how much the proteomic signal adds above basic demographics
 tryCatch({
-    df_demo <- qc[ms_status %in% c("pre_onset","control") & qc_outlier==FALSE &
+    df_demo <- qc[ms_status %in% c(SV$pre_onset, SV$control) & qc_outlier==FALSE &
                   !is.na(age_at_sampling) & !is.na(sex)]
-    df_demo[, y := as.integer(ms_status=="pre_onset")]
+    df_demo[, y := as.integer(ms_status == SV$pre_onset)]
     lr_demo  <- glm(y ~ age_at_sampling + sex, data=df_demo, family=binomial)
     demo_scores <- predict(lr_demo, type="response")
     roc_list[["Demographics only (age+sex)"]] <-
@@ -614,7 +632,7 @@ pK <- ggplot(roc_dt, aes(x = fpr, y = tpr, colour = curve)) +
     geom_line(linewidth = 0.8) +
     scale_colour_manual(values = ROC_COLS, name = NULL) +
     labs(
-        title    = "m  Proteomic prediction of MS",
+        title    = glue("m  Proteomic prediction of {DISEASE_CAPS}"),
         subtitle = "Proteins vs age+sex baseline; CV AUC in annotation",
         x        = "1 – Specificity (FPR)",
         y        = "Sensitivity (TPR)"
@@ -644,7 +662,7 @@ tryCatch({
     suppressWarnings(library(caret))
 
     if (file.exists(MODEL_PRE_FILE)) {
-        pre_l   <- qc[ms_status %in% c("pre_onset","control") & qc_outlier == FALSE]
+        pre_l   <- qc[ms_status %in% c(SV$pre_onset, SV$control) & qc_outlier == FALSE]
         # glmnet model was trained with sex_num; add it here
         pre_l[, sex_num := as.integer(factor(sex)) - 1L]
         mod_l   <- suppressWarnings(readRDS(MODEL_PRE_FILE))
@@ -664,11 +682,11 @@ tryCatch({
             error = function(e) { cat("  Panel n predict error:", e$message, "\n"); NULL })
 
         if (!is.null(prbs_l)) {
-            pre_l[, pred_prob := prbs_l[["MS"]]]
-            hc_mean_prob <- mean(pre_l[ms_status == "control", pred_prob], na.rm = TRUE)
+            pre_l[, pred_prob := prbs_l[[DISEASE_CAPS]]]
+            hc_mean_prob <- mean(pre_l[ms_status == SV$control, pred_prob], na.rm = TRUE)
 
             # Pre-onset cases: years_to_diagnosis > 0 (years UNTIL diagnosis)
-            cases_l <- pre_l[ms_status == "pre_onset"]
+            cases_l <- pre_l[ms_status == SV$pre_onset]
             cases_l[, time_bin := cut(years_to_diagnosis,
                                        breaks = BIN_BREAKS, labels = BIN_LABELS,
                                        right = FALSE, include.lowest = TRUE)]
@@ -692,7 +710,7 @@ tryCatch({
                 "[0,2)"  = "0–2 yr\nbefore Dx"
             )
 
-            hc_sd_prob <- sd(pre_l[ms_status == "control", pred_prob], na.rm = TRUE)
+            hc_sd_prob <- sd(pre_l[ms_status == SV$control, pred_prob], na.rm = TRUE)
 
             pL <- ggplot() +
                 # HC reference band (mean ± 1 SD)
@@ -723,14 +741,14 @@ tryCatch({
                               label = paste0("n=", n)),
                           vjust = 1.5, size = 1.9, colour = "grey45") +
                 annotate("text", x = 0.6, y = hc_mean_prob,
-                         label = sprintf("HC mean ± SD\n(n=%d)", sum(pre_l$ms_status == "control")),
+                         label = sprintf("HC mean ± SD\n(n=%d)", sum(pre_l$ms_status == SV$control)),
                          hjust = 0, vjust = -0.2, size = 1.85, colour = "grey45") +
                 scale_x_discrete(labels = PRE_XLABS) +
                 labs(
-                    title    = "n  Pre-diagnostic MS risk score",
+                    title    = glue("n  Pre-diagnostic {DISEASE_CAPS} risk score"),
                     subtitle = "Elastic net probability by time before diagnosis (points = individuals; diamond = mean ± SE)",
                     x        = NULL,
-                    y        = "Predicted MS probability"
+                    y        = glue("Predicted {DISEASE_CAPS} probability")
                 ) +
                 theme_ukb(base_size = 9)
 
@@ -761,14 +779,14 @@ tryCatch({
     mod_shap <- suppressWarnings(readRDS(MODEL_PRE_FILE))
 
     # Use all pre-onset cases + a balanced sample of controls
-    pre_shap <- qc[ms_status %in% c("pre_onset","control") & qc_outlier == FALSE]
+    pre_shap <- qc[ms_status %in% c(SV$pre_onset, SV$control) & qc_outlier == FALSE]
     pre_shap[, sex_num := as.integer(factor(sex)) - 1L]   # glmnet trained with sex_num
     avail_shap <- intersect(model_features(mod_shap), names(pre_shap))
 
     set.seed(42)
-    n_ctrl <- min(500L, sum(pre_shap$ms_status == "control"))
-    ctrl_idx <- which(pre_shap$ms_status == "control")
-    use_idx  <- c(which(pre_shap$ms_status == "pre_onset"),
+    n_ctrl <- min(500L, sum(pre_shap$ms_status == SV$control))
+    ctrl_idx <- which(pre_shap$ms_status == SV$control)
+    use_idx  <- c(which(pre_shap$ms_status == SV$pre_onset),
                   sample(ctrl_idx, n_ctrl))
     shap_dt  <- pre_shap[use_idx]
     shap_dt  <- shap_dt[complete.cases(shap_dt[, ..avail_shap])]
@@ -776,7 +794,7 @@ tryCatch({
     X_mat <- as.data.frame(shap_dt[, ..avail_shap])
 
     pfun <- function(object, newdata)
-        predict(object, newdata = newdata, type = "prob")[, "MS"]
+        predict(object, newdata = newdata, type = "prob")[, DISEASE_CAPS]
 
     cat("  Computing SHAP values (nsim=50, n=", nrow(X_mat), ")...\n")
     set.seed(42)
@@ -820,7 +838,7 @@ tryCatch({
         labs(
             title    = "l  Pre-onset predictor contributions",
             subtitle = "SHAP values — glmnet model; colour = feature value (low → high)",
-            x        = "SHAP value (impact on MS probability)",
+            x        = glue("SHAP value (impact on {DISEASE_CAPS} probability)"),
             y        = NULL
         ) +
         theme_ukb(base_size = 9) +
@@ -853,7 +871,7 @@ tryCatch({
 cat("Building panel k (Cox rolling HR)...\n")
 
 tryCatch({
-    ROLL_FILE <- file.path(PROJ_DIR, "results", "survival", "ms_protein_cox_rolling.csv")
+    ROLL_FILE <- file.path(PROJ_DIR, "results", "survival", glue("{COHORT}_protein_cox_rolling.csv"))
     if (!file.exists(ROLL_FILE)) stop("Run 01_ms_protein_cox.R first")
 
     roll <- fread(ROLL_FILE)
@@ -898,13 +916,15 @@ cat("Building panel o...\n")
 
 tryCatch({
     suppressPackageStartupMessages(library(splines))
-    PRS_FILE_O <- file.path(PROJ_DIR, "data", "ukb", "genetics", "ms_prs_scores.csv")
-    INT_FILE   <- file.path(PROJ_DIR, "results", "prs", "ms_prs_interaction_tests.csv")
+    PRS_FILE_O <- file.path(PROJ_DIR, "data", "ukb", "genetics", glue("{COHORT}_prs_scores.csv"))
+    INT_FILE   <- file.path(PROJ_DIR, "results", "prs", glue("{COHORT}_prs_interaction_tests.csv"))
     if (!file.exists(PRS_FILE_O)) stop("PRS file not found")
 
     prs_o <- fread(PRS_FILE_O, showProgress = FALSE)
+    if (PRS_COL != "prs_score" && PRS_COL %in% names(prs_o))
+        setnames(prs_o, PRS_COL, "prs_score")
     ms_o  <- merge(
-        qc[ms_status %in% c("pre_onset","post_onset") & qc_outlier == FALSE &
+        qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
            !is.na(years_to_diagnosis) & !is.na(nefl) &
            years_to_diagnosis >= -20 & years_to_diagnosis <= 16],
         prs_o[, .(eid, prs_score)], by = "eid"
@@ -970,9 +990,9 @@ tryCatch({
         scale_fill_manual(values = c("Q1 (low)" = "#56B4E9", "Q4 (high)" = "#CC0066"),
                           guide  = "none") +
         scale_x_continuous(breaks = seq(-16, 16, by = 4)) +
-        labs(title    = paste0("o  NfL trajectory by MS genetic risk", int_label),
+        labs(title    = paste0("o  NfL trajectory by ", PRS_LABEL, int_label),
              subtitle = "Q1 (lowest) vs Q4 (highest) PRS shown with 95% CI | Q2/Q3 dashed | age+sex adjusted",
-             x = "Years relative to MS diagnosis",
+             x = glue("Years relative to {DISEASE_CAPS} diagnosis"),
              y = "NfL (NPX)") +
         theme_ukb(base_size = 9) +
         guides(colour = guide_legend(override.aes = list(linewidth = 1.5)))
@@ -999,11 +1019,11 @@ tryCatch({
 # ─────────────────────────────────────────────────────────────────────────────
 cat("Building panel p (temporal proteome landscape)...\n")
 
-TEMP_FILE <- file.path(DIFF_DIR, "ms_pre_temporal.csv")
+TEMP_FILE <- file.path(DIFF_DIR, glue("{COHORT}_pre_temporal.csv"))
 
 tryCatch({
     if (!file.exists(TEMP_FILE))
-        stop("ms_pre_temporal.csv not found — run 01_limma_ms_vs_hc.R first")
+        stop(glue("{COHORT}_pre_temporal.csv not found — run 01_limma_ms_vs_hc.R first"))
 
     temp <- fread(TEMP_FILE)
     cat(sprintf("  Temporal results: %d proteins\n", nrow(temp)))
@@ -1152,7 +1172,7 @@ tryCatch({
             subtitle = sprintf(
                 "%d early/persistent \u2022 %d near-onset \u2022 %d depleted (nominal p<0.05); large dot = FDR<0.05",
                 n_early, n_late, n_dep),
-            x        = expression(log[2]~"FC at diagnosis"~(MS~vs~HC)),
+            x        = bquote(log[2]~"FC at diagnosis"~(.(DISEASE_CAPS)~vs~HC)),
             y        = expression(paste("Temporal slope (", log[2],
                                          "FC per year before Dx)"))
         ) +

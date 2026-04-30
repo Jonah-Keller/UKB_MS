@@ -38,6 +38,7 @@ suppressPackageStartupMessages({
     library(patchwork)
     library(limma)
     library(igraph)
+    library(glue)
 })
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,15 @@ PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "limma_utils.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
+POST_LBL     <- glue("post-{DISEASE_CAPS}")
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "1")
 DATA_DIR <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed")
@@ -151,7 +161,8 @@ make_volcano <- function(df, title_str, n_label = 15, fdr_line = 0.05,
 # ---------------------------------------------------------------------------
 make_ranked_barplot <- function(df, title_str, n_each = 20,
                                 up_col = COL_PRE_UP, down_col = COL_PRE_DOWN,
-                                up_label = "Up in MS", down_label = "Down in MS") {
+                                up_label = glue("Up in {DISEASE_CAPS}"),
+                                down_label = glue("Down in {DISEASE_CAPS}")) {
     df <- copy(df)
     if ("adj.P.Val" %in% names(df) && !"fdr" %in% names(df))
         df[, fdr := adj.P.Val]
@@ -197,39 +208,41 @@ make_ranked_barplot <- function(df, title_str, n_each = 20,
 # Load data
 # ---------------------------------------------------------------------------
 cat("Loading data...\n")
-qc        <- fread(file.path(DATA_DIR, "ms_olink_qc.csv"))
-comb      <- fread(file.path(DIFF_DIR, "ms_combined_vs_hc.csv"))
-pre_diff  <- fread(file.path(DIFF_DIR, "ms_pre_vs_hc.csv"))
-post_diff <- fread(file.path(DIFF_DIR, "ms_post_vs_hc.csv"))
+qc        <- fread(file.path(DATA_DIR, glue("{COHORT}_olink_qc.csv")))
+if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+    setnames(qc, STATUS_COL, "ms_status")
+comb      <- fread(file.path(DIFF_DIR, glue("{COHORT}_combined_vs_hc.csv")))
+pre_diff  <- fread(file.path(DIFF_DIR, glue("{COHORT}_pre_vs_hc.csv")))
+post_diff <- fread(file.path(DIFF_DIR, glue("{COHORT}_post_vs_hc.csv")))
 
 # Pre/post GO (from 04_prepost_go.R)
-PRE_GO_FILE  <- file.path(NET_DIR, "ms_pre_go_results.csv")
-POST_GO_FILE <- file.path(NET_DIR, "ms_post_go_results.csv")
+PRE_GO_FILE  <- file.path(NET_DIR, glue("{COHORT}_pre_go_results.csv"))
+POST_GO_FILE <- file.path(NET_DIR, glue("{COHORT}_post_go_results.csv"))
 go_pre  <- if (file.exists(PRE_GO_FILE))  fread(PRE_GO_FILE)  else data.table()
 go_post <- if (file.exists(POST_GO_FILE)) fread(POST_GO_FILE) else data.table()
 
 # STRING edges and cell-type connectivity
-EDGE_FILE <- file.path(NET_DIR, "ms_string_edges.csv")
+EDGE_FILE <- file.path(NET_DIR, glue("{COHORT}_string_edges.csv"))
 edges     <- if (file.exists(EDGE_FILE)) fread(EDGE_FILE) else data.table()
 
 # Walchli+HPA integrated cell-type matrix for pre-onset (primary panel g)
-WALCHLI_HPA_PRE_FILE <- file.path(NET_DIR, "ms_pre_walchli_hpa_matrix.csv")
+WALCHLI_HPA_PRE_FILE <- file.path(NET_DIR, glue("{COHORT}_pre_walchli_hpa_matrix.csv"))
 # Fallback to HPA-only if integrated not yet generated
-HPA_PRE_FILE <- file.path(NET_DIR, "ms_pre_hpa_celltype_matrix.csv")
+HPA_PRE_FILE <- file.path(NET_DIR, glue("{COHORT}_pre_hpa_celltype_matrix.csv"))
 HPA_MAT_FILE <- if (file.exists(HPA_PRE_FILE)) HPA_PRE_FILE else
-                    file.path(NET_DIR, "ms_hpa_celltype_matrix.csv")
+                    file.path(NET_DIR, glue("{COHORT}_hpa_celltype_matrix.csv"))
 
 # Cell-type enrichment (new preranked-GSEA pipeline — specificity-filtered markers)
-# Primary source: ms_celltype_gsea.csv (NES, padj). Falls back to the legacy
+# Primary source: <cohort>_celltype_gsea.csv (NES, padj). Falls back to the legacy
 # Fisher CSV for backwards compatibility with pre-refactor runs.
-GSEA_FILE    <- file.path(NET_DIR, "ms_celltype_gsea.csv")
-OVERREP_FILE <- file.path(NET_DIR, "ms_celltype_overrep.csv")
+GSEA_FILE    <- file.path(NET_DIR, glue("{COHORT}_celltype_gsea.csv"))
+OVERREP_FILE <- file.path(NET_DIR, glue("{COHORT}_celltype_overrep.csv"))
 gsea    <- if (file.exists(GSEA_FILE))    fread(GSEA_FILE)    else data.table()
 overrep <- if (file.exists(OVERREP_FILE)) fread(OVERREP_FILE) else data.table()
 
-n_pre  <- sum(qc$ms_status == "pre_onset",  na.rm = TRUE)
-n_post <- sum(qc$ms_status == "post_onset", na.rm = TRUE)
-n_hc   <- sum(qc$ms_status == "control",    na.rm = TRUE)
+n_pre  <- sum(qc$ms_status == SV$pre_onset,  na.rm = TRUE)
+n_post <- sum(qc$ms_status == SV$post_onset, na.rm = TRUE)
+n_hc   <- sum(qc$ms_status == SV$control,    na.rm = TRUE)
 cat(sprintf("  QC: %d HC, %d pre-onset, %d post-onset\n", n_hc, n_pre, n_post))
 cat(sprintf("  Pre-onset GO terms: %d | Post-onset GO terms: %d\n",
             nrow(go_pre), nrow(go_post)))
@@ -268,21 +281,24 @@ prot_cols_b <- setdiff(names(qc), META_COLS_B)
 qc_nonout   <- qc[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex)]
 pc_dt_b     <- compute_control_pcs(qc_nonout, prot_cols_b)
 pc_df <- merge(qc_nonout[, .(eid, ms_status)], pc_dt_b, by = "eid")
-pc_df[, ms_status := factor(ms_status, levels = c("control", "post_onset", "pre_onset"))]
-pc_df[, group_left := fifelse(ms_status == "control", "HC", "MS")]
-pc_df[, group_left := factor(group_left, levels = c("HC", "MS"))]
+pc_df[, ms_status := factor(ms_status, levels = c(SV$control, SV$post_onset, SV$pre_onset))]
+pc_df[, group_left := fifelse(ms_status == SV$control, "HC", DISEASE_CAPS)]
+pc_df[, group_left := factor(group_left, levels = c("HC", DISEASE_CAPS))]
 
 pB_left <- ggplot() +
     geom_point(data = pc_df[group_left == "HC"],
                aes(PC1, PC2, colour = "HC"),
                size = 0.35, alpha = 0.25, stroke = 0) +
-    geom_point(data = pc_df[group_left == "MS"],
-               aes(PC1, PC2, colour = "All MS"),
+    geom_point(data = pc_df[group_left == DISEASE_CAPS],
+               aes(PC1, PC2, colour = paste("All", DISEASE_CAPS)),
                size = 0.55, alpha = 0.80, stroke = 0) +
     scale_colour_manual(
-        values = c("HC" = "grey72", "All MS" = COL_COMB),
-        labels = c("HC" = sprintf("HC  (n=%s)", format(sum(qc$ms_status == "control"), big.mark = ",")),
-                   "All MS" = sprintf("MS  (n=%s)", format(n_pre + n_post, big.mark = ","))),
+        values = setNames(c("grey72", COL_COMB), c("HC", paste("All", DISEASE_CAPS))),
+        labels = setNames(
+            c(sprintf("HC  (n=%s)", format(sum(qc$ms_status == SV$control), big.mark = ",")),
+              sprintf("%s  (n=%s)", DISEASE_CAPS, format(n_pre + n_post, big.mark = ","))),
+            c("HC", paste("All", DISEASE_CAPS))
+        ),
         name = NULL
     ) +
     labs(title = "All samples", x = "PC1", y = "PC2") +
@@ -292,19 +308,20 @@ pB_left <- ggplot() +
     guides(colour = guide_legend(override.aes = list(size = 2.5, alpha = 1), nrow = 2))
 
 pB_right <- ggplot() +
-    geom_point(data = pc_df[ms_status == "control"],
+    geom_point(data = pc_df[ms_status == SV$control],
                aes(PC1, PC2),
                colour = "grey72", size = 0.35, alpha = 0.20, stroke = 0) +
-    geom_point(data = pc_df[ms_status != "control"],
+    geom_point(data = pc_df[ms_status != SV$control],
                aes(PC1, PC2, colour = ms_status),
                size = 0.65, alpha = 0.85, stroke = 0) +
     scale_colour_manual(
-        values = c("pre_onset" = COL_PRE, "post_onset" = COL_POST),
-        labels = c("pre_onset"  = sprintf("Pre-onset (n=%d)",  n_pre),
-                   "post_onset" = sprintf("Post-onset (n=%d)", n_post)),
+        values = setNames(c(COL_PRE, COL_POST), c(SV$pre_onset, SV$post_onset)),
+        labels = setNames(c(sprintf("Pre-onset (n=%d)",  n_pre),
+                            sprintf("Post-onset (n=%d)", n_post)),
+                          c(SV$pre_onset, SV$post_onset)),
         name = NULL
     ) +
-    labs(title = "MS cases by disease stage", x = "PC1", y = "PC2") +
+    labs(title = glue("{DISEASE_CAPS} cases by disease stage"), x = "PC1", y = "PC2") +
     theme_ukb(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank()) +
     guides(colour = guide_legend(override.aes = list(size = 2.5, alpha = 1), nrow = 2))
@@ -324,9 +341,9 @@ PANEL_C_HIGHLIGHT <- c("NEFL", "ERBB2",
                         "PTPRC", "BGN", "OMG")
 pC <- make_volcano(
     pre_diff,
-    "c  Pre-onset MS vs HC",
+    glue("c  Pre-onset {DISEASE_CAPS} vs HC"),
     fdr_line  = 0.20,
-    up_label  = "Up in MS", down_label = "Down in MS",
+    up_label  = glue("Up in {DISEASE_CAPS}"), down_label = glue("Down in {DISEASE_CAPS}"),
     highlight = PANEL_C_HIGHLIGHT
 )
 save_panel(pC, "c_volcano_pre", 3.5, 4)
@@ -347,12 +364,15 @@ save_panel(pD, "d_barplot_pre", 5.5, 5.5)
 # ---------------------------------------------------------------------------
 cat("Building panel e...\n")
 tryCatch({
-    if (nrow(go_pre) == 0) stop("ms_pre_go_results.csv empty — run 04_prepost_go.R")
+    if (nrow(go_pre) == 0) stop(glue("{COHORT}_pre_go_results.csv empty — run 04_prepost_go.R"))
+
+    UP_LBL_E   <- glue("Up in pre-onset {DISEASE_CAPS}")
+    DOWN_LBL_E <- glue("Down in pre-onset {DISEASE_CAPS}")
 
     pre_up   <- go_pre[gene_set == "up_DEPs"   & p.adjust < 0.05]
     pre_down <- go_pre[gene_set == "down_DEPs" & p.adjust < 0.05]
-    if (nrow(pre_up)   > 0) pre_up[,   direction := "Up in pre-onset MS"]
-    if (nrow(pre_down) > 0) pre_down[, direction := "Down in pre-onset MS"]
+    if (nrow(pre_up)   > 0) pre_up[,   direction := UP_LBL_E]
+    if (nrow(pre_down) > 0) pre_down[, direction := DOWN_LBL_E]
 
     top_e <- rbindlist(Filter(Negate(is.null), list(
         if (nrow(pre_up)   > 0) pre_up[order(p.adjust)][seq_len(min(10, .N))]   else NULL,
@@ -361,7 +381,7 @@ tryCatch({
     if (nrow(top_e) == 0) stop("No GO terms to plot")
 
     top_e[, direction := factor(direction,
-                                levels = c("Up in pre-onset MS", "Down in pre-onset MS"))]
+                                levels = c(UP_LBL_E, DOWN_LBL_E))]
     top_e[, Description := factor(Description,
                                   levels = top_e[order(direction, FoldEnrichment), Description])]
 
@@ -373,13 +393,13 @@ tryCatch({
         geom_point() +
         facet_grid(direction ~ ., scales = "free_y", space = "free_y") +
         scale_colour_manual(
-            values = c("Up in pre-onset MS" = COL_PRE_UP, "Down in pre-onset MS" = COL_PRE_DOWN),
+            values = setNames(c(COL_PRE_UP, COL_PRE_DOWN), c(UP_LBL_E, DOWN_LBL_E)),
             guide  = guide_legend(override.aes = list(size = 3.5))
         ) +
         scale_size_continuous(name = "Gene count", range = c(2, 6),
                               guide = guide_legend(override.aes = list(colour = "grey40"))) +
         scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
-        labs(title    = "e  GO:BP enrichment — pre-onset MS DEPs",
+        labs(title    = glue("e  GO:BP enrichment — pre-onset {DISEASE_CAPS} DEPs"),
              subtitle = sprintf("Pre-onset DEPs: %d up, %d down",
                                 n_pre_up, n_pre_down),
              x = "Fold enrichment", y = NULL) +
@@ -398,7 +418,7 @@ tryCatch({
 # ---------------------------------------------------------------------------
 cat("Building panel f...\n")
 tryCatch({
-    if (nrow(edges) == 0) stop("ms_string_edges.csv not found — run 01_ppi_network.R")
+    if (nrow(edges) == 0) stop(glue("{COHORT}_string_edges.csv not found — run 01_ppi_network.R"))
 
     suppressPackageStartupMessages(library(enrichR))
 
@@ -605,7 +625,7 @@ tryCatch({
                             hjust=clab_dt$hjust[i], size=2.4, fontface="bold", lineheight=0.85)
     }
     pF <- pF + labs(
-        title    = "f  Pre-onset MS DEP protein interaction network",
+        title    = glue("f  Pre-onset {DISEASE_CAPS} DEP protein interaction network"),
         subtitle = sprintf("%d proteins | %d interactions | STRING ≥ 0.7 | Louvain communities",
                            vcount(g), ecount(g))
     )
@@ -780,7 +800,7 @@ tryCatch({
         border_color         = NA,
         gaps_row             = if (length(gaps_row) > 0) gaps_row else NULL,
         gaps_col             = if (!is.null(gaps_col))   gaps_col else NULL,
-        main = "g  Pre-onset MS DEPs: Walchli brain + HPA immune cell-type expression"
+        main = glue("g  Pre-onset {DISEASE_CAPS} DEPs: Walchli brain + HPA immune cell-type expression")
     )
     dev.off()
     cat("  Saved: panel_g_celltype_heatmap_pre.pdf\n")
@@ -799,7 +819,7 @@ tryCatch({
 cat("Building panel h (GSEA pre-onset)...\n")
 tryCatch({
     if (nrow(gsea) == 0)
-        stop("ms_celltype_gsea.csv not found — run 06_celltype_overrepresentation.R first")
+        stop(glue("{COHORT}_celltype_gsea.csv not found — run 06_celltype_overrepresentation.R first"))
 
     pre_gsea <- gsea[analysis == "pre"]
     if (nrow(pre_gsea) == 0) stop("No pre-onset GSEA results")
@@ -808,11 +828,11 @@ tryCatch({
         pre_gsea,
         contrast_col    = "analysis",
         contrast_order  = "pre",
-        contrast_labels = c(pre = "Pre-onset MS"),
-        title_str       = "h  Cell-type enrichment \u2014 pre-onset MS vs HC",
+        contrast_labels = setNames(glue("Pre-onset {DISEASE_CAPS}"), "pre"),
+        title_str       = glue("h  Cell-type enrichment \u2014 pre-onset {DISEASE_CAPS} vs HC"),
         subtitle_str    = paste0(
             "Preranked fgsea on limma moderated-t | ",
-            "NES>0: markers higher in pre-MS | NES<0: lower | * FDR<0.05"
+            glue("NES>0: markers higher in {PRE_LBL} | NES<0: lower | * FDR<0.05")
         ),
         high_col        = COL_PRE,
         low_col         = COL_PRE_DOWN

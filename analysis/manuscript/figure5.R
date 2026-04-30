@@ -22,6 +22,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(patchwork)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -29,6 +30,16 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+HLA_LBL      <- paste0("HLA-", cfg$hla_allele)
+PRS_LABEL    <- cfg$prs_label
+PRS_COL      <- cfg$prs_combined_col
+HLA_CARRIER  <- cfg$hla_carrier_col
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
 
 FIG_DIR   <- file.path(PROJ_DIR, "results", "figures", "5")
 ENDO_DIR  <- file.path(PROJ_DIR, "results", "endophenotype")
@@ -79,11 +90,17 @@ BLOCK_LABELS <- c(
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 cat("Loading data...\n")
-phewas    <- fread(file.path(COMOR_DIR, "ms_prems_phewas.csv"))
-blk_feat  <- fread(file.path(ENDO_DIR,  "ms_prems_block_features.csv"))
-clust_sum <- fread(file.path(ENDO_DIR,  "ms_prems_cluster_summary.csv"))
-overrep   <- fread(file.path(ENDO_DIR,  "ms_prems_block_overrep.csv"))
-config    <- fread(file.path(ENDO_DIR,  "ms_prems_umap_config.csv"))
+phewas    <- fread(file.path(COMOR_DIR, glue("{COHORT}_prems_phewas.csv")))
+blk_feat  <- fread(file.path(ENDO_DIR,  glue("{COHORT}_prems_block_features.csv")))
+clust_sum <- fread(file.path(ENDO_DIR,  glue("{COHORT}_prems_cluster_summary.csv")))
+overrep   <- fread(file.path(ENDO_DIR,  glue("{COHORT}_prems_block_overrep.csv")))
+config    <- fread(file.path(ENDO_DIR,  glue("{COHORT}_prems_umap_config.csv")))
+# Normalise PRS / HLA carrier columns to fixed sentinels so downstream code is
+# disease-agnostic.
+if (PRS_COL != "prs_score" && PRS_COL %in% names(blk_feat))
+    setnames(blk_feat, PRS_COL, "prs_score")
+if (HLA_CARRIER != "hla_carrier" && HLA_CARRIER %in% names(blk_feat))
+    setnames(blk_feat, HLA_CARRIER, "hla_carrier")
 
 enr_blocks     <- strsplit(config$blocks, ",")[[1]]
 cluster_levels <- c(paste0("C", 0:(config$k - 1)), "None")
@@ -113,8 +130,8 @@ sig <- phewas[fdr < 0.05][order(log2(OR))]
 sig[, log2or    := log2(OR)]
 sig[, chap_col  := CHAP_COLS[chapter]]
 sig[, chap_col  := fcase(is.na(chap_col), "grey55", default = chap_col)]
-sig[, direction := factor(ifelse(OR > 1, "Enriched pre-MS", "Depleted pre-MS"),
-                           levels = c("Enriched pre-MS", "Depleted pre-MS"))]
+sig[, direction := factor(ifelse(OR > 1, glue("Enriched {PRE_LBL}"), glue("Depleted {PRE_LBL}")),
+                           levels = c(glue("Enriched {PRE_LBL}"), glue("Depleted {PRE_LBL}")))]
 sig[, lbl       := paste0(icd10, "  ", ICD_LABELS[icd10])]
 sig[, lbl       := factor(lbl, levels = lbl)]   # ordered by OR
 
@@ -130,12 +147,12 @@ pA <- ggplot(sig, aes(x = log2or, y = lbl, colour = chap_col)) +
         name   = expression(-log[10](italic(p)))
     ) +
     scale_x_continuous(
-        name   = expression(log[2](OR) ~ "vs age-matched HC before MS diagnosis"),
+        name   = bquote(log[2](OR) ~ "vs age-matched HC before"~.(DISEASE_CAPS)~"diagnosis"),
         breaks = seq(-4, 6, 2)
     ) +
     facet_grid(direction ~ ., scales = "free_y", space = "free_y") +
     labs(y = NULL,
-         title    = "a  Pre-MS comorbidity associations",
+         title    = glue("a  {PRE_LBL} comorbidity associations"),
          subtitle = sprintf("%d conditions tested | %d FDR<0.05 | model: age + sex",
                             nrow(phewas), nrow(sig))) +
     theme_ukb(base_size = 9) +
@@ -170,10 +187,10 @@ pB <- ggplot(umap_pts, aes(U1, U2, colour = cluster_f)) +
         keyheight    = unit(0.55, "lines")
     )) +
     labs(x = "UMAP 1", y = "UMAP 2",
-         title    = "b  Pre-MS endophenotype clusters",
-         subtitle = sprintf("Jaccard UMAP  |  k=%d  |  sil=%.2f  |  n=%d patients with pre-MS features  (n=%d without not shown)",
+         title    = glue("b  {PRE_LBL} endophenotype clusters"),
+         subtitle = sprintf("Jaccard UMAP  |  k=%d  |  sil=%.2f  |  n=%d patients with %s features  (n=%d without not shown)",
                             config$k, config$silhouette, config$n_clustered,
-                            nrow(blk_feat) - config$n_clustered)) +
+                            PRE_LBL, nrow(blk_feat) - config$n_clustered)) +
     theme_ukb(base_size = 9) +
     theme(axis.text = element_blank(), axis.ticks = element_blank(), aspect.ratio = 1,
           legend.position = "right",
@@ -241,7 +258,7 @@ pD <- ggplot(blk_feat[!is.na(age_at_diagnosis)],
     geom_boxplot(width = 0.12, outlier.shape = NA, linewidth = 0.3,
                  fill = "white", colour = "grey30") +
     scale_fill_manual(values = CLUST_COLS, guide = "none") +
-    labs(x = NULL, y = "Age at MS diagnosis (years)",
+    labs(x = NULL, y = glue("Age at {DISEASE_CAPS} diagnosis (years)"),
          title    = "d  Age at diagnosis",
          subtitle = sprintf("n=%d MS cases  |  sex (%% female): %s  (χ² p=%.2f)",
                             nrow(blk_feat[!is.na(age_at_diagnosis)]),
@@ -287,7 +304,7 @@ if ("hla_carrier" %in% names(blk_feat)) {
         scale_colour_manual(values = CLUST_COLS, guide = "none") +
         scale_y_continuous(limits = c(0, NA),
                            expand = expansion(mult = c(0, 0.18))) +
-        labs(x = NULL, y = "HLA-DRB1*15:01 carrier (%)",
+        labs(x = NULL, y = glue("{HLA_LBL} carrier (%)"),
              title    = "e  HLA carrier rate",
              subtitle = sprintf("Dashed = cohort mean  (overall: %.0f%%)  |  Fisher test vs None",
                                 hla_overall)) +
@@ -310,9 +327,10 @@ if ("prs_score" %in% names(blk_feat)) {
         geom_boxplot(width = 0.12, outlier.shape = NA, linewidth = 0.3,
                      fill = "white", colour = "grey30") +
         scale_fill_manual(values = CLUST_COLS, guide = "none") +
-        labs(x = NULL, y = "MS polygenic risk score",
+        labs(x = NULL, y = glue("{DISEASE_CAPS} polygenic risk score"),
              title    = "f  Polygenic risk score",
-             subtitle = sprintf("Higher = greater common variant MS risk  |  %s", kw_label)) +
+             subtitle = sprintf("Higher = greater common variant %s risk  |  %s",
+                                DISEASE_CAPS, kw_label)) +
         theme_ukb(base_size = 9) +
         theme(axis.text.x = element_text(face = "bold", size = 8))
 

@@ -19,6 +19,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(splines)
     library(MatchIt)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -26,6 +27,16 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
+PRS_COL      <- cfg$prs_combined_col
+PRS_LABEL    <- cfg$prs_label
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "2_supp")
 DATA_DIR <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed")
@@ -42,7 +53,9 @@ save_panel <- function(p, name, w = 3.5, h = 3.5) {
 # Load data
 # ─────────────────────────────────────────────────────────────────────────────
 cat("Loading data...\n")
-qc <- fread(file.path(DATA_DIR, "ms_olink_qc.csv"))
+qc <- fread(file.path(DATA_DIR, glue("{COHORT}_olink_qc.csv")))
+if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+    setnames(qc, STATUS_COL, "ms_status")
 qc <- qc[is.na(age_at_diagnosis) | (age_at_diagnosis >= 5 & age_at_diagnosis <= 90)]
 
 TRAJ_FILE <- file.path(DIFF_DIR, "cns_trajectories.csv")
@@ -51,9 +64,9 @@ traj[, protein := toupper(protein)]
 
 # PSM-matched HC reference (mirrors figure2.R)
 cat("  Computing PSM-matched HC reference...\n")
-ms_pool <- qc[ms_status %in% c("pre_onset","post_onset") & qc_outlier == FALSE &
+ms_pool <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
                !is.na(age_at_sampling) & !is.na(sex) & !is.na(years_to_diagnosis)]
-hc_pool <- qc[ms_status == "control" & qc_outlier == FALSE &
+hc_pool <- qc[ms_status == SV$control & qc_outlier == FALSE &
                !is.na(age_at_sampling) & !is.na(sex)]
 pool_dt <- rbind(
     ms_pool[, .(eid, is_ms = 1L, age_at_sampling, sex, years_to_diagnosis)],
@@ -94,7 +107,7 @@ hc_psm_spline <- function(col_nm, ytd_grid) {
 # the same style as the figure2.R immune panels so efig2a is self-contained).
 # ─────────────────────────────────────────────────────────────────────────────
 fit_traj_inline <- function(col_nm, qc_in, ytd_grid = seq(-8, 12, by = 0.25)) {
-    d <- qc_in[ms_status %in% c("pre_onset", "post_onset") & qc_outlier == FALSE &
+    d <- qc_in[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
                !is.na(years_to_diagnosis) & !is.na(age_at_sampling) & !is.na(sex)]
     if (!col_nm %in% names(d)) return(NULL)
     d <- d[, .(npx = get(col_nm), years_to_diagnosis, age_at_sampling, sex)][!is.na(npx)]
@@ -109,7 +122,7 @@ fit_traj_inline <- function(col_nm, qc_in, ytd_grid = seq(-8, 12, by = 0.25)) {
         sex                = as.numeric(names(sort(table(d$sex), decreasing = TRUE))[1])
     )
     pr <- predict(fit, newdata = nd, se.fit = TRUE)
-    hc_vals <- qc_in[ms_status == "control" & qc_outlier == FALSE, get(col_nm)]
+    hc_vals <- qc_in[ms_status == SV$control & qc_outlier == FALSE, get(col_nm)]
     hc_mean <- mean(hc_vals, na.rm = TRUE)
     hc_sd   <- sd(hc_vals,   na.rm = TRUE)
     data.table(
@@ -149,7 +162,7 @@ for (prot in names(SUPP_META)) {
     ytd_g   <- t_p$years_to_dx
     ref_p   <- hc_psm_spline(tolower(prot), ytd_g)
     use_ref <- !is.null(ref_p)
-    col_map <- c("MS" = m$col, "HC (PSM-matched)" = "grey45")
+    col_map <- setNames(c(m$col, "grey45"), c(DISEASE_CAPS, "HC (PSM-matched)"))
 
     p <- ggplot(t_p, aes(x = years_to_dx)) +
         {if (use_ref) list(
@@ -162,16 +175,16 @@ for (prot in names(SUPP_META)) {
                        linetype = "dashed", linewidth = 0.5)
         )} +
         geom_ribbon(aes(ymin = pred_lci, ymax = pred_uci), fill = m$col, alpha = 0.18) +
-        geom_line(aes(y = pred_npx, colour = "MS"), linewidth = 0.9) +
+        geom_line(aes(y = pred_npx, colour = DISEASE_CAPS), linewidth = 0.9) +
         geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.4, colour = "grey40") +
         annotate("text", x = 0.3, y = Inf, label = "Dx",
                  hjust = 0, vjust = 1.5, size = 2.3, colour = "grey40") +
         scale_colour_manual(values = col_map, name = NULL) +
         scale_x_continuous(breaks = seq(-8, 12, by = 4)) +
         labs(
-            title    = paste0(substr(m$pid, 1, 1), "  ", prot, " — MS disease course"),
+            title    = glue("{substr(m$pid, 1, 1)}  {prot} — {DISEASE_CAPS} disease course"),
             subtitle = m$note,
-            x        = "Years relative to MS diagnosis",
+            x        = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y        = paste0(prot, " (NPX)")
         ) +
         theme_ukb(base_size = 9) +
@@ -190,13 +203,15 @@ for (prot in names(SUPP_META)) {
 cat("Building panel d (ERBB2 PRS-stratified trajectory)...\n")
 
 tryCatch({
-    PRS_FILE_D <- file.path(PROJ_DIR, "data", "ukb", "genetics", "ms_prs_scores.csv")
+    PRS_FILE_D <- file.path(PROJ_DIR, "data", "ukb", "genetics", glue("{COHORT}_prs_scores.csv"))
     if (!file.exists(PRS_FILE_D)) stop("PRS file not found: ", PRS_FILE_D)
     if (!"erbb2" %in% names(qc))  stop("ERBB2 not in QC columns")
 
     prs_d <- fread(PRS_FILE_D, showProgress = FALSE)
+    if (PRS_COL != "prs_score" && PRS_COL %in% names(prs_d))
+        setnames(prs_d, PRS_COL, "prs_score")
     ms_d  <- merge(
-        qc[ms_status %in% c("pre_onset", "post_onset") & qc_outlier == FALSE &
+        qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
            !is.na(years_to_diagnosis) & !is.na(erbb2) &
            years_to_diagnosis >= -20 & years_to_diagnosis <= 16],
         prs_d[, .(eid, prs_score)], by = "eid"
@@ -280,9 +295,9 @@ tryCatch({
                           guide = "none") +
         scale_x_continuous(breaks = seq(-16, 16, by = 4)) +
         labs(
-            title    = paste0("d  ERBB2 trajectory by MS genetic risk", int_label_d),
+            title    = paste0("d  ERBB2 trajectory by ", PRS_LABEL, int_label_d),
             subtitle = "Q1 (lowest) vs Q4 (highest) PRS shown with 95% CI | Q2/Q3 dashed | age+sex adjusted",
-            x        = "Years relative to MS diagnosis",
+            x        = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y        = "ERBB2 (NPX)"
         ) +
         theme_ukb(base_size = 9) +

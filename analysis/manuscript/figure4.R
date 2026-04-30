@@ -29,6 +29,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(splines)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -37,13 +38,22 @@ SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", fi
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
+POST_LBL     <- glue("post-{DISEASE_CAPS}")
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "4")
 SUPP_DIR <- file.path(PROJ_DIR, "results", "figures", "4_supp")
 SEX_DIR  <- file.path(PROJ_DIR, "results", "sex_stratified")
 DATA_DIR <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed")
 NET_DIR  <- file.path(PROJ_DIR, "results", "networks")
-WH_FILE  <- file.path(NET_DIR, "ms_combined_walchli_hpa_matrix.csv")
+WH_FILE  <- file.path(NET_DIR, glue("{COHORT}_combined_walchli_hpa_matrix.csv"))
 dir.create(FIG_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(SUPP_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -89,9 +99,9 @@ save_supp <- function(p, name, w = 3.5, h = 3.5) {
 # ---------------------------------------------------------------------------
 cat("Loading sex-stratified DEP results...\n")
 
-fa_file <- file.path(SEX_DIR, "ms_female_vs_hc_all.csv")
-ma_file <- file.path(SEX_DIR, "ms_male_vs_hc_all.csv")
-si_file <- file.path(SEX_DIR, "ms_sex_interaction.csv")
+fa_file <- file.path(SEX_DIR, glue("{COHORT}_female_vs_hc_all.csv"))
+ma_file <- file.path(SEX_DIR, glue("{COHORT}_male_vs_hc_all.csv"))
+si_file <- file.path(SEX_DIR, glue("{COHORT}_sex_interaction.csv"))
 
 if (!file.exists(fa_file) || !file.exists(ma_file)) {
     stop("Sex-stratified results not found in ", SEX_DIR)
@@ -195,12 +205,12 @@ pA <- ggplot(wide, aes(x = logFC_m, y = logFC_f,
                         guide = guide_legend(override.aes = list(size = 2.5, alpha = 1))) +
     scale_size_manual(values = CAT_SZ, guide = "none") +
     labs(
-        title    = "a  Female vs male MS proteome: concordance and sex-specificity",
+        title    = glue("a  Female vs male {DISEASE_CAPS} proteome: concordance and sex-specificity"),
         subtitle = sprintf(
             "Female FDR<0.05: %d | Male FDR<0.05: %d | Discordant (orange): FDR<0.05 in both, opposite direction",
             n_f_dep, n_m_dep),
-        x = expression(log[2]~"FC (Male MS vs HC)"),
-        y = expression(log[2]~"FC (Female MS vs HC)")
+        x = bquote(log[2]~"FC (Male"~.(DISEASE_CAPS)~"vs HC)"),
+        y = bquote(log[2]~"FC (Female"~.(DISEASE_CAPS)~"vs HC)")
     ) +
     theme_ukb(base_size = 9) +
     theme(legend.position = "bottom",
@@ -222,7 +232,7 @@ pB <- ggplot(bar_dat, aes(y = dep_cat, x = N, colour = dep_cat)) +
     scale_colour_manual(values = CAT_COLS, guide = "none") +
     scale_x_continuous(expand = expansion(mult = c(0, 0.18)), limits = c(0, NA)) +
     labs(
-        title    = "b  Sex-stratified MS DEP landscape",
+        title    = glue("b  Sex-stratified {DISEASE_CAPS} DEP landscape"),
         subtitle = sprintf("Female FDR<0.05: %d | Male FDR<0.05: %d | Discordant = opposite direction in each sex",
                            n_f_dep, n_m_dep),
         x = "Number of proteins", y = NULL
@@ -242,8 +252,8 @@ save_panel(pB, "b_dep_landscape", 4.0, 2.8)
 # ---------------------------------------------------------------------------
 cat("Building panel i (pre-onset sex differences scatter)...\n")
 
-PRE_F_FILE <- file.path(SEX_DIR, "ms_pre_female_vs_hc_all.csv")
-PRE_M_FILE <- file.path(SEX_DIR, "ms_pre_male_vs_hc_all.csv")
+PRE_F_FILE <- file.path(SEX_DIR, glue("{COHORT}_pre_female_vs_hc_all.csv"))
+PRE_M_FILE <- file.path(SEX_DIR, glue("{COHORT}_pre_male_vs_hc_all.csv"))
 
 tryCatch({
     if (!file.exists(PRE_F_FILE) || !file.exists(PRE_M_FILE))
@@ -315,12 +325,12 @@ tryCatch({
                             guide = guide_legend(override.aes = list(size = 2.5, alpha = 1))) +
         scale_size_manual(values = CAT_SZ, guide = "none") +
         labs(
-            title    = "i  Pre-onset sex differences in the MS proteome",
+            title    = glue("i  Pre-onset sex differences in the {DISEASE_CAPS} proteome"),
             subtitle = sprintf(
                 "Pre-onset: Female FDR<0.05: %d | Male FDR<0.05: %d | Coloured by full-cohort category",
                 n_pre_f, n_pre_m),
-            x = expression(log[2]~"FC (Pre-onset Male MS vs HC)"),
-            y = expression(log[2]~"FC (Pre-onset Female MS vs HC)")
+            x = bquote(log[2]~"FC (Pre-onset Male"~.(DISEASE_CAPS)~"vs HC)"),
+            y = bquote(log[2]~"FC (Pre-onset Female"~.(DISEASE_CAPS)~"vs HC)")
         ) +
         theme_ukb(base_size = 9) +
         theme(legend.position = "bottom",
@@ -404,15 +414,15 @@ tryCatch({
     }
 
     make_dep_heatmap(wide, "logFC_f", "fdr_f",
-                     title_str = "c  Female-MS DEPs: Walchli+HPA cell-type expression",
+                     title_str = glue("c  Female-{DISEASE_CAPS} DEPs: Walchli+HPA cell-type expression"),
                      pan_name  = "c_female_celltype_heatmap",
-                     up_lbl = "Up in F-MS", dn_lbl = "Down in F-MS",
+                     up_lbl = glue("Up in F-{DISEASE_CAPS}"), dn_lbl = glue("Down in F-{DISEASE_CAPS}"),
                      up_col = "#CC0066", dn_col = "#2B4C7E", heat_col = "#CC0066")
 
     make_dep_heatmap(wide[fdr_m < 0.05], "logFC_m", "fdr_m",
-                     title_str = "e  Male-MS DEPs: Walchli+HPA cell-type expression",
+                     title_str = glue("e  Male-{DISEASE_CAPS} DEPs: Walchli+HPA cell-type expression"),
                      pan_name  = "e_male_celltype_heatmap",
-                     up_lbl = "Up in M-MS", dn_lbl = "Down in M-MS",
+                     up_lbl = glue("Up in M-{DISEASE_CAPS}"), dn_lbl = glue("Down in M-{DISEASE_CAPS}"),
                      up_col = "#2B4C7E", dn_col = "#56B4E9", heat_col = "#2B4C7E")
 
 }, error = function(e) cat("  Panels c/d skipped:", conditionMessage(e), "\n"))
@@ -493,8 +503,8 @@ tryCatch({
     make_go_panel(
         up_genes  = wide[fdr_f < 0.05 & logFC_f > 0, toupper(protein)],
         down_genes = wide[fdr_f < 0.05 & logFC_f < 0, toupper(protein)],
-        title_str = "female-MS DEPs",
-        up_lbl = "Up in F-MS", dn_lbl = "Down in F-MS",
+        title_str = glue("female-{DISEASE_CAPS} DEPs"),
+        up_lbl = glue("Up in F-{DISEASE_CAPS}"), dn_lbl = glue("Down in F-{DISEASE_CAPS}"),
         up_col = "#CC0066", dn_col = "#2B4C7E",
         fname = "d_female_go"
     )
@@ -503,8 +513,8 @@ tryCatch({
     make_go_panel(
         up_genes  = wide[fdr_m < 0.05 & logFC_m > 0, toupper(protein)],
         down_genes = wide[fdr_m < 0.05 & logFC_m < 0, toupper(protein)],
-        title_str = "male-MS DEPs",
-        up_lbl = "Up in M-MS", dn_lbl = "Down in M-MS",
+        title_str = glue("male-{DISEASE_CAPS} DEPs"),
+        up_lbl = glue("Up in M-{DISEASE_CAPS}"), dn_lbl = glue("Down in M-{DISEASE_CAPS}"),
         up_col = "#2B4C7E", dn_col = "#56B4E9",
         fname = "f_male_go"
     )
@@ -529,7 +539,7 @@ tryCatch({
 # ---------------------------------------------------------------------------
 cat("Building panels g and h (sex-stratified trajectories)...\n")
 
-QC_FILE       <- file.path(DATA_DIR, "ms_olink_qc.csv")
+QC_FILE       <- file.path(DATA_DIR, glue("{COHORT}_olink_qc.csv"))
 SEX_TRAJ_COLS <- c("Female" = "#CC0066", "Male" = "#2B4C7E")
 YTD_RANGE     <- c(-15, 15)
 
@@ -543,7 +553,7 @@ make_sex_traj <- function(qc, prot_lc, pan_letter, dep_note, save_name,
     }
 
     traj_d <- qc[
-        ms_status %in% c("pre_onset", "post_onset") &
+        ms_status %in% c(SV$pre_onset, SV$post_onset) &
         qc_outlier == FALSE &
         !is.na(get(prot_lc)) & !is.na(years_to_diagnosis) & !is.na(sex)
     ]
@@ -668,7 +678,7 @@ make_sex_traj <- function(qc, prot_lc, pan_letter, dep_note, save_name,
         labs(
             title    = sprintf("%s  %s disease-course trajectory by sex", pan_letter, prot_uc),
             subtitle = paste0(dep_note, "\n", lfc_note, hc_note),
-            x = "Years relative to MS diagnosis",
+            x = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y = sprintf("%s (NPX)", prot_uc)
         ) +
         theme_ukb(base_size = 9) +
@@ -681,14 +691,16 @@ make_sex_traj <- function(qc, prot_lc, pan_letter, dep_note, save_name,
 
 if (file.exists(QC_FILE)) {
     qc <- fread(QC_FILE)
+    if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+        setnames(qc, STATUS_COL, "ms_status")
 
     # PSM-matched HC reference: match MS cases to HC on age + sex (1:3),
     # propagate each MS case's years_to_diagnosis as pseudo-ytd to its matched HCs
     suppressPackageStartupMessages(library(MatchIt))
     hc_ref_traj <- tryCatch({
-        ms_pool_t <- qc[ms_status %in% c("pre_onset","post_onset") & qc_outlier==FALSE &
+        ms_pool_t <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier==FALSE &
                         !is.na(age_at_sampling) & !is.na(sex) & !is.na(years_to_diagnosis)]
-        hc_pool_t <- qc[ms_status == "control" & qc_outlier==FALSE &
+        hc_pool_t <- qc[ms_status == SV$control & qc_outlier==FALSE &
                         !is.na(age_at_sampling) & !is.na(sex)]
         pool_t <- rbind(
             ms_pool_t[, .(eid, is_ms=1L, age_at_sampling, sex, years_to_diagnosis)],
@@ -803,7 +815,7 @@ tryCatch({
              annotation_names_col = FALSE, annotation_names_row = FALSE,
              border_color      = NA,
              gaps_row          = if (length(gaps_b)>0) gaps_b else NULL,
-             main = "b  Sex-stratified MS DEPs: Walchli+HPA cell-type expression")
+             main = glue("b  Sex-stratified {DISEASE_CAPS} DEPs: Walchli+HPA cell-type expression"))
     dev.off()
     cat("  Saved: 4_supp/panel_b_celltype_heatmap.pdf\n")
 }, error = function(e) cat("  Supp b skipped:", conditionMessage(e), "\n"))
@@ -861,9 +873,9 @@ tryCatch({
 
     # fa / ma loaded earlier in figure4.R from ms_female_vs_hc_all.csv /
     # ms_male_vs_hc_all.csv; both have limma's `t` column.
-    make_sex_gsea_panel(fa, "c", "F-MS", "c_female_celltype_gsea",
+    make_sex_gsea_panel(fa, "c", glue("F-{DISEASE_CAPS}"), "c_female_celltype_gsea",
                          high_col = "#CC0066")
-    make_sex_gsea_panel(ma, "d", "M-MS", "d_male_celltype_gsea",
+    make_sex_gsea_panel(ma, "d", glue("M-{DISEASE_CAPS}"), "d_male_celltype_gsea",
                          high_col = "#2B4C7E")
 }, error = function(e) cat("  Supp c/d skipped:", conditionMessage(e), "\n"))
 
@@ -913,10 +925,10 @@ if (!is.null(si)) {
                  size = 1.9, hjust = 1, colour = "grey40") +
         scale_colour_manual(values = SI_COLS, name = NULL) +
         labs(
-            title    = "a  Sex \u00d7 MS interaction volcano",
-            subtitle = sprintf("Interaction: sex:ms_status | %d FDR<0.05 | %d nominal p<0.05",
-                               sum(si$fdr < 0.05), n_nom_si),
-            x        = expression(beta[sex%*%MS]~"(interaction coefficient)"),
+            title    = glue("a  Sex \u00d7 {DISEASE_CAPS} interaction volcano"),
+            subtitle = sprintf("Interaction: sex:%s | %d FDR<0.05 | %d nominal p<0.05",
+                               STATUS_COL, sum(si$fdr < 0.05), n_nom_si),
+            x        = bquote(beta[sex%*%.(DISEASE_CAPS)]~"(interaction coefficient)"),
             y        = expression(-log[10]~italic(P))
         ) +
         theme_ukb(base_size = 9) +
@@ -931,8 +943,8 @@ if (!is.null(si)) {
 # ---------------------------------------------------------------------------
 cat("Building panel j (6-curve ROC)...\n")
 
-ML_ROC_FILE  <- file.path(PROJ_DIR, "results", "ml", "ms_sex_ml_roc_data.csv")
-ML_SHAP_FILE <- file.path(PROJ_DIR, "results", "ml", "ms_sex_ml_shap.csv")
+ML_ROC_FILE  <- file.path(PROJ_DIR, "results", "ml", glue("{COHORT}_sex_ml_roc_data.csv"))
+ML_SHAP_FILE <- file.path(PROJ_DIR, "results", "ml", glue("{COHORT}_sex_ml_shap.csv"))
 
 tryCatch({
     if (!file.exists(ML_ROC_FILE))
@@ -983,7 +995,7 @@ tryCatch({
         scale_colour_manual(values = SEX_COLS_J, name = NULL) +
         coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
         labs(
-            title    = "j  Sex-stratified MS classifier ROC curves",
+            title    = glue("j  Sex-stratified {DISEASE_CAPS} classifier ROC curves"),
             subtitle = "glmnet elastic net | held-out test set",
             x = "1 \u2013 Specificity (FPR)",
             y = "Sensitivity (TPR)"
@@ -1027,7 +1039,7 @@ tryCatch({
         scale_fill_manual(values = c("Female" = "#CC0066", "Male" = "#2B4C7E"), name = NULL) +
         scale_x_continuous(expand = expansion(mult = c(0, 0.06))) +
         labs(
-            title    = "e  Sex-stratified MS classifier: SHAP feature importance",
+            title    = glue("e  Sex-stratified {DISEASE_CAPS} classifier: SHAP feature importance"),
             subtitle = "Linear SHAP = |coef| \u00d7 sd(feature) | combined models | top 35 | empty bar = absent in that sex",
             x = "Mean |SHAP| (log-odds scale)", y = NULL
         ) +
@@ -1048,10 +1060,10 @@ tryCatch({
 cat("Building Extended Data Fig. 4 (pre/post sex concordance)...\n")
 
 tryCatch({
-    PRE_F  <- file.path(SEX_DIR, "ms_pre_female_vs_hc_all.csv")
-    PRE_M  <- file.path(SEX_DIR, "ms_pre_male_vs_hc_all.csv")
-    POST_F <- file.path(SEX_DIR, "ms_post_female_vs_hc_all.csv")
-    POST_M <- file.path(SEX_DIR, "ms_post_male_vs_hc_all.csv")
+    PRE_F  <- file.path(SEX_DIR, glue("{COHORT}_pre_female_vs_hc_all.csv"))
+    PRE_M  <- file.path(SEX_DIR, glue("{COHORT}_pre_male_vs_hc_all.csv"))
+    POST_F <- file.path(SEX_DIR, glue("{COHORT}_post_female_vs_hc_all.csv"))
+    POST_M <- file.path(SEX_DIR, glue("{COHORT}_post_male_vs_hc_all.csv"))
 
     missing <- !file.exists(c(PRE_F, PRE_M, POST_F, POST_M))
     if (any(missing)) stop("Stage-stratified sex results missing — run 01_sex_stratified_ms_deps.R")
@@ -1106,8 +1118,8 @@ tryCatch({
                                    pan_letter, stage_lbl),
                 subtitle = sprintf("F FDR<0.05: %d | M FDR<0.05: %d | r=%.3f",
                                    n_f, n_m, r_all),
-                x = expression(log[2]~"FC (Male MS vs HC)"),
-                y = expression(log[2]~"FC (Female MS vs HC)")
+                x = bquote(log[2]~"FC (Male"~.(DISEASE_CAPS)~"vs HC)"),
+                y = bquote(log[2]~"FC (Female"~.(DISEASE_CAPS)~"vs HC)")
             ) +
             theme_ukb(base_size=9) +
             theme(legend.position="bottom",
