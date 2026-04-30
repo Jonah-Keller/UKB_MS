@@ -9,23 +9,25 @@
 #      (accession GCST90012877 = Brum et al. 2023 Nature Genetics)
 #   4. Check overlap: do cluster GWAS hits co-localise with MS risk loci?
 #   5. Generate Manhattan + QQ plots
-#   6. Output tables: cluster_gwas_hits.csv, ms_overlap_C1.csv, ms_overlap_C2.csv
+#   6. Output tables: {cohort_short}_cluster_gwas_hits.csv,
+#      {cohort_short}_ref_overlap_C1.csv, {cohort_short}_ref_overlap_C2.csv
 #
 # Output: results/gwas_cluster/
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(patchwork)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
-GWAS_DIR  <- file.path(PROJ_DIR, "results", "gwas_cluster")
+cfg <- load_disease_config()
+
+GWAS_DIR  <- here::here("results", "gwas_cluster")
 OUT_DIR   <- GWAS_DIR
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -33,10 +35,13 @@ GW_THR    <- 5e-8
 SUGGESTIVE <- 1e-6
 WINDOW_KB  <- 500
 
-# IMSGC 2023 MS GWAS Catalog accession (Brum et al. Nat Genet 2023)
-MS_GWAS_URL <- "https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90012001-GCST90013000/GCST90012877/harmonised/GCST90012877_buildGRCh37.tsv.gz"
-MS_GWAS_LOCAL <- file.path(PROJ_DIR, "data", "external", "ms_imsgc2023_gwas.tsv.gz")
-dir.create(dirname(MS_GWAS_LOCAL), showWarnings=FALSE, recursive=TRUE)
+# Reference GWAS catalog accession (configured per cohort via disease.yaml
+# overrides if available; falls back to the MS IMSGC 2023 default).
+REF_GWAS_URL   <- if (!is.null(cfg$ref_gwas_url))   cfg$ref_gwas_url else
+    "https://ftp.ebi.ac.uk/pub/databases/gwas/summary_statistics/GCST90012001-GCST90013000/GCST90012877/harmonised/GCST90012877_buildGRCh37.tsv.gz"
+REF_GWAS_LOCAL <- here::here("data", "external",
+                             glue("{cfg$cohort_short}_reference_gwas.tsv.gz"))
+dir.create(dirname(REF_GWAS_LOCAL), showWarnings=FALSE, recursive=TRUE)
 
 # ── 1. Load REGENIE results ────────────────────────────────────────────────────
 load_regenie <- function(gz_file, phenotype) {
@@ -92,71 +97,71 @@ cat(sprintf("  C1 GW hits (p<5e-8): %d loci\n",
 cat(sprintf("  C2 GW hits (p<5e-8): %d loci\n",
             if (is.null(hits_c2)) 0L else nrow(hits_c2)))
 
-# ── 3. Download MS GWAS catalog ───────────────────────────────────────────────
-cat("\nLoading IMSGC 2023 MS GWAS...\n")
-if (!file.exists(MS_GWAS_LOCAL)) {
-    cat("  Downloading IMSGC 2023 GWAS summary stats...\n")
+# ── 3. Download reference GWAS catalog ────────────────────────────────────────
+cat(glue("\nLoading reference {cfg$disease_short_caps} GWAS...\n"))
+if (!file.exists(REF_GWAS_LOCAL)) {
+    cat(glue("  Downloading reference {cfg$disease_short_caps} GWAS summary stats...\n"))
     tryCatch(
-        download.file(MS_GWAS_URL, MS_GWAS_LOCAL, mode="wb", quiet=TRUE),
+        download.file(REF_GWAS_URL, REF_GWAS_LOCAL, mode="wb", quiet=TRUE),
         error = function(e) {
-            cat(sprintf("  WARNING: Could not download MS GWAS: %s\n", e$message))
+            cat(sprintf("  WARNING: Could not download reference GWAS: %s\n", e$message))
         }
     )
 }
 
-ms_gwas <- NULL
-if (file.exists(MS_GWAS_LOCAL)) {
-    ms_gwas <- fread(MS_GWAS_LOCAL, showProgress=FALSE)
-    cat(sprintf("  MS GWAS loaded: %d variants\n", nrow(ms_gwas)))
+ref_gwas <- NULL
+if (file.exists(REF_GWAS_LOCAL)) {
+    ref_gwas <- fread(REF_GWAS_LOCAL, showProgress=FALSE)
+    cat(sprintf("  Reference GWAS loaded: %d variants\n", nrow(ref_gwas)))
     # Harmonise column names (GWAS Catalog format)
-    if ("hm_chrom" %in% names(ms_gwas)) {
-        setnames(ms_gwas, c("hm_chrom","hm_pos","p_value"),
-                          c("CHR","POS","ms_pvalue"), skip_absent=TRUE)
+    if ("hm_chrom" %in% names(ref_gwas)) {
+        setnames(ref_gwas, c("hm_chrom","hm_pos","p_value"),
+                          c("CHR","POS","ref_pvalue"), skip_absent=TRUE)
     }
-    ms_sig <- ms_gwas[ms_pvalue < 5e-8]
-    cat(sprintf("  MS GW loci: %d variants\n", nrow(ms_sig)))
+    ref_sig <- ref_gwas[ref_pvalue < 5e-8]
+    cat(sprintf("  Reference GW loci: %d variants\n", nrow(ref_sig)))
 }
 
 # ── 4. Overlap analysis ───────────────────────────────────────────────────────
-check_ms_overlap <- function(hits, ms_sig, window_kb = 500) {
-    if (is.null(hits) || nrow(hits) == 0 || is.null(ms_sig)) return(data.table())
+check_ref_overlap <- function(hits, ref_sig, window_kb = 500) {
+    if (is.null(hits) || nrow(hits) == 0 || is.null(ref_sig)) return(data.table())
     results <- rbindlist(lapply(seq_len(nrow(hits)), function(i) {
         chr <- hits$CHROM[i]
         pos <- hits$GENPOS[i]
-        nearby_ms <- ms_sig[CHR == chr &
-                             abs(POS - pos) <= window_kb * 1000]
-        if (nrow(nearby_ms) == 0) {
+        nearby_ref <- ref_sig[CHR == chr &
+                              abs(POS - pos) <= window_kb * 1000]
+        if (nrow(nearby_ref) == 0) {
             return(data.table(
                 cluster_snp=hits$ID[i], CHROM=chr, GENPOS=pos,
-                cluster_p=hits$p_value[i], ms_overlap=FALSE,
-                nearest_ms_snp=NA, nearest_ms_dist=NA, nearest_ms_p=NA
+                cluster_p=hits$p_value[i], ref_overlap=FALSE,
+                nearest_ref_snp=NA, nearest_ref_dist=NA, nearest_ref_p=NA
             ))
         }
-        best <- nearby_ms[which.min(ms_pvalue)]
+        best <- nearby_ref[which.min(ref_pvalue)]
         data.table(
             cluster_snp=hits$ID[i], CHROM=chr, GENPOS=pos,
-            cluster_p=hits$p_value[i], ms_overlap=TRUE,
-            nearest_ms_snp=best$hm_rsid[1], nearest_ms_dist=abs(best$POS[1]-pos),
-            nearest_ms_p=best$ms_pvalue[1]
+            cluster_p=hits$p_value[i], ref_overlap=TRUE,
+            nearest_ref_snp=best$hm_rsid[1], nearest_ref_dist=abs(best$POS[1]-pos),
+            nearest_ref_p=best$ref_pvalue[1]
         )
     }))
     results
 }
 
-if (!is.null(ms_gwas)) {
-    overlap_c1 <- check_ms_overlap(hits_c1, ms_sig)
-    overlap_c2 <- check_ms_overlap(hits_c2, ms_sig)
-    cat(sprintf("\n  C1 hits overlapping MS loci (±%dkb): %d / %d\n",
+if (!is.null(ref_gwas)) {
+    overlap_c1 <- check_ref_overlap(hits_c1, ref_sig)
+    overlap_c2 <- check_ref_overlap(hits_c2, ref_sig)
+    cat(sprintf("\n  C1 hits overlapping reference loci (±%dkb): %d / %d\n",
                 WINDOW_KB,
-                if (nrow(overlap_c1) > 0) sum(overlap_c1$ms_overlap) else 0,
+                if (nrow(overlap_c1) > 0) sum(overlap_c1$ref_overlap) else 0,
                 if (is.null(hits_c1)) 0 else nrow(hits_c1)))
-    cat(sprintf("  C2 hits overlapping MS loci (±%dkb): %d / %d\n",
+    cat(sprintf("  C2 hits overlapping reference loci (±%dkb): %d / %d\n",
                 WINDOW_KB,
-                if (nrow(overlap_c2) > 0) sum(overlap_c2$ms_overlap) else 0,
+                if (nrow(overlap_c2) > 0) sum(overlap_c2$ref_overlap) else 0,
                 if (is.null(hits_c2)) 0 else nrow(hits_c2)))
 
-    fwrite(overlap_c1, file.path(OUT_DIR, "ms_overlap_C1.csv"))
-    fwrite(overlap_c2, file.path(OUT_DIR, "ms_overlap_C2.csv"))
+    fwrite(overlap_c1, file.path(OUT_DIR, glue("{cfg$cohort_short}_ref_overlap_C1.csv")))
+    fwrite(overlap_c2, file.path(OUT_DIR, glue("{cfg$cohort_short}_ref_overlap_C2.csv")))
 }
 
 # ── 5. Manhattan + QQ plots ───────────────────────────────────────────────────
@@ -230,11 +235,12 @@ for (nm in c("C1","C2")) {
 }
 
 if (length(plots) > 0) {
-    pdf(file.path(OUT_DIR, "cluster_gwas_manhattan.pdf"), width=14, height=10)
+    pdf_path <- file.path(OUT_DIR, glue("{cfg$cohort_short}_cluster_gwas_manhattan.pdf"))
+    pdf(pdf_path, width=14, height=10)
     non_null <- Filter(Negate(is.null), plots)
     if (length(non_null) >= 2) print(wrap_plots(non_null, ncol=2))
     dev.off()
-    cat("  Saved: cluster_gwas_manhattan.pdf\n")
+    cat(sprintf("  Saved: %s\n", basename(pdf_path)))
 }
 
 # ── 6. Save hit tables ────────────────────────────────────────────────────────
@@ -243,8 +249,9 @@ all_hits <- rbind(
     if (!is.null(hits_c2) && nrow(hits_c2) > 0) cbind(hits_c2, phenotype="C2") else NULL
 )
 if (!is.null(all_hits)) {
-    fwrite(all_hits, file.path(OUT_DIR, "cluster_gwas_hits.csv"))
-    cat(sprintf("  Saved: cluster_gwas_hits.csv (%d total loci)\n", nrow(all_hits)))
+    hits_path <- file.path(OUT_DIR, glue("{cfg$cohort_short}_cluster_gwas_hits.csv"))
+    fwrite(all_hits, hits_path)
+    cat(sprintf("  Saved: %s (%d total loci)\n", basename(hits_path), nrow(all_hits)))
 }
 
 cat("\nDone. Results in", OUT_DIR, "\n")

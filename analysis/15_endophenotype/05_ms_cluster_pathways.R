@@ -5,36 +5,33 @@
 #   enrichGO ORA (clusterProfiler) on nominal P<0.05 up/down DEP modules.
 #   Visualisation via make_go_dotplot() helper — same style as panel e.
 #
-# Module threshold: P.Value < 0.05 (nominal; PSM-matched cluster vs MS-None).
+# Module threshold: P.Value < 0.05 (nominal; PSM-matched cluster vs cohort-None).
 # Background: all proteins with valid P.Value in that contrast (~2866).
-#
-# Outputs (results/endophenotype/cluster_pathways/):
-#   cluster_go_<contrast>.csv   — enrichGO results per contrast
-#   panel_j/k/l.pdf             — per-cluster GO dotplot (figure 1 panel-e style)
-#   panel_m.pdf                 — cross-cluster GO dotplot
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(clusterProfiler)
     library(org.Hs.eg.db)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
-source(file.path(PROJ_DIR, "analysis", "helpers", "go_dotplot.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "go_dotplot.R"))
 
-DEP_DIR <- file.path(PROJ_DIR, "results", "endophenotype", "cluster_proteomics")
-OUT_DIR <- file.path(PROJ_DIR, "results", "endophenotype", "cluster_pathways")
-FIG_DIR <- file.path(PROJ_DIR, "results", "figures", "5")
+cfg <- load_disease_config()
+
+DEP_DIR <- here::here("results", "endophenotype", "cluster_proteomics")
+OUT_DIR <- here::here("results", "endophenotype", "cluster_pathways")
+FIG_DIR <- here::here("results", "figures", "5")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
 set.seed(42)
-NOM_P <- 0.05
+NOM_P      <- 0.05
+NONE_LABEL <- glue("{cfg$disease_short_caps}-None")
 
 # ── Run enrichGO per cluster contrast ────────────────────────────────────────
 cat("\nRunning GO:BP enrichment per cluster...\n")
@@ -92,9 +89,9 @@ for (spec in panel_specs) {
     col <- CLUST_COLS[spec$cluster]
 
     p <- make_go_dotplot(
-        go_dt        = go_dt,   # pass with original "up_DEPs"/"down_DEPs" labels
-        title_str    = sprintf("%s  %s \u2014 GO:BP enrichment", spec$label, spec$cluster),
-        subtitle_str = sprintf("enrichGO ORA | nominal P<%.2f module vs MS-None",  NOM_P),
+        go_dt        = go_dt,
+        title_str    = sprintf("%s  %s — GO:BP enrichment", spec$label, spec$cluster),
+        subtitle_str = glue("enrichGO ORA | nominal P<{format(NOM_P, nsmall=2)} module vs {NONE_LABEL}"),
         up_col     = col,
         down_col   = COL_DOWN,
         up_label   = spec$up_label,
@@ -126,5 +123,3 @@ if (nrow(go_all) > 0L) {
 }
 
 cat("\n05_ms_cluster_pathways.R complete.\n")
-cat("Next: 06_ms_cluster_ppi.R (STRING PPI network)\n")
-cat("      07_ms_cluster_celltypes.R (cell type mapping)\n")
