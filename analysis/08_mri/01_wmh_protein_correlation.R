@@ -1,13 +1,12 @@
 #!/usr/bin/env Rscript
 # 01_wmh_protein_correlation.R
-# Brain MRI: white matter hyperintensity (WMH) correlation with MS DEPs
+# Brain MRI: white matter hyperintensity (WMH) correlation with disease DEPs
 #
 # UKB field p25781_i2 = WMH volume (mm^3) from T2-FLAIR at instance 2
-# Available for ~130 MS cases (94 post-onset, 36 pre-onset)
 #
 # Analyses:
 #   1. WMH vs NEFL (Abdelhak key finding: NEFL elevated with WMH burden)
-#   2. WMH vs all 173 combined DEPs — Spearman correlation
+#   2. WMH vs all combined DEPs — Spearman correlation
 #   3. WMH vs GFAP, NEFL, MOG (CNS proteins)
 #   4. Top correlated proteins
 #
@@ -22,20 +21,28 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(patchwork)
+    library(glue)
+    library(here)
 })
 
-args      <- commandArgs(trailingOnly = FALSE)
-file_arg  <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-QC_FILE  <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-WMH_FILE <- file.path(dirname(PROJ_DIR),
+STATUS_COL <- cfg$cohort_status_col
+PRE        <- cfg$status_values$pre_onset
+POST       <- cfg$status_values$post_onset
+CTRL       <- cfg$status_values$control
+CASE_VALS  <- c(PRE, POST)
+
+QC_FILE   <- here::here("data", "ukb", "olink", "processed",
+                        glue::glue("{cfg$cohort_short}_olink_qc.csv"))
+WMH_FILE  <- file.path(dirname(here::here()),
                        "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
                        "data", "ukb", "misc", "wmh_htn_dm.csv")
-DIFF_FILE <- file.path(PROJ_DIR, "results", "differential", "ms_combined_vs_hc.csv")
-OUT_DIR   <- file.path(PROJ_DIR, "results", "mri")
+DIFF_FILE <- here::here("results", "differential",
+                        glue::glue("{cfg$cohort_short}_combined_vs_hc.csv"))
+OUT_DIR   <- here::here("results", "mri")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 FDR_THR <- 0.05
@@ -50,28 +57,30 @@ cat(sprintf("  QC file: %d participants, %d DEPs to test\n", nrow(qc), length(de
 # Merge WMH into QC data
 dt <- merge(qc, wmh, by = "eid", all.x = TRUE)
 
-# Restrict to MS cases with WMH data
-ms_wmh <- dt[ms_status %in% c("pre_onset","post_onset") & !is.na(wmh_vol)]
-ms_wmh[, log_wmh := log1p(wmh_vol)]  # log-transform (heavily right-skewed)
-ms_wmh[, ms_status_f := factor(ms_status, levels = c("pre_onset","post_onset"))]
+# Restrict to cases with WMH data
+case_wmh <- dt[get(STATUS_COL) %in% CASE_VALS & !is.na(wmh_vol)]
+case_wmh[, log_wmh := log1p(wmh_vol)]  # log-transform (heavily right-skewed)
+case_wmh[, status_f := factor(get(STATUS_COL), levels = CASE_VALS)]
 
-cat(sprintf("  MS cases with WMH: %d (pre=%d, post=%d)\n",
-            nrow(ms_wmh),
-            sum(ms_wmh$ms_status == "pre_onset"),
-            sum(ms_wmh$ms_status == "post_onset")))
+cat(sprintf("  %s cases with WMH: %d (pre=%d, post=%d)\n",
+            cfg$disease_short_caps,
+            nrow(case_wmh),
+            sum(case_wmh[[STATUS_COL]] == PRE),
+            sum(case_wmh[[STATUS_COL]] == POST)))
 
 # ── 2. NEFL scatter ────────────────────────────────────────────────────────────
 cat("Plotting NEFL vs WMH...\n")
-nefl_cor <- cor.test(ms_wmh$nefl, ms_wmh$log_wmh, method = "spearman", exact = FALSE)
+nefl_cor <- cor.test(case_wmh$nefl, case_wmh$log_wmh, method = "spearman", exact = FALSE)
 
-p_nefl <- ggplot(ms_wmh, aes(x = log_wmh, y = nefl, colour = ms_status_f)) +
+status_colours <- setNames(c("#56B4E9", "#CC0066"), CASE_VALS)
+status_labels  <- setNames(c("Pre-onset", "Post-onset"), CASE_VALS)
+
+p_nefl <- ggplot(case_wmh, aes(x = log_wmh, y = nefl, colour = status_f)) +
     geom_point(size = 1.8, alpha = 0.75) +
     geom_smooth(method = "lm", aes(group = 1), colour = UKB_NAVY,
                 linewidth = 0.8, se = TRUE, fill = "#56B4E9", alpha = 0.15) +
-    scale_colour_manual(values = c("pre_onset"  = "#56B4E9",
-                                   "post_onset" = "#CC0066"),
-                        labels = c("pre_onset"  = "Pre-onset",
-                                   "post_onset" = "Post-onset"),
+    scale_colour_manual(values = status_colours,
+                        labels = status_labels,
                         name = NULL) +
     annotate("text", x = -Inf, y = Inf, hjust = -0.1, vjust = 1.3,
              label = sprintf("rho = %.2f, p = %.3g",
@@ -79,7 +88,7 @@ p_nefl <- ggplot(ms_wmh, aes(x = log_wmh, y = nefl, colour = ms_status_f)) +
              size = 3.2, colour = "grey30") +
     labs(x = "Log WMH volume (log mm\u00b3)",
          y = "NfL NPX (log\u2082)",
-         title = "NEFL vs white matter hyperintensity burden (MS cases)") +
+         title = glue::glue("NEFL vs white matter hyperintensity burden ({cfg$disease_short_caps} cases)")) +
     theme_ukb()
 
 ggsave(file.path(OUT_DIR, "wmh_nefl_scatter.pdf"),
@@ -94,14 +103,14 @@ cns_labels   <- c("nefl"="NfL","gfap"="GFAP","mog"="MOG")
 
 make_cns_scatter <- function(prot) {
     col <- tolower(prot)
-    if (!col %in% names(ms_wmh)) return(NULL)
-    ct <- cor.test(ms_wmh[[col]], ms_wmh$log_wmh, method="spearman", exact=FALSE)
-    ggplot(ms_wmh, aes(x=log_wmh, y=.data[[col]], colour=ms_status_f)) +
+    if (!col %in% names(case_wmh)) return(NULL)
+    ct <- cor.test(case_wmh[[col]], case_wmh$log_wmh, method="spearman", exact=FALSE)
+    ggplot(case_wmh, aes(x=log_wmh, y=.data[[col]], colour=status_f)) +
         geom_point(size=1.5, alpha=0.7) +
         geom_smooth(method="lm", aes(group=1), colour=UKB_NAVY,
                     linewidth=0.7, se=TRUE, fill="#56B4E9", alpha=0.15) +
-        scale_colour_manual(values=c("pre_onset"="#56B4E9","post_onset"="#CC0066"),
-                            labels=c("pre_onset"="Pre-onset","post_onset"="Post-onset"),
+        scale_colour_manual(values=status_colours,
+                            labels=status_labels,
                             name=NULL) +
         annotate("text", x=-Inf, y=Inf, hjust=-0.1, vjust=1.3,
                  label=sprintf("rho=%.2f, p=%.3g", ct$estimate, ct$p.value),
@@ -115,7 +124,7 @@ make_cns_scatter <- function(prot) {
 cns_plots <- Filter(Negate(is.null), lapply(cns_proteins, make_cns_scatter))
 if (length(cns_plots) >= 2) {
     p_cns <- wrap_plots(cns_plots, nrow=1) +
-        plot_annotation(title="CNS proteins vs WMH burden (MS cases, n=130)",
+        plot_annotation(title=glue::glue("CNS proteins vs WMH burden ({cfg$disease_short_caps} cases, n={nrow(case_wmh)})"),
                         theme=theme(plot.title=element_text(size=10, face="plain")))
     ggsave(file.path(OUT_DIR, "wmh_cns_panel.pdf"),
            p_cns, width=4*length(cns_plots), height=4, device=cairo_pdf)
@@ -124,13 +133,13 @@ if (length(cns_plots) >= 2) {
 
 # ── 4. All DEPs: Spearman correlation with WMH ───────────────────────────────
 cat("Computing WMH correlations for all DEPs...\n")
-avail_prots <- intersect(dep_list, names(ms_wmh))
+avail_prots <- intersect(dep_list, names(case_wmh))
 cat(sprintf("  Testing %d / %d DEPs\n", length(avail_prots), length(dep_list)))
 
 cor_results <- lapply(avail_prots, function(prot) {
-    vals <- ms_wmh[[prot]]
+    vals <- case_wmh[[prot]]
     if (sum(!is.na(vals)) < 20) return(NULL)
-    ct <- cor.test(vals, ms_wmh$log_wmh, method="spearman", exact=FALSE)
+    ct <- cor.test(vals, case_wmh$log_wmh, method="spearman", exact=FALSE)
     data.table(protein=prot, rho=ct$estimate, p_value=ct$p.value, n=sum(!is.na(vals)))
 })
 cor_dt <- rbindlist(Filter(Negate(is.null), cor_results))
@@ -161,8 +170,8 @@ p_top <- ggplot(plot_dt, aes(x=rho, y=protein_f, colour=dir_col, alpha=sig)) +
                        labels=c("TRUE"="Yes","FALSE"="No")) +
     labs(x="Spearman rho (protein ~ log WMH)",
          y=NULL,
-         title=sprintf("Top %d DEP correlations with WMH burden (n=%d MS cases)",
-                       top_n, nrow(ms_wmh))) +
+         title=sprintf("Top %d DEP correlations with WMH burden (n=%d %s cases)",
+                       top_n, nrow(case_wmh), cfg$disease_short_caps)) +
     theme_ukb() +
     theme(axis.text.y=element_text(size=7))
 
