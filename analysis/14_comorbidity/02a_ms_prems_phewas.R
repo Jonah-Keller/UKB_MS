@@ -1,61 +1,74 @@
 #!/usr/bin/env Rscript
-# 02a_ms_prems_phewas.R — Pre-diagnostic PheWAS: ICD enrichment before MS onset
+# 02a_prems_phewas.R — Pre-diagnostic PheWAS: ICD enrichment before disease onset
 #
 # Outcome is defined per participant:
-#   MS cases:  present = 1 iff first-occurrence age < (age_at_diagnosis - 1 yr)
-#   HC:        present = 1 iff first-occurrence age < age_at_sampling
+#   Cases: present = 1 iff first-occurrence age < (age_at_diagnosis - 1 yr)
+#   HC:    present = 1 iff first-occurrence age < age_at_sampling
 #
-# This tests "was this code enriched in MS patients before their diagnosis
-# compared to same-aged HC at the same time point?"
+# This tests "was this code enriched in cases before their diagnosis compared
+# to same-aged HC at the same time point?"
 # No post-hoc timing filter needed — timing is baked into the outcome.
 #
-# Model: present ~ ms_status + age_at_sampling + sex  (logistic, Wald CI)
+# Model: present ~ is_case + age_at_sampling + sex  (logistic, Wald CI)
 # Correction: BH FDR across all tested codes.
 # Both directions retained (OR>1 enriched, OR<1 depleted before Dx).
 #
-# Output: results/comorbidity/ms_prems_phewas.csv
+# Disease-, status-, and exclusion-code constants come from configs/disease.yaml.
+#
+# Output: results/comorbidity/{cohort_short}_prems_phewas.csv
 
-suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages({
+    library(data.table)
+    library(here)
+    library(glue)
+})
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-ICD_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
+STATUS_COL  <- cfg$cohort_status_col
+PRE_ONSET   <- cfg$status_values$pre_onset
+POST_ONSET  <- cfg$status_values$post_onset
+COHORT      <- cfg$cohort_short
+DISEASE_LBL <- cfg$disease_short_caps
+EXCL_CODES  <- cfg$control_exclusion_codes$demyelinating
+
+ICD_DIR <- file.path(dirname(here::here()),
+                     "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
                      "data", "ukb", "diagnoses", "icd_codes")
-QC_FILE <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-OUT_DIR <- file.path(PROJ_DIR, "results", "comorbidity")
+QC_FILE <- here::here("data", "ukb", "olink", "processed",
+                      glue::glue("{COHORT}_olink_qc.csv"))
+OUT_DIR <- here::here("results", "comorbidity")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-MIN_N_MS <- 5L
-MIN_N_HC <- 5L
-MS_EXCL  <- c("G35", "G36", "G37")
+MIN_N_CASE <- 5L
+MIN_N_HC   <- 5L
 
 # ── 1. Build analysis cohort ──────────────────────────────────────────────────
 cat("Loading cohort...\n")
 qc <- fread(QC_FILE, showProgress = FALSE)
 qc <- qc[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex)]
-qc[, is_ms := as.integer(ms_status %in% c("pre_onset", "post_onset"))]
+qc[, is_case := as.integer(get(STATUS_COL) %in% c(PRE_ONSET, POST_ONSET))]
 
-# MS cases with known diagnosis age — cutoff is 1yr before Dx
-ms <- qc[is_ms == 1L & !is.na(age_at_diagnosis),
-         .(eid, is_ms, age_at_sampling, sex, cutoff_age = age_at_diagnosis - 1)]
+# Cases with known diagnosis age — cutoff is 1yr before Dx
+cases <- qc[is_case == 1L & !is.na(age_at_diagnosis),
+            .(eid, is_case, age_at_sampling, sex,
+              cutoff_age = age_at_diagnosis - 1)]
 # HC — cutoff is age at sampling (all available record)
-hc <- qc[is_ms == 0L,
-         .(eid, is_ms, age_at_sampling, sex, cutoff_age = age_at_sampling)]
+hc <- qc[is_case == 0L,
+         .(eid, is_case, age_at_sampling, sex, cutoff_age = age_at_sampling)]
 
-cohort <- rbind(ms, hc)
-n_ms <- nrow(ms); n_hc <- nrow(hc)
-cat(sprintf("  MS (with Dx age): %d  |  HC: %d\n", n_ms, n_hc))
+cohort <- rbind(cases, hc)
+n_case <- nrow(cases); n_hc <- nrow(hc)
+cat(sprintf("  %s (with Dx age): %d  |  HC: %d\n", DISEASE_LBL, n_case, n_hc))
 
 # ── 2. Discover code files ────────────────────────────────────────────────────
 cat("Scanning ICD code files...\n")
 all_files <- list.files(ICD_DIR, pattern = "[A-Z][0-9]+[.]csv",
                         recursive = TRUE, full.names = TRUE)
-all_files <- all_files[!tools::file_path_sans_ext(basename(all_files)) %in% MS_EXCL]
+all_files <- all_files[!tools::file_path_sans_ext(basename(all_files)) %in% EXCL_CODES]
 cat(sprintf("  %d code files (excluding %s)\n", length(all_files),
-            paste(MS_EXCL, collapse = ", ")))
+            paste(EXCL_CODES, collapse = ", ")))
 
 # ── 3. Test one code ──────────────────────────────────────────────────────────
 test_one_code <- function(fp) {
@@ -79,45 +92,45 @@ test_one_code <- function(fp) {
         # Present = had code before participant-specific cutoff
         dt[, present := as.integer(ever_present == 1L & age_at_event < cutoff_age)]
 
-        n_ms_pre <- sum(dt$present[dt$is_ms == 1L])
-        n_hc_pre <- sum(dt$present[dt$is_ms == 0L])
-        if (n_ms_pre < MIN_N_MS || n_hc_pre < MIN_N_HC) return(NULL)
+        n_case_pre <- sum(dt$present[dt$is_case == 1L])
+        n_hc_pre   <- sum(dt$present[dt$is_case == 0L])
+        if (n_case_pre < MIN_N_CASE || n_hc_pre < MIN_N_HC) return(NULL)
 
         fit <- suppressWarnings(
             tryCatch(
-                glm(present ~ is_ms + age_at_sampling + sex,
+                glm(present ~ is_case + age_at_sampling + sex,
                     data = dt, family = binomial),
                 error = function(e) NULL
             )
         )
         if (is.null(fit)) return(NULL)
         cf <- tryCatch(summary(fit)$coefficients, error = function(e) NULL)
-        if (is.null(cf) || !"is_ms" %in% rownames(cf)) return(NULL)
+        if (is.null(cf) || !"is_case" %in% rownames(cf)) return(NULL)
 
-        beta <- cf["is_ms", "Estimate"]
-        se   <- cf["is_ms", "Std. Error"]
-        pval <- cf["is_ms", "Pr(>|z|)"]
+        beta <- cf["is_case", "Estimate"]
+        se   <- cf["is_case", "Std. Error"]
+        pval <- cf["is_case", "Pr(>|z|)"]
 
         data.table(
-            icd10    = code,
-            block    = blk,
-            chapter  = ch,
-            OR       = exp(beta),
-            OR_lo    = exp(beta - 1.96 * se),
-            OR_hi    = exp(beta + 1.96 * se),
-            beta     = beta,
-            se       = se,
-            pval     = pval,
-            n_ms_pre = n_ms_pre,
-            n_hc_pre = n_hc_pre,
-            pct_ms   = 100 * n_ms_pre / n_ms,
-            pct_hc   = 100 * n_hc_pre / n_hc
+            icd10      = code,
+            block      = blk,
+            chapter    = ch,
+            OR         = exp(beta),
+            OR_lo      = exp(beta - 1.96 * se),
+            OR_hi      = exp(beta + 1.96 * se),
+            beta       = beta,
+            se         = se,
+            pval       = pval,
+            n_case_pre = n_case_pre,
+            n_hc_pre   = n_hc_pre,
+            pct_case   = 100 * n_case_pre / n_case,
+            pct_hc     = 100 * n_hc_pre / n_hc
         )
     }, error = function(e) NULL)
 }
 
 # ── 4. Run PheWAS ─────────────────────────────────────────────────────────────
-cat("Running pre-MS PheWAS...\n")
+cat(sprintf("Running pre-%s PheWAS...\n", DISEASE_LBL))
 N_FILES <- length(all_files)
 res_list <- lapply(seq_len(N_FILES), function(i) {
     r <- test_one_code(all_files[[i]])
@@ -140,11 +153,11 @@ cat(sprintf("FDR < 0.05: %d  (OR>1: %d, OR<1: %d)\n",
 cat("\nTop 25:\n")
 print(phewas[seq_len(min(25L, .N)),
              .(icd10, block, OR = round(OR, 2),
-               pct_ms = round(pct_ms, 1), pct_hc = round(pct_hc, 1),
+               pct_case = round(pct_case, 1), pct_hc = round(pct_hc, 1),
                pval = signif(pval, 3), fdr = round(fdr, 3))])
 
 # ── 6. Save ───────────────────────────────────────────────────────────────────
-out_path <- file.path(OUT_DIR, "ms_prems_phewas.csv")
+out_path <- file.path(OUT_DIR, glue::glue("{COHORT}_prems_phewas.csv"))
 fwrite(phewas, out_path)
 cat(sprintf("\nSaved: %s  (%d rows)\n", basename(out_path), nrow(phewas)))
-cat("02a_ms_prems_phewas.R complete.\n")
+cat("02a_prems_phewas.R complete.\n")
