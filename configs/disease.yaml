@@ -1,0 +1,73 @@
+# ============================================================================
+# disease.yaml — disease-cohort swap configuration
+# ============================================================================
+# Single source of truth for disease-, HLA-, and PRS-specific constants.
+# To replicate this study on a different cohort, copy this file, change the
+# values below, and re-run the pipeline. No analysis code should reference
+# any of these constants by literal value.
+#
+# Loaded by:
+#   analysis/helpers/disease_config.py    (Python: load_disease_config())
+#   analysis/helpers/disease_config.R     (R: load_disease_config())
+# ============================================================================
+
+# ── Identifying labels ─────────────────────────────────────────────────────
+# Used as filename prefixes (results/<stage>/<cohort_short>_*.csv) and as
+# substitution targets in figures.yaml captions / plot titles.
+cohort_short:        "ms"
+disease_long:        "multiple sclerosis"
+disease_short_caps:  "MS"
+project_short:       "ukb_ms_proteomics"
+project_title:       "Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in multiple sclerosis"
+
+# ── Cohort definition ──────────────────────────────────────────────────────
+# Read by analysis/01_cohort/ and analysis/helpers/ukb_disease_outcomes.py
+icd_codes: ["G35"]                          # primary case ICD-10 codes
+first_occurrence_field: "p131042"           # UKB field for date of first occurrence
+cohort_status_col: "ms_status"              # column name written by 01_cohort
+status_values:
+  pre_onset: "pre_onset"
+  post_onset: "post_onset"
+  control: "hc"
+
+# Codes that disqualify a participant from the control pool
+control_exclusion_codes:
+  demyelinating: ["G35", "G36", "G37"]
+  epilepsy:      ["G40", "G41"]
+  movement:      ["G20", "G21", "G22", "G23", "G24", "G25", "G26"]
+  dementia:      ["F00", "F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09"]
+
+# ── HLA risk locus ─────────────────────────────────────────────────────────
+# Read by analysis/07_hla_subgroup/ and analysis/03_covariates/
+hla_allele:           "DRB1*15:01"
+hla_search_patterns:  ["15:01", "1501", "DRB1*15", "DRB1_1501"]
+hla_carrier_col:      "drb1_1501_carrier"
+hla_dosage_col:       "drb1_1501_dosage"
+
+# ── Polygenic risk score ───────────────────────────────────────────────────
+# Read by analysis/10_prs/
+prs_pgs_ids:          ["PGS000809", "PGS004699"]
+prs_label:            "MS PRS"
+prs_combined_col:     "prs_score"
+
+# ── Trajectory biomarkers ──────────────────────────────────────────────────
+# Read by analysis/04_differential/03_cns_trajectories.R
+cns_injury_markers:   ["nefl", "mog", "gfap"]
+top_presymptomatic_deps:
+  - "spag8"
+  - "cdin1"
+  - "lctl"
+  - "dock10"
+  - "vwa1"
+  - "insm2"
+  - "kcnd2"
+  - "igsf11"
+  - "kif26b"
+  - "ccdc40"
+  - "nefl"
+  - "mog"
+  - "gfap"
+  - "nrgn"
+  - "il3"
+  - "aif1"
+  - "sirt6"

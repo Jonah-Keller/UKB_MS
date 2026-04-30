@@ -5,8 +5,11 @@
 
 suppressPackageStartupMessages({ library(here) })
 
-PROJECT_TITLE   <- "Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in multiple sclerosis"
-PROJECT_SHORT   <- "ukb_ms_proteomics"
+source(here("analysis", "helpers", "disease_config.R"))
+.disease_cfg <- load_disease_config()
+
+PROJECT_TITLE   <- .disease_cfg$project_title
+PROJECT_SHORT   <- .disease_cfg$project_short
 PROJECT_AUTHORS <- c(
   "Jonah N. Keller1,2",
   "Jolie A. Kantor3",

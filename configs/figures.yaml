@@ -1,19 +1,19 @@
 # ============================================================================
-# figures.yaml — UKB MS proteomics figure & table registry
+# figures.yaml — UKB {{disease_short_caps}} proteomics figure & table registry
 # Ordering = publication order. Numbers regenerate from position.
 # ============================================================================
 
 figures:
 
-  # ── Figure 1: Pre-onset MS plasma proteomic signature ─────────────────────
+  # ── Figure 1: Pre-onset {{disease_short_caps}} plasma proteomic signature ─────────────────────
   - id: fig1_preonset_signature
     section: main
     caption: >-
-      The pre-onset multiple sclerosis plasma proteomic signature in UK Biobank.
-      a, Study design: UK Biobank blood draw relative to MS diagnosis, showing
+      The pre-onset {{disease_long}} plasma proteomic signature in UK Biobank.
+      a, Study design: UK Biobank blood draw relative to {{disease_short_caps}} diagnosis, showing
       pre-onset (>0 years before diagnosis) and post-onset participants and
       age-matched healthy controls. b, UMAP of Olink proteome coloured by
-      disease status. c, Volcano plot of pre-onset MS vs healthy controls
+      disease status. c, Volcano plot of pre-onset {{disease_short_caps}} vs healthy controls
       (limma; age, sex, UMAP1/2 adjusted). d, Ranked barplot of top 20
       proteins by nominal P-value (pre-onset). e, GO:BP enrichment dotplot
       for up- and down-regulated pre-onset DEPs. f, STRING PPI network of
@@ -23,13 +23,13 @@ figures:
       cell type). h, Cell-type enrichment (preranked fgsea on the pre-onset limma
       moderated-t statistic) against specificity-filtered Walchli vascular
       and HPA CNS/immune marker sets. Positive NES = marker set
-      coordinately higher in pre-MS plasma than in matched healthy-control
+      coordinately higher in pre-{{disease_short_caps}} plasma than in matched healthy-control
       plasma; negative NES = lower. i, Pre-onset vs post-onset GO:BP
       pathway comparison heatmap.
     panels:
       - { id: fig1a, letter: a, caption: "Study design schematic" }
       - { id: fig1b, letter: b, caption: "UMAP cohort overview", span: 2 }
-      - { id: fig1h, letter: h, caption: "Pre-onset cell-type enrichment (fgsea NES: HC vs pre-MS plasma)", rowspan: 2 }
+      - { id: fig1h, letter: h, caption: "Pre-onset cell-type enrichment (fgsea NES: HC vs pre-{{disease_short_caps}} plasma)", rowspan: 2 }
       - { id: fig1c, letter: c, caption: "Pre-onset volcano" }
       - { id: fig1d, letter: d, caption: "Pre-onset ranked barplot (top 20)" }
       - { id: fig1e, letter: e, caption: "Pre-onset GO:BP enrichment" }
@@ -48,14 +48,14 @@ figures:
   - id: fig2_temporal_window
     section: main
     caption: >-
-      The temporal proteomic window in pre-diagnostic multiple sclerosis.
-      a, Distribution of blood-draw timing relative to MS diagnosis.
+      The temporal proteomic window in pre-diagnostic {{disease_long}}.
+      a, Distribution of blood-draw timing relative to {{disease_short_caps}} diagnosis.
       b–e, Restricted cubic spline trajectories for NEFL, ERBB2, GFAP, and MOG
       across −8 to +12 years relative to diagnosis (blue ribbon = 95% CI;
       grey band = HC mean ±1 SD; arrow = earliest divergence from HC).
       f–h, Trajectories of the top immune/inflammatory pre-onset DEPs
       (KIR3DL1, OSM, OMG) across the same window. i, Pre-onset vs post-onset
-      logFC concordance scatter. j, Temporal protein heatmap (all MS by
+      logFC concordance scatter. j, Temporal protein heatmap (all {{disease_short_caps}} by
       2-year bin). k, Cox model rolling hazard ratio.
       l, SHAP feature importance for pre-onset classifier.
       m, ML ROC curves for full-cohort vs pre-onset classifiers.
@@ -91,9 +91,9 @@ figures:
   - id: fig3_genetic_heterogeneity
     section: main
     caption: >-
-      Genetic heterogeneity in the MS proteomic signature: HLA and polygenic
-      risk. a, HLA allele landscape in MS vs HC (LD-pruned, Fisher test).
-      b, Within-MS proteomic differences by HLA-DRB1*15:01 carrier status.
+      Genetic heterogeneity in the {{disease_short_caps}} proteomic signature: HLA and polygenic
+      risk. a, HLA allele landscape in {{disease_short_caps}} vs HC (LD-pruned, Fisher test).
+      b, Within-{{disease_short_caps}} proteomic differences by HLA-{{hla_allele}} carrier status.
       c, Sex stratification of HLA-associated proteome.
       d, LILRB4 plasma trajectory by HLA status.
       e, HLA-stratified logFC scatter (carrier vs non-carrier).
@@ -105,7 +105,7 @@ figures:
       k, LILRB4/IL2RA scatter by genetic group.
     panels:
       - { id: fig3a, letter: a, caption: "HLA allele landscape" }
-      - { id: fig3b, letter: b, caption: "Within-MS HLA DEPs" }
+      - { id: fig3b, letter: b, caption: "Within-{{disease_short_caps}} HLA DEPs" }
       - { id: fig3c, letter: c, caption: "Sex comparison of HLA proteome" }
       - { id: fig3d, letter: d, caption: "LILRB4 trajectory" }
       - { id: fig3e, letter: e, caption: "HLA-stratified logFC scatter" }
@@ -127,7 +127,7 @@ figures:
   - id: fig4_sex_differences
     section: main
     caption: >-
-      Sex differences in the multiple sclerosis proteomic signature.
+      Sex differences in the {{disease_long}} proteomic signature.
       a, Female vs male logFC scatter across the full proteome, coloured by
       biological compartment (CNS/vascular/immune). b, DEP landscape:
       female-specific, concordant, discordant, and male-specific proteins.
@@ -163,20 +163,20 @@ figures:
     section: main
     caption: >-
       Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic
-      heterogeneity in MS. a, Pre-MS comorbidity PheWAS lollipop: 23 conditions
-      FDR<0.05 enriched or depleted before MS diagnosis. b, UMAP of pre-MS
+      heterogeneity in {{disease_short_caps}}. a, Pre-{{disease_short_caps}} comorbidity PheWAS lollipop: 23 conditions
+      FDR<0.05 enriched or depleted before {{disease_short_caps}} diagnosis. b, UMAP of pre-{{disease_short_caps}}
       patients by comorbidity block profile; three clusters (C0/C1/C2) identified
       by k-means (k=3, silhouette=0.864). c, ICD block prevalence heatmap by
-      cluster. d, Age at diagnosis by cluster. e, HLA-DRB1*15:01 carrier rate
-      by cluster (Fisher test vs None shown). f, MS polygenic risk score by
-      cluster (KW test). g–i, Volcano plots for C0, C1, and C2 vs MS-None
+      cluster. d, Age at diagnosis by cluster. e, HLA-{{hla_allele}} carrier rate
+      by cluster (Fisher test vs None shown). f, {{disease_short_caps}} polygenic risk score by
+      cluster (KW test). g–i, Volcano plots for C0, C1, and C2 vs {{disease_short_caps}}-None
       (limma, PSM-matched controls). j, GO:BP enrichment for C2 (headline
       cluster). k, Cross-cluster GO:BP dotplot. l, Forest plot of LOOCV AUC by
-      cluster for pre-MS classifier with 95% CI. Per-cluster GO:BP (C0/C1),
-      PPI chord diagrams, and cell-type enrichment (fgsea NES vs MS-None)
+      cluster for pre-{{disease_short_caps}} classifier with 95% CI. Per-cluster GO:BP (C0/C1),
+      PPI chord diagrams, and cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)
       are in Extended Data Figures 6–8.
     panels:
-      - { id: fig5a, letter: a, source: a, caption: "Pre-MS PheWAS (23 FDR<0.05)", colspan: 2, rowspan: 2 }
+      - { id: fig5a, letter: a, source: a, caption: "Pre-{{disease_short_caps}} PheWAS (23 FDR<0.05)", colspan: 2, rowspan: 2 }
       - { id: fig5b, letter: b, source: b, caption: "Comorbidity cluster UMAP" }
       - { id: fig5c, letter: c, source: c, caption: "ICD block prevalence heatmap" }
       - { id: fig5d, letter: d, source: d, caption: "Age at diagnosis by cluster" }
@@ -187,7 +187,7 @@ figures:
       - { id: fig5i, letter: i, source: i, caption: "C2 vs None volcano" }
       - { id: fig5j, letter: j, source: l, caption: "C2 GO:BP enrichment (headline)" }
       - { id: fig5k, letter: k, source: m, caption: "Cross-cluster GO:BP" }
-      - { id: fig5l, letter: l, source: v, caption: "Pre-MS prediction AUC forest plot" }
+      - { id: fig5l, letter: l, source: v, caption: "Pre-{{disease_short_caps}} prediction AUC forest plot" }
     panels_dir: results/figures/5
     composite:
       ncol: 3
@@ -200,12 +200,12 @@ figures:
   - id: efig1_full_analyses
     section: supplement
     caption: >-
-      Full differential analysis results across all MS subgroups (supplement to
-      Figure 1). A–E, Combined MS (pre+post) vs HC: volcano, barplot, GO:BP,
+      Full differential analysis results across all {{disease_short_caps}} subgroups (supplement to
+      Figure 1). A–E, Combined {{disease_short_caps}} (pre+post) vs HC: volcano, barplot, GO:BP,
       cell-type heatmap, cell-type enrichment (preranked fgsea on limma
       moderated-t; positive NES = marker set higher in cases vs HC, negative
-      NES = lower). F–J, Post-onset MS vs HC: same five visualizations.
-      K–N, Pre vs post-onset (within MS): volcano, barplot, GO:BP,
+      NES = lower). F–J, Post-onset {{disease_short_caps}} vs HC: same five visualizations.
+      K–N, Pre vs post-onset (within {{disease_short_caps}}): volcano, barplot, GO:BP,
       cell-type enrichment (NES polarity: up = higher post-onset than
       pre-onset, down = lower).
     panels:
@@ -213,7 +213,7 @@ figures:
       - { id: efig1B, letter: B, caption: "Combined barplot" }
       - { id: efig1C, letter: C, caption: "Combined GO:BP" }
       - { id: efig1D, letter: D, caption: "Combined cell-type heatmap" }
-      - { id: efig1E, letter: E, caption: "Combined MS cell-type enrichment (fgsea NES vs HC)" }
+      - { id: efig1E, letter: E, caption: "Combined {{disease_short_caps}} cell-type enrichment (fgsea NES vs HC)" }
       - { id: efig1F, letter: F, caption: "Post-onset volcano" }
       - { id: efig1G, letter: G, caption: "Post-onset barplot" }
       - { id: efig1H, letter: H, caption: "Post-onset GO:BP" }
@@ -239,7 +239,7 @@ figures:
       annotation). b, MOG trajectory (no significant divergence from HC at
       any time point; shown here with extended annotation). c, BGN trajectory
       (nominal pre-onset DEP and female-specific FDR-significant pre-onset
-      DEP). d, ERBB2 trajectory stratified by MS polygenic risk quartile
+      DEP). d, ERBB2 trajectory stratified by {{disease_short_caps}} polygenic risk quartile
       (counterpart to main Fig. 2o NEFL), with PRS×time interaction test;
       lowest (Q1) vs highest (Q4) PRS quartiles shown with 95% CI, Q2/Q3
       dashed, age/sex adjusted.
@@ -263,7 +263,7 @@ figures:
       Supplementary genetic heterogeneity analyses (supplement to Figure 3).
       a–e, Individual protein trajectories by HLA status (CASP4, MAPRE3, CCL19,
       VIM, RUVBL1). f–g, Longitudinal HLA-stratified trajectories for CASP4 and
-      CCL19. h–i, Pre-MS comorbidity enrichment by HLA status. j, HLA/PRS
+      CCL19. h–i, Pre-{{disease_short_caps}} comorbidity enrichment by HLA status. j, HLA/PRS
       overlap analysis.
     panels:
       - { id: efig3a,  letter: a,  caption: "CASP4 by HLA" }
@@ -273,7 +273,7 @@ figures:
       - { id: efig3e,  letter: e,  caption: "RUVBL1 by HLA" }
       - { id: efig3f,  letter: f,  caption: "CASP4 HLA trajectory" }
       - { id: efig3g,  letter: g,  caption: "CCL19 HLA trajectory" }
-      - { id: efig3h,  letter: h,  caption: "Pre-MS comorbidity by HLA" }
+      - { id: efig3h,  letter: h,  caption: "Pre-{{disease_short_caps}} comorbidity by HLA" }
       - { id: efig3i,  letter: i,  caption: "LILRB4 comorbidity by HLA" }
       - { id: efig3j,  letter: j,  caption: "HLA/PRS overlap" }
     panels_dir: results/figures/3_supp
@@ -289,22 +289,22 @@ figures:
     section: supplement
     caption: >-
       Supplementary PRS and genetic interaction analyses (supplement to Figure 3).
-      a, HLA/PRS-stratified MS vs HC comparison. b, HLA-stratified cell-type
+      a, HLA/PRS-stratified {{disease_short_caps}} vs HC comparison. b, HLA-stratified cell-type
       enrichment (preranked fgsea on the HLA+ vs HLA− moderated-t statistic;
       positive NES = marker set higher in HLA+, negative NES = lower).
-      c, MS PRS association with the plasma proteome. d, PRS × MS status
+      c, {{prs_label}} association with the plasma proteome. d, PRS × {{disease_short_caps}} status
       interaction analysis. e, IL2RA/LILRB4 scatter by HLA × PRS group.
       f, HLA/PRS/sex stratification of LILRB4 and IL2RA plasma levels.
-      g, MS vs HC log-fold-change per genetic stratum. h, HLA-stratified
+      g, {{disease_short_caps}} vs HC log-fold-change per genetic stratum. h, HLA-stratified
       cell-type expression heatmap.
     panels:
-      - { id: efig4a, letter: a, caption: "HLA/PRS-stratified MS vs HC",       source: "results/figures/3/panel_o_hla_prs_ms_vs_hc.pdf" }
+      - { id: efig4a, letter: a, caption: "HLA/PRS-stratified {{disease_short_caps}} vs HC",       source: "results/figures/3/panel_o_hla_prs_ms_vs_hc.pdf" }
       - { id: efig4b, letter: b, caption: "HLA cell-type enrichment (fgsea NES: HLA+ vs HLA−)", source: "n" }
       - { id: efig4c, letter: c, caption: "PRS-proteome association",          source: "results/figures/3/panel_i_prs_proteome.pdf" }
-      - { id: efig4d, letter: d, caption: "PRS x MS interaction",              source: "results/figures/3/panel_k_prs_ms_interaction.pdf" }
+      - { id: efig4d, letter: d, caption: "PRS x {{disease_short_caps}} interaction",              source: "results/figures/3/panel_k_prs_ms_interaction.pdf" }
       - { id: efig4e, letter: e, caption: "IL2RA/LILRB4 regression",           source: k }
       - { id: efig4f, letter: f, caption: "HLA/PRS/sex stratification",        source: "results/figures/3/panel_m_hla_prs_sex_stratification.pdf", colspan: 2 }
-      - { id: efig4g, letter: g, caption: "MS/HC delta per genetic group",     source: l }
+      - { id: efig4g, letter: g, caption: "{{disease_short_caps}}/HC delta per genetic group",     source: l }
       - { id: efig4h, letter: h, caption: "HLA cell-type heatmap",             source: "m", colspan: 3 }
     panels_dir: results/figures/3_supp
     composite:
@@ -319,19 +319,19 @@ figures:
     section: supplement
     caption: >-
       Supplementary sex difference analyses (supplement to Figure 4).
-      a, Sex interaction volcano (sex × MS limma). b, All sex DEP cell-type
+      a, Sex interaction volcano (sex × {{disease_short_caps}} limma). b, All sex DEP cell-type
       heatmap (top 50 by |logFC|). c–d, Cell-type enrichment (preranked fgsea
-      on the sex-stratified MS vs HC moderated-t statistic) for female
+      on the sex-stratified {{disease_short_caps}} vs HC moderated-t statistic) for female
       (c) and male (d) contrasts; positive NES = marker set higher in that
-      sex's MS cases vs sex-matched HC, negative NES = lower. e, SHAP paired
+      sex's {{disease_short_caps}} cases vs sex-matched HC, negative NES = lower. e, SHAP paired
       feature importance (female vs male, top 35 proteins). f, Pre-onset
       female vs male logFC concordance. g, Post-onset female vs male logFC
       concordance.
     panels:
       - { id: efig5a, letter: a, caption: "Sex interaction volcano" }
       - { id: efig5b, letter: b, caption: "All sex DEP cell-type heatmap" }
-      - { id: efig5c, letter: c, caption: "Female cell-type enrichment (fgsea NES: female MS vs HC)" }
-      - { id: efig5d, letter: d, caption: "Male cell-type enrichment (fgsea NES: male MS vs HC)" }
+      - { id: efig5c, letter: c, caption: "Female cell-type enrichment (fgsea NES: female {{disease_short_caps}} vs HC)" }
+      - { id: efig5d, letter: d, caption: "Male cell-type enrichment (fgsea NES: male {{disease_short_caps}} vs HC)" }
       - { id: efig5e, letter: e, caption: "SHAP paired importance" }
       - { id: efig5f, letter: f, caption: "Pre-onset sex concordance" }
       - { id: efig5g, letter: g, caption: "Post-onset sex concordance" }
@@ -346,12 +346,12 @@ figures:
     section: supplement
     caption: >-
       Post-onset validation of comorbidity endophenotype signatures (supplement
-      to Figure 5). a–c, Post-onset volcano plots for C0, C1, C2 vs MS-None.
+      to Figure 5). a–c, Post-onset volcano plots for C0, C1, C2 vs {{disease_short_caps}}-None.
       d–g, Post-onset GO:BP enrichment per cluster and cross-cluster.
       h–k, Post-onset cell-type enrichment (preranked fgsea on the cluster
-      vs MS-None post-onset moderated-t statistic) per cluster and
+      vs {{disease_short_caps}}-None post-onset moderated-t statistic) per cluster and
       cross-cluster NES heatmap; positive NES = marker set higher in the
-      cluster than in unassigned post-onset MS, negative NES = lower.
+      cluster than in unassigned post-onset {{disease_short_caps}}, negative NES = lower.
       l–n, Pre-onset vs post-onset protein signature concordance scatterplots
       (l=C0 r=0.686, m=C1 r=0.730, n=C2 r=0.308) showing temporal stability
       of C0/C1 signatures and stage-specific biology in C2.
@@ -363,9 +363,9 @@ figures:
       - { id: efig6e, letter: e, caption: "C1 post-onset GO:BP" }
       - { id: efig6f, letter: f, caption: "C2 post-onset GO:BP" }
       - { id: efig6g, letter: g, caption: "Cross-cluster post-onset GO:BP" }
-      - { id: efig6h, letter: h, caption: "C0 post-onset cell-type enrichment (fgsea NES vs MS-None)" }
-      - { id: efig6i, letter: i, caption: "C1 post-onset cell-type enrichment (fgsea NES vs MS-None)" }
-      - { id: efig6j, letter: j, caption: "C2 post-onset cell-type enrichment (fgsea NES vs MS-None)" }
+      - { id: efig6h, letter: h, caption: "C0 post-onset cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
+      - { id: efig6i, letter: i, caption: "C1 post-onset cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
+      - { id: efig6j, letter: j, caption: "C2 post-onset cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
       - { id: efig6k, letter: k, caption: "Post-onset cross-cluster NES heatmap" }
       - { id: efig6l, letter: l, caption: "C0 pre/post concordance (r=0.686)" }
       - { id: efig6m, letter: m, caption: "C1 pre/post concordance (r=0.730)" }
@@ -381,7 +381,7 @@ figures:
     section: supplement
     caption: >-
       Per-cluster GO:BP enrichment for C0 and C1 (C2 shown in main Figure 5j).
-      a, C0 vs MS-None GO:BP enrichment (top 20 terms). b, C1 vs MS-None
+      a, C0 vs {{disease_short_caps}}-None GO:BP enrichment (top 20 terms). b, C1 vs {{disease_short_caps}}-None
       GO:BP enrichment (top 20 terms).
     panels:
       - { id: efig7a, letter: a, source: j, caption: "C0 GO:BP enrichment" }
@@ -398,7 +398,7 @@ figures:
   - id: efig8_ppi_chords
     section: supplement
     caption: >-
-      Protein–protein interaction chord diagrams for pre-MS comorbidity
+      Protein–protein interaction chord diagrams for pre-{{disease_short_caps}} comorbidity
       endophenotype clusters (supplement to Figure 5). a–c, Per-cluster PPI
       chord diagrams for C0, C1, and C2 cluster-specific proteins.
       d, Cross-cluster PPI chord diagram showing shared and unique hub proteins.
@@ -419,17 +419,17 @@ figures:
   - id: efig9_celltype_ora
     section: supplement
     caption: >-
-      Cell-type enrichment for pre-MS comorbidity endophenotypes
+      Cell-type enrichment for pre-{{disease_short_caps}} comorbidity endophenotypes
       (supplement to Figure 5). a–c, Preranked fgsea on limma moderated-t
-      (cluster vs MS-None) against specificity-filtered Walchli + HPA
+      (cluster vs {{disease_short_caps}}-None) against specificity-filtered Walchli + HPA
       marker sets, for C0, C1, and C2. Positive NES = markers coordinately
-      higher in the cluster than in unassigned MS cases; negative NES =
+      higher in the cluster than in unassigned {{disease_short_caps}} cases; negative NES =
       lower. d, Cross-cluster NES heatmap (same test, all clusters side by
       side).
     panels:
-      - { id: efig9a, letter: a, source: r, caption: "C0 cell-type enrichment (fgsea NES vs MS-None)" }
-      - { id: efig9b, letter: b, source: s, caption: "C1 cell-type enrichment (fgsea NES vs MS-None)" }
-      - { id: efig9c, letter: c, source: t, caption: "C2 cell-type enrichment (fgsea NES vs MS-None)" }
+      - { id: efig9a, letter: a, source: r, caption: "C0 cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
+      - { id: efig9b, letter: b, source: s, caption: "C1 cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
+      - { id: efig9c, letter: c, source: t, caption: "C2 cell-type enrichment (fgsea NES vs {{disease_short_caps}}-None)" }
       - { id: efig9d, letter: d, source: u, caption: "Cross-cluster cell-type NES heatmap" }
     panels_dir: results/figures/5
     composite:
@@ -445,7 +445,7 @@ tables:
   - id: tbl1_cohort
     section: main
     caption: >-
-      Cohort characteristics. Pre-onset MS cases, post-onset MS cases, and
+      Cohort characteristics. Pre-onset {{disease_short_caps}} cases, post-onset {{disease_short_caps}} cases, and
       age/sex-matched healthy controls included in Olink proteomic analysis.
       Values are median (IQR) or n (%) unless noted.
     output:
@@ -457,10 +457,10 @@ tables:
   - id: etbl1_preonset_deps
     section: supplement
     caption: >-
-      All differentially expressed proteins in pre-onset MS vs healthy controls
+      All differentially expressed proteins in pre-onset {{disease_short_caps}} vs healthy controls
       (limma; adjusted for age, sex, UMAP1/2). Columns: protein, logFC,
       P.Value, adj.P.Val (BH), AveExpr. Sorted by P.Value ascending.
-    source_csv: results/differential/ms_pre_vs_hc.csv
+    source_csv: results/differential/{{cohort_short}}_pre_vs_hc.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_1_PreOnset_DEPs.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_1_PreOnset_DEPs.docx
@@ -470,23 +470,23 @@ tables:
   - id: etbl2_postonset_deps
     section: supplement
     caption: >-
-      All differentially expressed proteins in post-onset MS vs healthy controls
+      All differentially expressed proteins in post-onset {{disease_short_caps}} vs healthy controls
       (limma; FDR<0.05). Columns: protein, logFC, P.Value, adj.P.Val, AveExpr.
-    source_csv: results/differential/ms_post_vs_hc.csv
+    source_csv: results/differential/{{cohort_short}}_post_vs_hc.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_2_PostOnset_DEPs.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_2_PostOnset_DEPs.docx
     source: analysis/04_differential/01_limma_ms_vs_hc.R
 
-  # ── Supplementary Table 3: All combined MS DEPs ────────────────────────────────────────
+  # ── Supplementary Table 3: All combined {{disease_short_caps}} DEPs ────────────────────────────────────────
   - id: etbl3_combined_deps
     section: supplement
     caption: >-
-      All differentially expressed proteins in combined MS (pre- and post-onset)
+      All differentially expressed proteins in combined {{disease_short_caps}} (pre- and post-onset)
       vs healthy controls (limma; adjusted for age, sex, UMAP1/2). Columns:
       protein, logFC, P.Value, adj.P.Val (BH), AveExpr. Sorted by P.Value
       ascending.
-    source_csv: results/differential/ms_combined_vs_hc.csv
+    source_csv: results/differential/{{cohort_short}}_combined_vs_hc.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_3_Combined_DEPs.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_3_Combined_DEPs.docx
@@ -496,11 +496,11 @@ tables:
   - id: etbl4_prevspost_deps
     section: supplement
     caption: >-
-      All differentially expressed proteins in pre-onset vs post-onset MS
+      All differentially expressed proteins in pre-onset vs post-onset {{disease_short_caps}}
       (limma; adjusted for age, sex, UMAP1/2). Positive logFC = higher in
       pre-onset. Columns: protein, logFC, P.Value, adj.P.Val (BH), AveExpr.
       Sorted by P.Value ascending. FDR<0.05: FGF23, CLC, CLEC5A.
-    source_csv: results/differential/ms_pre_vs_post.csv
+    source_csv: results/differential/{{cohort_short}}_pre_vs_post.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_4_PreVsPost_DEPs.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_4_PreVsPost_DEPs.docx
@@ -511,7 +511,7 @@ tables:
     section: supplement
     caption: >-
       CNS biomarker trajectory statistics (NEFL, GFAP, MOG, ERBB2). For each
-      protein: n MS cases in model, first divergence year from HC (if any),
+      protein: n {{disease_short_caps}} cases in model, first divergence year from HC (if any),
       direction of divergence, RCS R², RMSE. NEFL diverges at −5.75 yr;
       GFAP at +5.0 yr; MOG and ERBB2: see text.
     source_csv: results/differential/cns_trajectories_divergence.csv
@@ -525,7 +525,7 @@ tables:
     section: supplement
     caption: >-
       Pre-onset vs post-onset protein effect size concordance. Pearson r
-      between per-protein logFC from pre-onset MS vs HC and post-onset MS vs HC
+      between per-protein logFC from pre-onset {{disease_short_caps}} vs HC and post-onset {{disease_short_caps}} vs HC
       limma analyses. Subsets: all proteins (n=2,911, r=0.005), nominally
       significant in either stage (n=670, r=0.052), FDR<0.05 in either stage
       (n=40, r=0.694), nominally significant in both stages (n=50, r=0.647).
@@ -540,13 +540,13 @@ tables:
   - id: etbl_cox_full
     section: supplement
     caption: >-
-      Full pre-diagnostic window Cox proportional hazards results (time to MS
+      Full pre-diagnostic window Cox proportional hazards results (time to {{disease_short_caps}}
       diagnosis as outcome; one model per protein adjusted for age, sex,
       UMAP1/2). 37 proteins reach FDR<0.05. Top risk markers: NEFL
       (HR=1.567, 95% CI 1.349–1.821), OSM, MMP9, FGL1, CLEC5A. Top protective:
       ERBB2 (HR=0.715, 95% CI 0.637–0.804), SPOCK1, SETMAR, BGN, FASLG.
       Columns: protein, HR, CI_lower, CI_upper, P, FDR, direction.
-    source_csv: results/survival/ms_protein_cox_results.csv
+    source_csv: results/survival/{{cohort_short}}_protein_cox_results.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_7_Cox_Full.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_7_Cox_Full.docx
@@ -561,7 +561,7 @@ tables:
       0–4, 4–8, and 8–12 yr bins. ERBB2 protective in 0–4 and 8–12 yr bins.
       OSM, MMP9, and CLEC5A show sustained risk associations across multiple bins.
       Columns: protein, time_bin, HR, CI_lower, CI_upper, P, FDR.
-    source_csv: results/survival/ms_protein_cox_rolling.csv
+    source_csv: results/survival/{{cohort_short}}_protein_cox_rolling.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_8_Cox_Rolling.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_8_Cox_Rolling.docx
@@ -576,7 +576,7 @@ tables:
       interaction term. Interaction P=0.831 (not significant, n=94 cases per
       quartile). Columns: PRS_quartile, time_bin, mean_NEFL_NPX, n, CI_lower,
       CI_upper.
-    source_csv: results/prs/ms_prs_nefl_keytimes.csv
+    source_csv: results/prs/{{cohort_short}}_prs_nefl_keytimes.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_9_PRS_NEFL.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_9_PRS_NEFL.docx
@@ -592,7 +592,7 @@ tables:
       Top terms (>12 yr): ERBB2-associated receptor tyrosine kinase signaling,
       apoptotic mitochondrial regulation. Columns: time_bin, GO_term,
       gene_ratio, bg_ratio, P_value, FDR, genes.
-    source_csv: results/survival/ms_temporal_go_enrichment.csv
+    source_csv: results/survival/{{cohort_short}}_temporal_go_enrichment.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_10_Temporal_GO.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_10_Temporal_GO.docx
@@ -602,7 +602,7 @@ tables:
   - id: etbl4_hla_enrichment
     section: supplement
     caption: >-
-      HLA allele enrichment in MS vs healthy controls (LD-pruned, Fisher's
+      HLA allele enrichment in {{disease_short_caps}} vs healthy controls (LD-pruned, Fisher's
       exact test). Columns: allele, OR, 95% CI, P, FDR, carrier_freq_MS,
       carrier_freq_HC.
     source_csv: data/ukb/genetics/hla_allele_enrichment_pruned.csv
@@ -615,10 +615,10 @@ tables:
   - id: etbl5_hla_deps
     section: supplement
     caption: >-
-      Proteins differentially expressed by HLA-DRB1*15:01 carrier status within
-      MS cases (limma). Columns: protein, logFC (carrier−non-carrier), P.Value,
+      Proteins differentially expressed by HLA-{{hla_allele}} carrier status within
+      {{disease_short_caps}} cases (limma). Columns: protein, logFC (carrier−non-carrier), P.Value,
       adj.P.Val, AveExpr.
-    source_csv: results/endophenotype/ms_hla_dep_results.csv
+    source_csv: results/endophenotype/{{cohort_short}}_hla_dep_results.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_7_HLA_DEPs.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_7_HLA_DEPs.docx
@@ -628,27 +628,27 @@ tables:
   - id: etbl_hla_sex_stratified
     section: supplement
     caption: >-
-      Sex-stratified HLA-DRB1*15:01 carrier vs non-carrier DEPs within MS cases.
-      Female MS: 1 FDR<0.05 protein (LILRB4 logFC=+0.438, FDR=3.4e-15);
-      Male MS: 1 FDR<0.05 protein (LILRB4 logFC=+0.381, FDR=2.7e-05).
+      Sex-stratified HLA-{{hla_allele}} carrier vs non-carrier DEPs within {{disease_short_caps}} cases.
+      Female {{disease_short_caps}}: 1 FDR<0.05 protein (LILRB4 logFC=+0.438, FDR=3.4e-15);
+      Male {{disease_short_caps}}: 1 FDR<0.05 protein (LILRB4 logFC=+0.381, FDR=2.7e-05).
       Columns: protein, logFC_female, FDR_female, logFC_male, FDR_male.
-    source_csv: results/endophenotype/ms_sex_stratified_genetic.csv
+    source_csv: results/endophenotype/{{cohort_short}}_sex_stratified_genetic.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_HLA_Sex_Stratified.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_HLA_Sex_Stratified.docx
     source: analysis/07_hla_subgroup/01_hla_interaction_limma.R
 
-  # ── Supplementary Table (Fig3 new): HLA-stratified MS vs HC DEPs ───────────────────────
+  # ── Supplementary Table (Fig3 new): HLA-stratified {{disease_short_caps}} vs HC DEPs ───────────────────────
   - id: etbl_hla_ms_vs_hc_stratified
     section: supplement
     caption: >-
-      MS vs HC differential expression within HLA-DRB1*15:01 carrier and
+      {{disease_short_caps}} vs HC differential expression within HLA-{{hla_allele}} carrier and
       non-carrier strata. HLA+ stratum: 2 FDR<0.05 proteins (NEFL, GFAP).
       HLA− stratum: 77 FDR<0.05 proteins (NEFL, ITGAV, ITGAM, PLAUR, ITGB2,
       TNFSF13, FAP, OMG, BAG3, BCAN, CD248 and others). Interaction term:
       0 FDR<0.05. Columns: protein, logFC_hlapos, FDR_hlapos, logFC_hlaneg,
       FDR_hlaneg, logFC_interaction, FDR_interaction, sig_interaction.
-    source_csv: results/endophenotype/ms_hla_stratified_logfc.csv
+    source_csv: results/endophenotype/{{cohort_short}}_hla_stratified_logfc.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_HLA_MS_vs_HC_Stratified.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_HLA_MS_vs_HC_Stratified.docx
@@ -658,41 +658,41 @@ tables:
   - id: etbl6_prs_proteome
     section: supplement
     caption: >-
-      Association of MS polygenic risk score with plasma protein levels (linear
+      Association of {{disease_short_caps}} polygenic risk score with plasma protein levels (linear
       regression, adjusted for age, sex, UMAP1/2). Columns: protein, beta,
       SE, P, FDR, r².
-    source_csv: results/prs/ms_prs_results.csv
+    source_csv: results/prs/{{cohort_short}}_prs_results.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_8_PRS_Proteome.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_8_PRS_Proteome.docx
     source: analysis/manuscript/supp_tables_figure3.R
 
-  # ── Supplementary Table (Fig3 new): PRS × MS interaction tests ─────────────────────────
+  # ── Supplementary Table (Fig3 new): PRS × {{disease_short_caps}} interaction tests ─────────────────────────
   - id: etbl_prs_ms_interaction
     section: supplement
     caption: >-
-      Polygenic risk score × MS status interaction tests. Panel-level F-test
+      Polygenic risk score × {{disease_short_caps}} status interaction tests. Panel-level F-test
       (7 key proteins): 0 significant (CST5 closest, p=0.081). Genome-wide
       limma interaction (2,911 proteins): 0 FDR<0.05; top hit CLEC1B
       (p=3.1e-05, FDR=0.089). Results presented by sex (female, male) and
       combined. Columns: protein, F_stat or logFC, P.Value, FDR, sex_group,
       analysis_type.
-    source_csv: results/endophenotype/ms_prs_interaction_genome.csv
+    source_csv: results/endophenotype/{{cohort_short}}_prs_interaction_genome.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_PRS_MS_Interaction.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_PRS_MS_Interaction.docx
     source: analysis/10_prs/01_ms_prs_protein_interaction.R
 
-  # ── Supplementary Table (Fig3 new): Pre-MS comorbidity by HLA status ───────────────────
+  # ── Supplementary Table (Fig3 new): Pre-{{disease_short_caps}} comorbidity by HLA status ───────────────────
   - id: etbl_hla_prems_comorbidity
     section: supplement
     caption: >-
-      Pre-MS ICD-10 comorbidity enrichment by HLA-DRB1*15:01 carrier status
+      Pre-{{disease_short_caps}} ICD-10 comorbidity enrichment by HLA-{{hla_allele}} carrier status
       (Fisher exact test, 17 comorbidity categories). Nominally significant:
       migraine (OR=0.37, p=0.035) and asthma (OR=0.54, p=0.042) depleted in
-      HLA+ pre-MS cases. No category reaches FDR<0.05. Columns: ICD10, label,
+      HLA+ pre-{{disease_short_caps}} cases. No category reaches FDR<0.05. Columns: ICD10, label,
       OR, CI_lower, CI_upper, P.Value, FDR, n_prems, n_HLA_pos, n_HLA_neg.
-    source_csv: results/endophenotype/ms_hla_prems_comorbidity.csv
+    source_csv: results/endophenotype/{{cohort_short}}_hla_prems_comorbidity.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_HLA_PreMS_Comorbidity.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_HLA_PreMS_Comorbidity.docx
@@ -702,10 +702,10 @@ tables:
   - id: etbl_sex_concordant
     section: supplement
     caption: >-
-      Proteins reaching FDR<5% in both female and male MS versus HC (concordant
+      Proteins reaching FDR<5% in both female and male {{disease_short_caps}} versus HC (concordant
       set, n=11). Columns: protein, logFC_female, FDR_female, logFC_male,
       FDR_male, direction. All 11 concordant in direction.
-    source_csv: results/sex_stratified/ms_female_vs_hc.csv
+    source_csv: results/sex_stratified/{{cohort_short}}_female_vs_hc.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Sex_Concordant.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Sex_Concordant.docx
@@ -714,10 +714,10 @@ tables:
   - id: etbl_sex_female_specific
     section: supplement
     caption: >-
-      Female-specific differentially expressed proteins in MS versus HC (n=67;
+      Female-specific differentially expressed proteins in {{disease_short_caps}} versus HC (n=67;
       FDR<5% in females, not in males). Columns: protein, logFC_female,
       FDR_female, logFC_male, p_male.
-    source_csv: results/sex_stratified/ms_female_vs_hc_all.csv
+    source_csv: results/sex_stratified/{{cohort_short}}_female_vs_hc_all.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Sex_Female_Specific.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Sex_Female_Specific.docx
@@ -726,10 +726,10 @@ tables:
   - id: etbl_sex_male_specific
     section: supplement
     caption: >-
-      Male-specific differentially expressed proteins in MS versus HC (n=15;
+      Male-specific differentially expressed proteins in {{disease_short_caps}} versus HC (n=15;
       FDR<5% in males, not in females). Columns: protein, logFC_male, FDR_male,
       logFC_female, p_female.
-    source_csv: results/sex_stratified/ms_male_vs_hc_all.csv
+    source_csv: results/sex_stratified/{{cohort_short}}_male_vs_hc_all.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Sex_Male_Specific.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Sex_Male_Specific.docx
@@ -738,10 +738,10 @@ tables:
   - id: etbl_sex_interaction
     section: supplement
     caption: >-
-      Sex × MS status interaction across the full plasma proteome (2,911
+      Sex × {{disease_short_caps}} status interaction across the full plasma proteome (2,911
       proteins). No protein reached FDR<5%. Top nominal hits: SLC44A4, ENPP5,
       HEXIM1. Columns: protein, logFC_interaction, t, P.Value, adj.P.Val.
-    source_csv: results/sex_stratified/ms_sex_interaction.csv
+    source_csv: results/sex_stratified/{{cohort_short}}_sex_interaction.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Sex_Interaction.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Sex_Interaction.docx
@@ -765,10 +765,10 @@ tables:
   - id: etbl8_cluster_assignments
     section: supplement
     caption: >-
-      Pre-MS comorbidity endophenotype cluster assignments (n=125 pre-onset
-      MS cases with ≥1 pre-MS ICD block). Columns: eid, cluster (C0/C1/C2),
+      Pre-{{disease_short_caps}} comorbidity endophenotype cluster assignments (n=125 pre-onset
+      {{disease_short_caps}} cases with ≥1 pre-{{disease_short_caps}} ICD block). Columns: eid, cluster (C0/C1/C2),
       silhouette score, UMAP1, UMAP2, hla_carrier, prs_score, sex, age_at_diagnosis.
-    source_csv: results/endophenotype/ms_prems_cluster_assignments.csv
+    source_csv: results/endophenotype/{{cohort_short}}_prems_cluster_assignments.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_10_Cluster_Assignments.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_10_Cluster_Assignments.docx
@@ -779,7 +779,7 @@ tables:
     section: supplement
     caption: >-
       Cluster-specific differentially expressed proteins (PSM limma; C0, C1,
-      C2 each vs MS-None). Columns: contrast, protein, logFC, P.Value,
+      C2 each vs {{disease_short_caps}}-None). Columns: contrast, protein, logFC, P.Value,
       adj.P.Val. C2 FDR<0.05: CCL3 (logFC=+0.089, FDR=0.040), VWF
       (logFC=+0.104, FDR=0.042).
     source_csv: results/endophenotype/cluster_proteomics/cluster_deps_all_contrasts.csv
@@ -794,7 +794,7 @@ tables:
     caption: >-
       Pre-onset vs post-onset protein signature concordance by cluster.
       Pearson r and Spearman ρ between per-protein logFC estimates from
-      all-MS (script 04) and post-onset-only (script 08) analyses.
+      all-{{disease_short_caps}} (script 04) and post-onset-only (script 08) analyses.
       C0: r=0.686, C1: r=0.730, C2: r=0.308.
     source_csv: results/endophenotype/prepost_concordance/concordance_stats.csv
     output:
@@ -802,15 +802,15 @@ tables:
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_12_Concordance.docx
     source: analysis/15_endophenotype/13_prepost_protein_concordance.R
 
-  # ── Supplementary Tables: Pre-MS PheWAS and cluster supplementary (8 tables) ───────────
+  # ── Supplementary Tables: Pre-{{disease_short_caps}} PheWAS and cluster supplementary (8 tables) ───────────
   - id: etbl_prems_phewas
     section: supplement
     caption: >-
-      Pre-MS phenome-wide association study (PheWAS). All ICD-10 diagnostic
-      blocks tested in 499 pre-onset MS cases versus matched controls.
+      Pre-{{disease_short_caps}} phenome-wide association study (PheWAS). All ICD-10 diagnostic
+      blocks tested in 499 pre-onset {{disease_short_caps}} cases versus matched controls.
       FDR-significant (FDR<5%): 23 conditions (12 enriched, 11 depleted).
       Columns: icd10, block, chapter, OR, OR_lo, OR_hi, pct_ms, pct_hc, fdr.
-    source_csv: results/comorbidity/ms_prems_phewas.csv
+    source_csv: results/comorbidity/{{cohort_short}}_prems_phewas.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_PreMS_PheWAS.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_PreMS_PheWAS.docx
@@ -819,11 +819,11 @@ tables:
   - id: etbl_cluster_icd_enrichment
     section: supplement
     caption: >-
-      ICD-10 block and code enrichment by pre-MS endophenotype cluster.
+      ICD-10 block and code enrichment by pre-{{disease_short_caps}} endophenotype cluster.
       Columns: feature, cluster, pct_in, pct_out, OR, pval, fdr. Block-level
       and code-level overrepresentation results (FDR<5% cluster-defining
       features shown in Fig. 5c).
-    source_csv: results/endophenotype/ms_prems_block_overrep.csv
+    source_csv: results/endophenotype/{{cohort_short}}_prems_block_overrep.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Cluster_ICD_Enrichment.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Cluster_ICD_Enrichment.docx
@@ -832,12 +832,12 @@ tables:
   - id: etbl_cluster_clinical
     section: supplement
     caption: >-
-      Pre-MS endophenotype cluster clinical and genetic summary. Columns:
+      Pre-{{disease_short_caps}} endophenotype cluster clinical and genetic summary. Columns:
       cluster, n, pct_female, pct_pre_onset, mean_age_at_diagnosis,
       mean_years_to_sampling, pct_hla_carrier, mean_prs.
       C0 (musculoskeletal/pain, n=21), C1 (neuroinflammatory/psychiatric, n=26),
       C2 (neurological prodrome/viral, n=30), None (n=422).
-    source_csv: results/endophenotype/ms_prems_cluster_summary.csv
+    source_csv: results/endophenotype/{{cohort_short}}_prems_cluster_summary.csv
     output:
       csv:  manuscript/submission/_build_intermediates/Supplementary Table_Cluster_Clinical.csv
       docx: manuscript/submission/supplementary/Supplementary Tables/Supplementary Table_Cluster_Clinical.docx
@@ -846,7 +846,7 @@ tables:
   - id: etbl_cluster_go
     section: supplement
     caption: >-
-      GO:BP enrichment per pre-MS endophenotype cluster (C0, C1, C2 vs None).
+      GO:BP enrichment per pre-{{disease_short_caps}} endophenotype cluster (C0, C1, C2 vs None).
       C0: 17 FDR<5% terms; C1: 90; C2: 749 (dominated by leukocyte migration
       and activation). Columns: cluster, Description, FoldEnrichment, p.adjust,
       Count, gene_set.
@@ -862,11 +862,11 @@ tables:
   - id: etbl_cluster_celltypes
     section: supplement
     caption: >-
-      Cell-type enrichment per pre-MS comorbidity cluster (preranked fgsea
-      on the cluster vs MS-None limma moderated-t statistic, specificity-
+      Cell-type enrichment per pre-{{disease_short_caps}} comorbidity cluster (preranked fgsea
+      on the cluster vs {{disease_short_caps}}-None limma moderated-t statistic, specificity-
       filtered Walchli + HPA marker sets). Positive NES indicates that the
       cell type's specificity-filtered marker set is coordinately higher
-      in the cluster than in unassigned MS cases; negative NES indicates
+      in the cluster than in unassigned {{disease_short_caps}} cases; negative NES indicates
       lower. Columns: cluster, cell_type, size, NES, ES, pval, padj,
       leading_edge, contrast.
     source_csv: results/endophenotype/cluster_celltypes/cluster_celltype_summary_gsea.csv
@@ -878,7 +878,7 @@ tables:
   - id: etbl_cluster_ml
     section: supplement
     caption: >-
-      Pre-MS cluster elastic-net classifier performance and feature importance.
+      Pre-{{disease_short_caps}} cluster elastic-net classifier performance and feature importance.
       C0: AUC=0.570 (0.37–0.77); C1: AUC=0.548 (0.34–0.76); C2: AUC=0.671
       (0.54–0.80). Columns: cluster, n_cases, auc, auc_lo, auc_hi, top_features.
     source_csv: results/endophenotype/cluster_prems_ml/cluster_prems_auc_summary.csv
@@ -890,7 +890,7 @@ tables:
   - id: etbl_postms_deps
     section: supplement
     caption: >-
-      Post-onset cluster differential expression (C0, C1, C2 vs MS-None).
+      Post-onset cluster differential expression (C0, C1, C2 vs {{disease_short_caps}}-None).
       C0: 2 FDR<5% (EDEM2, GPHA2); C1: 0; C2: 0. Columns: cluster, protein,
       logFC, P.Value, adj.P.Val.
     source_csv: results/endophenotype/postms_cluster_proteomics/postms_deps_all_contrasts.csv

@@ -31,6 +31,8 @@ suppressPackageStartupMessages({
   library(here)
 })
 
+source(here("code", "registry", "render_figures_yaml.R"))
+
 # ── Registry store (metadata only, no numbers) ──────────────────────────────
 .REG <- new.env(parent = emptyenv())
 .REG$figures <- list()
@@ -85,7 +87,8 @@ registry_reset <- function() {
 #' Load registry metadata from figures.yaml.
 #' Does NOT assign numbers — numbers come from first fig()/tbl() call order.
 registry_load <- function(yaml_path = here("configs", "figures.yaml")) {
-  raw <- yaml::read_yaml(yaml_path)
+  rendered <- render_figures_yaml(yaml_path)
+  raw <- yaml::read_yaml(text = rendered)
 
   for (kind in c("figures", "tables")) {
     entries <- raw[[kind]] %||% list()
