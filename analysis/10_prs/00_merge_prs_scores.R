@@ -8,17 +8,20 @@
 #   Rscript 00_merge_prs_scores.R
 #
 # Input:  data/ukb/genetics/prs_profiles/prs_{PGS_ID}_c{CHR}.profile
-# Output: data/ukb/genetics/ms_prs_scores.csv  (eid, prs_PGS000809, prs_PGS004699)
+# Output: data/ukb/genetics/{cohort_short}_prs_scores.csv
+#         (eid, prs_<PGS_ID> per cfg$prs_pgs_ids, plus cfg$prs_combined_col)
 
-suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages({
+    library(data.table)
+    library(here)
+    library(glue)
+})
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-
-PROFILE_DIR <- file.path(PROJ_DIR, "data", "ukb", "genetics", "prs_profiles")
-OUT_FILE    <- file.path(PROJ_DIR, "data", "ukb", "genetics", "ms_prs_scores.csv")
+PROFILE_DIR <- here::here("data", "ukb", "genetics", "prs_profiles")
+OUT_FILE    <- here::here("data", "ukb", "genetics",
+                          glue::glue("{cfg$cohort_short}_prs_scores.csv"))
 
 if (!dir.exists(PROFILE_DIR)) {
     message("═══════════════════════════════════════════════════════════════")
@@ -64,35 +67,29 @@ merge_prs <- function(pgs_id) {
     agg[, prs_raw := total_wsum / total_cnt2]
     # Standardize to mean=0, SD=1
     agg[, prs_z := (prs_raw - mean(prs_raw, na.rm=TRUE)) / sd(prs_raw, na.rm=TRUE)]
-    setnames(agg, "prs_z", paste0("prs_", pgs_id))
-    agg[, .(eid, get(paste0("prs_", pgs_id)))]
+    out_col <- paste0("prs_", pgs_id)
+    setnames(agg, "prs_z", out_col)
+    agg[, c("eid", out_col), with = FALSE]
 }
 
 cat("Merging PRS scores from per-chromosome plink1 profiles...\n")
 
-prs809 <- merge_prs("PGS000809")
-prs699 <- merge_prs("PGS004699")
+pgs_ids <- cfg$prs_pgs_ids
+prs_tables <- lapply(pgs_ids, merge_prs)
+names(prs_tables) <- pgs_ids
 
-if (is.null(prs809) && is.null(prs699)) {
-    stop("No profile files found for either PRS. Run dx download first.")
+available <- !vapply(prs_tables, is.null, logical(1))
+if (!any(available)) {
+    stop("No profile files found for any PRS in cfg$prs_pgs_ids. Run dx download first.")
 }
 
-# Combine
-if (!is.null(prs809) && !is.null(prs699)) {
-    setnames(prs809, 2, "prs_PGS000809")
-    setnames(prs699, 2, "prs_PGS004699")
-    prs_all <- merge(prs809, prs699, by = "eid", all = TRUE)
-} else {
-    prs_all <- if (!is.null(prs809)) {
-        setnames(prs809, 2, "prs_PGS000809"); prs809
-    } else {
-        setnames(prs699, 2, "prs_PGS004699"); prs699
-    }
-}
+prs_tables <- prs_tables[available]
+prs_all <- Reduce(function(x, y) merge(x, y, by = "eid", all = TRUE), prs_tables)
 
-# Also create a combined column: prs_score = mean of available z-scores
-score_cols <- intersect(c("prs_PGS000809","prs_PGS004699"), names(prs_all))
-prs_all[, prs_score := rowMeans(.SD, na.rm=TRUE), .SDcols = score_cols]
+# Combined column: mean of available z-scores
+score_cols    <- paste0("prs_", names(prs_tables))
+combined_col  <- cfg$prs_combined_col
+prs_all[, (combined_col) := rowMeans(.SD, na.rm = TRUE), .SDcols = score_cols]
 
 fwrite(prs_all, OUT_FILE)
 cat(sprintf("Saved: %d participants, columns: %s\n", nrow(prs_all), paste(names(prs_all), collapse=", ")))
