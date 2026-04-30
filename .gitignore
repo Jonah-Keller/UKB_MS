@@ -3,7 +3,10 @@
 # ============================================================================
 
 # UKB restricted-access data + large reference files (NEVER commit)
+# (data/ is the dir pattern; bare 'data' covers the symlink case used
+#  during template-clone replications)
 data/
+data
 
 # Root-level UKB phenotype extracts (legacy location; should live in data/ukb/raw/)
 app*.dataset.csv
