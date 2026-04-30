@@ -1,0 +1,73 @@
+cell_type,NGenes,direction,pval,padj,analysis,analysis_label
+Inhibitory neurons,257,Down,0.0467477221594864,0.344342664394366,combined,Combined MS vs HC
+Oligodendrocyte precursor cells,223,Down,0.0648282894919429,0.344342664394366,combined,Combined MS vs HC
+Excitatory neurons,251,Down,0.0694265986845172,0.344342664394366,combined,Combined MS vs HC
+Oligodendrocytes,168,Down,0.0765205920876368,0.344342664394366,combined,Combined MS vs HC
+NK-cells,145,Down,0.136986773049921,0.431954717100389,combined,Combined MS vs HC
+Macrophages,247,Up,0.16428076389848,0.431954717100389,combined,Combined MS vs HC
+T-cells,156,Down,0.167982389983485,0.431954717100389,combined,Combined MS vs HC
+Pericytes,91,Down,0.252901816368234,0.541139930913651,combined,Combined MS vs HC
+Smooth muscle,138,Down,0.270569965456826,0.541139930913651,combined,Combined MS vs HC
+B-cells,122,Down,0.325907681305331,0.546730630571643,combined,Combined MS vs HC
+monocytes,193,Up,0.334113163127115,0.546730630571643,combined,Combined MS vs HC
+Astrocytes,195,Down,0.465232442954247,0.69784866443137,combined,Combined MS vs HC
+granulocytes,121,Up,0.580238282100546,0.79101613754523,combined,Combined MS vs HC
+Plasma cells,118,Up,0.681632282525728,0.79101613754523,combined,Combined MS vs HC
+Endothelial,260,Down,0.711115556972389,0.79101613754523,combined,Combined MS vs HC
+Microglial cells,197,Down,0.731080567133299,0.79101613754523,combined,Combined MS vs HC
+dendritic cells,128,Down,0.747070796570495,0.79101613754523,combined,Combined MS vs HC
+Fibroblasts,79,Down,0.911784689448172,0.911784689448172,combined,Combined MS vs HC
+Inhibitory neurons,257,Down,0.00254339839452104,0.0320811726446249,pre,Pre-onset vs HC
+Oligodendrocyte precursor cells,223,Down,0.00356457473829166,0.0320811726446249,pre,Pre-onset vs HC
+Excitatory neurons,251,Down,0.0068698890515104,0.0412193343090624,pre,Pre-onset vs HC
+Astrocytes,195,Down,0.0202135624014409,0.0909610308064838,pre,Pre-onset vs HC
+Oligodendrocytes,168,Down,0.0543453542718978,0.172697529111326,pre,Pre-onset vs HC
+Microglial cells,197,Down,0.0575658430371086,0.172697529111326,pre,Pre-onset vs HC
+NK-cells,145,Down,0.112323668798972,0.279547398408922,pre,Pre-onset vs HC
+T-cells,156,Down,0.129003058559516,0.279547398408922,pre,Pre-onset vs HC
+Macrophages,247,Up,0.139773699204461,0.279547398408922,pre,Pre-onset vs HC
+granulocytes,121,Up,0.485767665655587,0.824581224842949,pre,Pre-onset vs HC
+Pericytes,91,Down,0.503910748515136,0.824581224842949,pre,Pre-onset vs HC
+Endothelial,260,Down,0.601309424274564,0.901964136411845,pre,Pre-onset vs HC
+Plasma cells,118,Up,0.694868196481565,0.931926129479899,pre,Pre-onset vs HC
+Smooth muscle,138,Down,0.835172527098144,0.931926129479899,pre,Pre-onset vs HC
+dendritic cells,128,Up,0.848161747110406,0.931926129479899,pre,Pre-onset vs HC
+monocytes,193,Down,0.856650786554054,0.931926129479899,pre,Pre-onset vs HC
+Fibroblasts,79,Up,0.880152455619905,0.931926129479899,pre,Pre-onset vs HC
+B-cells,122,Up,0.939793257026654,0.939793257026654,pre,Pre-onset vs HC
+monocytes,193,Up,0.00194717611692202,0.0350491701045963,post,Post-onset vs HC
+Macrophages,247,Up,0.0043059578090299,0.0387536202812691,post,Post-onset vs HC
+granulocytes,121,Up,0.146571347244801,0.50049824581074,post,Post-onset vs HC
+Microglial cells,197,Up,0.148133400486568,0.50049824581074,post,Post-onset vs HC
+dendritic cells,128,Up,0.164834537124879,0.50049824581074,post,Post-onset vs HC
+Excitatory neurons,251,Down,0.16683274860358,0.50049824581074,post,Post-onset vs HC
+Inhibitory neurons,257,Down,0.247223217380441,0.635716844692562,post,Post-onset vs HC
+Plasma cells,118,Up,0.390509138056899,0.718355912060357,post,Post-onset vs HC
+Oligodendrocyte precursor cells,223,Down,0.431097491186185,0.718355912060357,post,Post-onset vs HC
+Oligodendrocytes,168,Down,0.451474400695626,0.718355912060357,post,Post-onset vs HC
+T-cells,156,Up,0.474391696831379,0.718355912060357,post,Post-onset vs HC
+Smooth muscle,138,Down,0.538666501490435,0.718355912060357,post,Post-onset vs HC
+B-cells,122,Up,0.544867537421748,0.718355912060357,post,Post-onset vs HC
+Pericytes,91,Up,0.558721264935833,0.718355912060357,post,Post-onset vs HC
+Astrocytes,195,Up,0.630389453141143,0.756467343769372,post,Post-onset vs HC
+NK-cells,145,Up,0.799318738837235,0.871805273885475,post,Post-onset vs HC
+Fibroblasts,79,Up,0.852287918121599,0.871805273885475,post,Post-onset vs HC
+Endothelial,260,Up,0.871805273885475,0.871805273885475,post,Post-onset vs HC
+Oligodendrocyte precursor cells,223,Down,0.0192589967148147,0.154471229707056,preVsPost,Pre vs post-onset
+Astrocytes,195,Down,0.0227596054316598,0.154471229707056,preVsPost,Pre vs post-onset
+Inhibitory neurons,257,Down,0.025745204951176,0.154471229707056,preVsPost,Pre vs post-onset
+Macrophages,247,Up,0.0348872061815215,0.156992427816847,preVsPost,Pre vs post-onset
+Excitatory neurons,251,Down,0.0484900661796399,0.174564238246704,preVsPost,Pre vs post-onset
+Fibroblasts,79,Up,0.129907654841268,0.367255027428513,preVsPost,Pre vs post-onset
+Microglial cells,197,Down,0.142821399555533,0.367255027428513,preVsPost,Pre vs post-onset
+B-cells,122,Up,0.18670156082777,0.420078511862483,preVsPost,Pre vs post-onset
+granulocytes,121,Up,0.274658850939724,0.493917495096382,preVsPost,Pre vs post-onset
+dendritic cells,128,Up,0.288665677228937,0.493917495096382,preVsPost,Pre vs post-onset
+Oligodendrocytes,168,Down,0.324449683699993,0.493917495096382,preVsPost,Pre vs post-onset
+Plasma cells,118,Up,0.355502056251058,0.493917495096382,preVsPost,Pre vs post-onset
+Smooth muscle,138,Up,0.356718190902942,0.493917495096382,preVsPost,Pre vs post-onset
+Endothelial,260,Up,0.570611275175863,0.716366494649831,preVsPost,Pre vs post-onset
+T-cells,156,Down,0.596972078874859,0.716366494649831,preVsPost,Pre vs post-onset
+Pericytes,91,Up,0.70003918798846,0.754582619142608,preVsPost,Pre vs post-onset
+NK-cells,145,Down,0.715178369331777,0.754582619142608,preVsPost,Pre vs post-onset
+monocytes,193,Up,0.754582619142608,0.754582619142608,preVsPost,Pre vs post-onset

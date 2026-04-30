@@ -1,0 +1,2 @@
+n_enr_blocks,blocks,min_pre_n,metric,n_neighbors,min_dist,k,silhouette,n_patients,n_clustered
+11,"H4,R2,G5,N1,R7,M4,K7,B2,M5,Z8,H2",5,jaccard_precomputed,10,0.05,3,0.8641,499,77

@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig2_trajectories (4 panels): a, b, c, d
+  ✓ efig2_trajectories → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._2_Trajectories.png
+    1840×1840 px @ 300 DPI  (2 rows × 2 cols, cell 3.0")

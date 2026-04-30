@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig7_cluster_go (2 panels): a, b
+  ✓ efig7_cluster_go → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._7_Cluster_GO.png
+    1840×856 px @ 300 DPI  (1 rows × 2 cols, cell 3.0")

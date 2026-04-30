@@ -1,7 +1,41 @@
-data/ukb/olink/processed/
-data/ukb/cohort/
-data/ukb/covariates/
-data/ukb/genetics/
+# ============================================================================
+# UKB MS proteomics — gitignore
+# ============================================================================
+
+# UKB restricted-access data + large reference files (NEVER commit)
+data/
+
+# Root-level UKB phenotype extracts (legacy location; should live in data/ukb/raw/)
+app*.dataset.csv
+*.dataset.csv
+
+# Participant-level results (contain eid; restricted under UKB application)
+results/clustering/ms_cluster_assignments.csv
+results/comorbidity/ms_endophenotype_assignments.csv
+results/ml/als_risk_score_all.csv
+results/endophenotype/ms_prems_block_features.csv
+results/endophenotype/ms_prems_composite_features.csv
+results/endophenotype/ms_preonset_clusters.csv
+results/endophenotype/ms_endophenotype_features.csv
+results/endophenotype/ms_endophenotype_clusters.csv
+results/endophenotype/ms_prems_cluster_assignments.csv
+results/endophenotype/gmm_copresentation/gmm_posterior_probs.csv
+results/endophenotype/gmm_copresentation/gmm_copresenters.csv
+
+# Pipeline runtime
+logs/
 __pycache__/
 *.pyc
+.Rhistory
+.RData
+
+# Heavy regeneratable artifacts (300MB+ RDS models, downloadable caches)
+results/ml/models/
+results/ml/models_sex/
+results/endophenotype/cluster_ppi/string_cache/
+
+# Third-party R packages cloned into helpers/ (clone separately; see README)
+analysis/helpers/PEACOK/
+
+# OS
 .DS_Store

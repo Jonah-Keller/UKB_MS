@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing fig3_genetic_heterogeneity (11 panels): a, b, c, d, e, f, g, h, i, j, k(2c×1r)
+  ✓ fig3_genetic_heterogeneity → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/main_figures/Figure_3_Genetic_Heterogeneity.png
+    2760×4340 px @ 300 DPI  (4 rows × 3 cols, cell 3.0")

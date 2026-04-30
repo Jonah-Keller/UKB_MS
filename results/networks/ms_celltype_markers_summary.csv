@@ -1,0 +1,37 @@
+method,cell_type,n_markers
+specificity,Endothelial,1412
+specificity,Pericytes,613
+specificity,Smooth muscle,837
+specificity,Fibroblasts,281
+specificity,Microglial cells,1232
+specificity,Astrocytes,1516
+specificity,Oligodendrocytes,1374
+specificity,Oligodendrocyte precursor cells,1721
+specificity,Excitatory neurons,2242
+specificity,Inhibitory neurons,2197
+specificity,T-cells,635
+specificity,B-cells,640
+specificity,NK-cells,527
+specificity,monocytes,611
+specificity,dendritic cells,509
+specificity,Macrophages,715
+specificity,Plasma cells,778
+specificity,granulocytes,489
+legacy_ntpm,Endothelial,5703
+legacy_ntpm,Pericytes,1404
+legacy_ntpm,Smooth muscle,4069
+legacy_ntpm,Fibroblasts,530
+legacy_ntpm,Microglial cells,6922
+legacy_ntpm,Astrocytes,7505
+legacy_ntpm,Oligodendrocytes,7478
+legacy_ntpm,Oligodendrocyte precursor cells,7202
+legacy_ntpm,Excitatory neurons,8108
+legacy_ntpm,Inhibitory neurons,8188
+legacy_ntpm,T-cells,7663
+legacy_ntpm,B-cells,7563
+legacy_ntpm,NK-cells,7227
+legacy_ntpm,monocytes,7120
+legacy_ntpm,dendritic cells,6874
+legacy_ntpm,Macrophages,7912
+legacy_ntpm,Plasma cells,7628
+legacy_ntpm,granulocytes,7435

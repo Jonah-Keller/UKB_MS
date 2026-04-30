@@ -1,0 +1,5 @@
+model,AUC
+glmnet,0.7337
+gbm,0.6136
+rf,0.6118
+nnet,0.6923

@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig8_ppi_chords (4 panels): a, b, c, d(3c×1r)
+  ✓ efig8_ppi_chords → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._8_PPI_Chords.png
+    2760×3459 px @ 300 DPI  (2 rows × 3 cols, cell 3.0")

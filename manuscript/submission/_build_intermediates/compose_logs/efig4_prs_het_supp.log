@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig4_prs_het_supp (8 panels): a, b, c, d, e, f(2c×1r), g, h(3c×1r)
+  ✓ efig4_prs_het_supp → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._4_PRS_Genetic_Supp.png
+    2760×4916 px @ 300 DPI  (4 rows × 3 cols, cell 3.0")

@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig5_sex_supp (7 panels): a, b, c, d, e, f, g
+  ✓ efig5_sex_supp → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._5_Sex_Supp.png
+    2760×3569 px @ 300 DPI  (3 rows × 3 cols, cell 3.0")

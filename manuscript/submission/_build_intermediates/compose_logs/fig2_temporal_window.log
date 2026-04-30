@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing fig2_temporal_window (16 panels): a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p
+  ✓ fig2_temporal_window → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/main_figures/Figure_2_Temporal_Window.png
+    3680×3844 px @ 300 DPI  (4 rows × 4 cols, cell 3.0")

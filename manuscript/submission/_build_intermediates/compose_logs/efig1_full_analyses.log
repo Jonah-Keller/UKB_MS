@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing efig1_full_analyses (14 panels): A, B, C, D, E, F, G, H, I, J, K, L, M, N
+  ✓ efig1_full_analyses → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/supplementary/Extended Data Fig.s/Extended Data Fig._1_Full_Analyses.png
+    2760×6611 px @ 300 DPI  (5 rows × 3 cols, cell 3.0")

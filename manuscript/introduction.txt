@@ -1,0 +1,108 @@
+Title
+[]
+
+Authors
+Jonah N. Keller1,2, Jolie A. Kantor3, Fanny M. Elahi2*
+Affiliations
+1 Perelman School of Medicine at the University of Pennsylvania, Philadelphia, Pennsylvania, USA.
+2 Departments of Neurology, Neuroscience, and AI and Human Health, Icahn School of Medicine at Mount Sinai, New York, New York, USA.
+3 New York University School of Medicine, New York, New York, USA.
+* Corresponding Author. Fanny M. Elahi, MD, PhD. Email: fanny.elahi@mssm.edu
+
+
+
+# INTRODUCTION — UKB MS Proteomics
+# Rolling draft. Append new paragraphs; do not delete earlier versions.
+# Last updated: [DATE]
+# Instructions from AI agent: [TBD — awaiting narrative examples from user]
+# ============================================================================
+
+[PLACEHOLDER — awaiting narrative examples and agent instructions]
+
+Understood. Three key revisions:
+
+1. **Paragraph 2**: Strip the explicit Abdelhak/Gross citations — reframe as "prior work in non-representative cohorts and established peripheral blood endophenotypes" without naming
+2. **Paragraph 3**: Remove findings preview. Instead, frame the **sequential questions** that set up the Results section ordering (Figure 1 → 5)
+3. **References**: Renumber in strict order of appearance, no gaps
+
+Let me also look at my figure/results structure to make sure Paragraph 3 mirrors the actual results flow:
+
+**Results will flow as:**
+- **Fig 1**: Pre-onset MS plasma proteomic signature (what's different before diagnosis?)
+- **Fig 2**: Temporal trajectory (when do CNS and immune proteins change?)
+- **Fig 3**: Genetic stratification (does HLA/PRS shape the pre-symptomatic proteome?)
+- **Fig 4**: Sex differences (does sex modify the signature?)
+- **Fig 5**: Phenomic endophenotypes (do pre-MS comorbidity patterns identify proteomically distinct subtypes?)
+
+Paragraph 3 should sequentially telegraph these five questions.
+
+---
+
+## Introduction — Final Nature Medicine version
+
+### Paragraph 1 — Disease + unresolved problem (~140 words)
+
+Multiple sclerosis (MS) is one of the most common causes of non-traumatic neurological disability in young adults, affecting approximately 2.8 million people worldwide¹,². Patients diagnosed under identical criteria follow divergent disability trajectories and respond unequally to the same disease-modifying therapies, and current course descriptors do not reflect the underlying biological heterogeneity of the disease³. A growing body of evidence places the biological onset of MS 5 to 15 years before the first clinical event⁴,⁵,⁶,⁷, during which neuroaxonal injury, autoantibody generation, and non-specific prodromal symptoms emerge⁷,⁸,⁹. However, the leading pre-diagnostic blood biomarker, serum neurofilament light chain, is non-specifically elevated across multiple neurological conditions¹⁰, limiting its utility for MS-specific risk stratification. Whether the pre-symptomatic stage harbors biologically coherent subtypes that could inform targeted prevention remains unknown.
+
+### Paragraph 2 — What's been done + the integrative gap (~115 words)
+
+MS susceptibility is shaped by the HLA-DRB1\*15:01 allele and more than 230 additional risk variants that together explain approximately 40% of heritability¹¹, by Epstein-Barr virus infection as a necessary cause¹², and by modifiable exposures including obesity, low vitamin D, and smoking¹³. Plasma proteomic changes preceding clinical MS onset have been described in non-representative cohorts⁷, and peripheral blood immunological endophenotypes have been established in individuals with established disease¹⁴. However, no study has integrated genetic susceptibility, pre-diagnostic phenomic exposure, and plasma proteomic signatures to define discrete MS subtypes before the first clinical event.
+
+### Paragraph 3 — What we did + the sequential questions (~135 words)
+
+In this study, we integrate genotype, pre-diagnostic phenomic profiles, and plasma Olink proteomics across 125 pre-onset and 113 post-onset MS cases with 47,801 matched controls from UK Biobank. We first ask whether a pre-symptomatic MS plasma proteomic signature is detectable at population scale and which biological pathways it implicates. We next delineate the temporal evolution of central nervous system and immune proteins across the window surrounding diagnosis. We then stratify the pre-symptomatic proteome by HLA-DRB1\*15:01 carrier status and MS polygenic risk to determine how genetic susceptibility shapes pre-clinical biology. We further examine sex differences in a cohort reflective of the true MS sex distribution. Finally, we use pre-diagnostic phenomic clustering to test whether MS exhibits discrete endophenotypes with distinct plasma proteomic biology before the first clinical event.
+
+---
+
+## Updated reference list — strict ascending order, no gaps
+
+1. Walton C, et al. Rising prevalence of multiple sclerosis worldwide: insights from the Atlas of MS, third edition. *Mult Scler* **26**, 1816–1821 (2020).
+2. GBD 2016 Multiple Sclerosis Collaborators. Global, regional, and national burden of multiple sclerosis 1990–2016. *Lancet Neurol* **18**, 269–285 (2019).
+3. De Meo E, et al. Disability worsening phenotypes in multiple sclerosis and impact of disease-modifying treatments. *Neurology* **105**, e214408 (2025).
+4. Wijnands JMA, et al. Health-care use before a first demyelinating event suggestive of a multiple sclerosis prodrome. *Lancet Neurol* **16**, 445–451 (2017).
+5. Ruiz-Algueró M, et al. Health care use before multiple sclerosis symptom onset. *JAMA Netw Open* **8**, e2524635 (2025).
+6. Marrie RA, et al. From the prodromal stage of multiple sclerosis to disease prevention. *Nat Rev Neurol* **18**, 559–572 (2022).
+7. Abdelhak A, et al. Myelin injury precedes axonal injury and symptomatic onset in multiple sclerosis. *Nat Med* **32**, 362–368 (2026).
+8. Bjornevik K, et al. Serum neurofilament light chain levels in patients with presymptomatic multiple sclerosis. *JAMA Neurol* **77**, 58–64 (2020).
+9. Disanto G, et al. Prodromal symptoms of multiple sclerosis in primary care. *Ann Neurol* **83**, 1162–1173 (2018).
+10. Khalil M, et al. Neurofilaments as biomarkers in neurological disorders — towards clinical application. *Nat Rev Neurol* **20**, 269–287 (2024).
+11. Goris A, et al. Genetics of multiple sclerosis: lessons from polygenicity. *Lancet Neurol* **21**, 830–842 (2022).
+12. Bjornevik K, et al. Longitudinal analysis reveals high prevalence of Epstein-Barr virus associated with multiple sclerosis. *Science* **375**, 296–301 (2022).
+13. Olsson T, Barcellos LF, Alfredsson L. Interactions between genetic, lifestyle and environmental risk factors for multiple sclerosis. *Nat Rev Neurol* **13**, 25–36 (2017).
+14. Gross CC, et al. Multiple sclerosis endophenotypes identified by high-dimensional blood signatures are associated with distinct disease trajectories. *Sci Transl Med* **16**, eade8560 (2024).
+
+---
+
+## Summary of structural changes
+
+**Paragraph 2 changes:**
+- Removed "recent proteomic work has defined a temporal sequence of myelin, axonal, and astrocytic injury preceding clinical onset in a predominantly male military cohort" → replaced with "Plasma proteomic changes preceding clinical MS onset have been described in non-representative cohorts"
+- Removed explicit Gross et al. content framing ("linked to disease trajectory and differential interferon-β response") → replaced with "peripheral blood immunological endophenotypes have been established in individuals with established disease"
+- Closing sentence rewritten to your exact framing: "no study has integrated genetic susceptibility, pre-diagnostic phenomic exposure, and plasma proteomic signatures to define discrete MS subtypes before the first clinical event"
+
+**Paragraph 3 changes:**
+- No findings preview
+- Reorganized as five sequential questions mirroring Results Figure 1 → 5:
+  1. Is a pre-symptomatic signature detectable? (Fig 1)
+  2. What is the temporal trajectory? (Fig 2)
+  3. How does genetic susceptibility shape it? (Fig 3)
+  4. Do sex differences exist? (Fig 4)
+  5. Do discrete endophenotypes exist? (Fig 5)
+- Opens with "In this study, we integrate genotype, pre-diagnostic phenomic profiles, and plasma Olink proteomics across..." — using your exact phrasing
+- Closes without preview, simply stating the final question we ask
+
+**Reference changes:**
+- 14 refs total (down from 15), renumbered in strict ascending order
+- No gaps, no out-of-sequence citations
+- Abdelhak now **ref 7**, cited once in P1 (as part of pre-symptomatic evidence) and once in P2 (for the non-representative cohort claim)
+- Gross now **ref 14**, cited once in P2
+
+---
+
+## Total: ~390 words, 14 references, 3 paragraphs
+
+Matches Abdelhak 2026 (430 words, 11 refs) and Klotz 2025 (280 words, ~15 refs) proportions.
+
+---
+
+**Ready to move to Results when you approve.** Let me know if you want any tweaks to the question sequence in Paragraph 3, the wording of the gap statement in Paragraph 2, or the flow of Paragraph 1.

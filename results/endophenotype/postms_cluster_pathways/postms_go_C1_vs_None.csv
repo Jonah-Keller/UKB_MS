@@ -1,0 +1,2 @@
+ID,Description,GeneRatio,BgRatio,RichFactor,FoldEnrichment,zScore,pvalue,p.adjust,qvalue,geneID,Count,gene_set,contrast,cluster
+GO:0006957,"complement activation, alternative pathway",3/45,19/18860,0.157894736842105,66.1754385964912,13.9002388840118,1.19754046331818e-05,0.014621969057115,0.0123157582385459,CFB/CFHR5/C3,3,up_DEPs,C1_vs_None,C1

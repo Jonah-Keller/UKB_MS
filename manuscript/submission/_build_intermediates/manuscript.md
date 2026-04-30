@@ -1,0 +1,316 @@
+
+
+
+**Title**
+
+**Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in multiple sclerosis**
+
+
+**Authors**
+
+Jonah N. Keller^1,2^, Jolie A. Kantor^3^, Fanny M. Elahi^2\*^
+
+
+**Affiliations**
+
+^1^ Perelman School of Medicine at the University of Pennsylvania, Philadelphia, Pennsylvania, USA.  
+^2^ Departments of Neurology, Neuroscience, and AI and Human Health, Icahn School of Medicine at Mount Sinai, New York, New York, USA.  
+^3^ New York University School of Medicine, New York, New York, USA.
+
+\* Corresponding author: Fanny M. Elahi, MD, PhD, fanny.elahi@mssm.edu
+
+
+**Abstract**
+
+Multiple sclerosis (MS) has a pre-clinical phase spanning years before the first clinical event, but whether this phase harbours biologically discrete subtypes that are independent of genetic susceptibility remains unknown. Here we integrate plasma Olink proteomics from 125 pre-onset and 374 post-onset MS cases with 47,801 matched controls from UK Biobank, together with HLA-DRB1\*15:01 genotyping, a validated MS polygenic risk score, and pre-diagnostic ICD-10 phenomic profiles. A pre-symptomatic plasma signature dominated by neurofilament light chain elevation and suppression of ERBB2, the oligodendrocyte differentiation receptor, was detectable up to six years before clinical onset, with ERBB2 suppression reversing after diagnosis. Genetic heterogeneity resolved along two orthogonal axes: HLA-DRB1\*15:01 carrier status was linked selectively to plasma LILRB4 elevation, while the MS polygenic risk score was linked to IL2RA abundance at population scale, and neither axis modified the MS-associated plasma signature. The pre-symptomatic plasma signature was detectable by machine learning classifier in female but not male cases, establishing a sex-specific asymmetry in the pre-diagnostic window. Unsupervised clustering of pre-diagnostic comorbidity profiles identified three discrete endophenotypes independent of HLA and polygenic risk. One endophenotype, defined by neurological prodrome and infectious mononucleosis, carried FDR-significant elevations in CCL3 and von Willebrand factor alongside fibroblast marker enrichment, consistent with Epstein-Barr virus-driven vascular and chemokine biology at the peri-onset window. These findings establish phenomic heterogeneity as a distinct axis of pre-symptomatic MS biology and provide a framework for biologically-matched early detection and stratified prevention.
+
+
+**Introduction**
+
+Multiple sclerosis (MS) is a leading cause of non-traumatic neurological disability among young adults and affects approximately 2.8 million people worldwide^1,2^. Patients meeting uniform diagnostic criteria nevertheless follow divergent disability trajectories and respond variably to the same disease-modifying therapies, and current disease course descriptors only sparsely approximate this underlying biological heterogeneity^3^. One explanation is that MS is being observed, and targeted therapeutically, in the wrong epoch of disease. A growing body of evidence indicates that the biological onset of MS precedes the first clinical event by 5 to 15 years^4,5,6,7^, and it is during this silent epoch that subclinical neuroaxonal injury, autoantibody generation, and non-specific prodromal symptoms emerge^7,8,9^. In this vein, much effort has focused on the development of pre-diagnostic blood biomarkers. Plasma proteomic changes preceding clinical onset have been described in non-representative cohorts^7^. One leading single-analyte candidate, serum neurofilament light chain, has been detected years before clinical onset; however, its clinical utility for MS-specific risk stratification is limited by its elevation across multiple neurological conditions^10^.
+
+Comparatively, the genetic and environmental architecture of MS susceptibility is well-defined: HLA-DRB1\*15:01 and more than 230 additional risk variants together explain approximately 40% of heritability^11^, Epstein–Barr virus infection is a necessary cause^12^, and obesity, low vitamin D, and smoking further elevate risk^13^. Yet while each of these axes has been advancing independently, no study to date has connected them in the pre-clinical period. Integration of genotype, pre-diagnostic phenome, and plasma proteome could define pre-syndromic endophenotypes of MS, analogous to immunological endophenotypes defined in individuals with established disease^14^, each with a distinct underlying biology. Such stratification would enable biologically-matched enrollment in prevention and disease-modifying trials, increasing the likelihood of detecting therapeutic efficacy otherwise obscured when the same therapy is applied across patients with divergent disease biology.
+
+Here, we integrate genotype, pre-diagnostic phenomic profiles, and plasma Olink proteomics across 125 pre-onset and 374 post-onset MS cases alongside 47,801 matched controls from UK Biobank to define the pre-symptomatic proteomic signature, its temporal evolution, its genetic and sex-specific axes, and phenomically-defined endophenotypes with distinct pre-diagnostic plasma biology.
+
+
+**Results**
+
+**The plasma proteome diverges before clinical MS onset**
+
+<!-- NOTE: Introduction uses author-year citations; Results uses numbered superscripts per NatMed style.
+     Reconcile to one format before submission. -->
+
+We analyzed plasma Olink Explore 3072 data from UK Biobank participants comprising 125 pre-onset MS cases (blood drawn before ICD-10 G35), 374 post-onset MS cases, and 47,801 age-, sex-, and assessment-centre-matched healthy controls (**Figure 1a** and **Table 1**). After quality control, 2,911 of 2,923 proteins were retained for analysis. To adjust for non-specific proteomic variation driven by demographic, technical, and population-level factors, the first two principal components derived from a control-only PCA of the retained protein matrix (**Figure 1b**) were included as covariates alongside age at blood draw, biological sex, and sample-level mean NPX in all downstream models.
+
+We conducted proteome-wide association testing of individual plasma protein levels between pre-onset MS cases and matched controls. 2 proteins exceeded the 5% false discovery rate (FDR) threshold: NEFL was elevated, consistent with prior pre-diagnostic reports^7,8^, and ERBB2, the receptor required for oligodendrocyte progenitor differentiation, was reduced, a signal not previously described before MS diagnosis (**Figure 1c** and **Supplementary Table 1**). Nominally significant signals (*P* < 0.05) included elevated OSM, TGFA, and MMP9 and reduced PTPRC, BGN, and OMG (**Figure 1d**).
+
+Pathway analysis of the nominal DEPs identified significant associations with growth factor signaling, innate antimicrobial defense, and coagulation among the up-regulated set (**Figure 1e**). STRING-based protein-protein interaction analysis of the same DEP set (edge confidence ≥0.7) resolved coherent Louvain communities anchored on inflammation-coagulation and growth-factor hubs (**Figure 1f**, **Supplementary Table 1**). To resolve the cellular sources of the plasma signal, we mapped each DEP to its single highest-expressing cell type across the Wälchli vascular and Human Protein Atlas CNS/immune reference atlases for visualisation (**Figure 1g**) and, separately, tested the pre-onset contrast for coordinated cell-type marker enrichment using preranked GSEA on the full limma moderated-t statistic against specificity-filtered marker sets. The plasma footprint of CNS cell types was coordinately lower in pre-onset MS cases than in matched healthy controls: markers of excitatory neurons, inhibitory neurons, oligodendrocyte progenitor cells, oligodendrocytes, astrocytes, and microglia each reached FDR < 0.01 with negative normalised enrichment scores, and markers of cytotoxic lymphocytes (T and NK cells) were also coordinately reduced at FDR < 0.05 (**Figure 1h**). No cell-type marker set reached FDR-significant elevation at the pre-onset stage. This pattern — a coordinated pre-clinical reduction in the CNS-origin plasma signal in the absence of overt peripheral immune expansion — is consistent with the temporal window in which subclinical neuroaxonal injury (NEFL, elevated) and an ERBB2-indexed deficit in remyelination signalling (reduced) emerge ahead of the post-onset myeloid activation described below.
+
+Against this landscape, post-onset MS versus controls yielded substantially more FDR-significant DEPs, led by NEFL and joined by GFAP, TREM2, LGALS9, and CLEC7A, which are markers of astrocytic and microglial activation that were absent before diagnosis (**Extended Data Fig. 1**, **Supplementary Table 2**, **Supplementary Table 3**). Direct pre-versus-post contrast identified FGF23, CLC, and CLEC5A as elevated before and reduced after diagnosis, whereas NEFL was equivalently elevated at both stages (**Extended Data Fig. 1K** and **Supplementary Table 4**). Stage-specificity was clearest for the innate immune axis: GFAP, TREM2, and CLEC7A emerged only post-onset, while pre-onset biology centred on growth factor signaling (**Figure 1i**). The pre-diagnostic proteome thus carried a signature of early myelin-repair signalling and a coordinated reduction in CNS-origin plasma markers, contrasting with the post-diagnostic proteome, which was dominated by overt astrocytic and microglial activation and a corresponding coordinated elevation of myeloid-lineage markers (monocyte and macrophage NES > 1.8, FDR < 10⁻⁴; **Extended Data Fig. 1J**).
+
+**The temporal proteomic window in pre-diagnostic MS**
+
+Next, we asked when pre-symptomatic MS proteins begin to diverge from healthy control levels. We modelled protein abundance as a continuous function of time relative to diagnosis, spanning approximately eight years before to twelve years after the clinical event (**Figure 2a**). NEFL diverged from healthy controls approximately 5.75 years before diagnosis and remained persitently elevated relative to controls (**Figure 2b** and **Supplementary Table 5**). ERBB2 was suppressed throughout the entire pre-diagnostic window, including at the −8 year boundary, and converged toward healthy control levels within approximately 5.75 years after diagnosis (**Figure 2c**). GFAP showed no pre-diagnostic divergence, separating from controls only approximately 5 years after diagnosis (**Figure 2d** and **Extended Data Fig. 2b**), placing symptomatic astrocytic involvement well after the initiation of neuroaxonal injury. MOG remained elevated at all timepoints (**Figure 2e** and **Extended Data Fig. 2c**), and the remaining nominal DEPs, including BGN, showed no progressive time interaction (**Figure 2f–h** and **Extended Data Fig. 2a**). Pre-versus-post effect sizes were essentially uncorrelated at the full-proteome level (**Figure 2i** and **Supplementary Table 6**). An integrated heatmap of these proteins binned by time-to-diagnosis highlighted NEFL as the consitently monotonically elevated protein, with the remainder showing varying time-dependence (**Figure 2j**).
+
+We next asked whether the pre-diagnostic proteome could prospectively classify future MS cases. NEFL was the strongest prospective risk marker and ERBB2 the top protective association in Cox proportional hazards models; 47 proteins in total reached FDR significance (**Figure 2k**, **Supplementary Table 7**, **Supplementary Table 8**). The NEFL hazard was consistent across the 0–4, 4–8, and 8–12 year pre-diagnostic bins, establishing it as a sustained rather than proximity-driven signal. A multivariate elastic-net classifier (**Figure 2l**) discriminated future MS from healthy controls above chance in pre-onset cases, with elevated predicted probability across all temporal bins, including greater than ten years before diagnosis (**Figure 2m**,n). Stratifying by MS-PRS quartile yielded no interaction with the NEFL trajectory (**Figure 2o** and **Supplementary Table 9**), and the same null interaction was observed for the ERBB2 trajectory (**Extended Data Fig. 2d**), indicating that neuroaxonal injury and ERBB2 suppression emerge across the pre-diagnostic window independently of common variant genetic susceptibility. Pathway enrichment within rolling pre-diagnostic time bins identified ERBB2-associated receptor tyrosine kinase signalling only in the deepest bin (>12 years before diagnosis), with no enrichment in the intermediate bins (**Supplementary Table 10**), further localising the early biology to myelin-repair signalling. A summary landscape of pre-diagnostic proteomic features positioned NEFL and ERBB2 at the two extremes of the temporally divergent axis (**Figure 2p**).
+
+**Genetic heterogeneity resolves along two orthogonal axes**
+Having shown that the leading biomarkers are not modified by genetic susceptibility, we next sought to uncover what aspect of the pre-diagnostic plasma proteome is indeed targeted by common genetic susceptibility factors. As our model, we tested HLA-DRB1\*15:01 carrier status and a validated MS polygenic risk score across all genotyped participants (**Figure 3a** and **Supplementary Table 11**). Within MS cases and restricted to the 184 combined MS differentially expressed proteins, 2 proteins exceeded the FDR threshold between HLA-DRB1\*15:01 carriers and non-carriers: LILRB4, elevated with an effect size an order of magnitude larger than any other protein and concordant across both sexes, and TNFSF13 (**Figure 3b**, **Figure 3c**, **Figure 3d**, **Figure 3e**, **Figure 3f**, **Supplementary Table 12**, **Supplementary Table 13**, **Extended Data Fig. 3a–j**). LILRB4 elevation was stable across both pre- and post-diagnostic windows (**Figure 3g**), consistent with a constitutional immunogenetic phenotype rather than a disease-stage effect.
+
+To test whether HLA status modifies the MS-associated signature, we stratified the MS-versus-HC analysis by carrier status. Within carriers only 2 proteins (NEFL and GFAP) reached FDR 5%, whereas within non-carriers 77 proteins reached FDR 5%, including a broad integrin and extracellular matrix signature (**Figure 3e**, **Extended Data Fig. 4f**, **Supplementary Table 14**). A formal HLA × MS interaction test, which evaluates whether the case-control effect differs in magnitude between strata rather than comparing strata separately, identified no FDR-significant protein, indicating that the apparent asymmetry reflects the smaller carrier sample rather than qualitative biological difference. Pathway analysis of the HLA-associated proteins intuitively highlighted antigen presentation and leukocyte immunoglobulin-like receptor signaling (**Figure 3f**). While pre-MS comorbidity profiles differed nominally between HLA carriers and non-carriers, with migraine and asthma depleted in carriers, no ICD category reached FDR significance (**Supplementary Table 15**).
+
+While HLA-DRB1\*15:01 is a major risk factor, hundreds of variants contribute in consortium to MS risk. Thus, we next interrogated the plasma proteomic correlate of the MS polygenic risk score (MS-PRS). Correlating the MS-PRS with plasma proteins at population scale identified 4 FDR-significant proteins, led by IL2RA and followed by TNFRSF6B, CD5L, and KLRK1 (**Extended Data Fig. 4d** and **Supplementary Table 16**); IL2RA abundance trended upward with increasing polygenic risk tertile in MS cases (**Figure 3j**). Pathway enrichment of these PRS-correlated proteins highlighted IL-2/IL-2Rα and T cell receptor signalling (**Figure 3l**). PRS × MS interaction testing identified no FDR-significant protein (**Extended Data Fig. 4e** and **Supplementary Table 17**), establishing that polygenic risk contributes to baseline protein variance at population scale but does not modify the MS-associated signature within cases. Individual-level LILRB4 and IL2RA stratified by HLA × polygenic risk confirmed the two axes as orthogonal, with additive rather than interactive elevation in double-risk individuals (**Figure 3n**, **Extended Data Fig. 4a**, **Extended Data Fig. 4g**).
+
+**Sex asymmetry in the pre-diagnostic proteome**
+
+Given the ~3:1 female incidence skew in MS^2^, we asked whether biological sex stratifies the proteome. Our cohort comprised 351 female and 148 male MS cases. Substantially more FDR-significant DEPs were identified in females than males (**Figure 4a**,b, **Supplementary Table 18**), with 12 proteins concordant across both sexes, including elevated NEFL and reduced ITGAV, ITGAM, ITGA11, and BAG3. Female-specific signals extended to CNS injury markers (GFAP, KLK6, MOG), neuroendocrine signaling (CHGA, SNAP25), and immune markers (LILRB4, CD8A, GZMA, MERTK), with pathway enrichment highlighting CNS injury and immune-regulatory processes (**Figure 4b**,c,e, **Supplementary Table 19**, **Supplementary Table 20**), whereas male-specific signals were dominated by growth factor and metabolic pathways (**Figure 4b**,d,f). A formal sex × MS interaction test identified no FDR-significant protein (**Extended Data Fig. 5a** and **Supplementary Table 21**), indicating that the broader female signature reflects the larger female sample rather than qualitatively distinct biology for most proteins. Two proteins showed sex-divergent signals beyond power: CHGA was substantially elevated in female post-onset MS but not in males (**Figure 4h**), whereas ENPP5 selectively declined in male MS cases from a markedly higher male baseline toward female levels, with no corresponding change in females (**Figure 4i**).
+
+Restricting to pre-onset cases revealed a striking sex asymmetry: NEFL (elevated) and BGN (reduced) reached FDR 5% in female pre-onset MS, whereas no protein reached FDR 5% in males, and cross-sex pre-onset effect sizes were essentially uncorrelated (**Figure 4g** and **Supplementary Table 22**). Sex-stratified classifiers confirmed this asymmetry: the pre-onset classifier discriminated future MS from healthy controls above chance in females but performed at chance in males, whereas combined-stage and post-onset classifiers were similarly above chance in both sexes (**Figure 4j** and **Extended Data Fig. 5e**). Pre-to-post effect-size concordance was near zero at the pre-onset stage and markedly higher post-onset (**Extended Data Fig. 5f**,g), localizing the sex asymmetry to the pre-clinical window.
+
+**Pre-diagnostic comorbidity endophenotypes define a peri-onset chemokine–vascular signature**
+
+Genetic and sex axes stratify the proteome but do not modify the case-control signature. We therefore asked whether pre-diagnostic clinical exposure, captured in the electronic health record, partitions MS into biologically coherent subtypes that genetic risk alone does not. A phenome-wide association study of ICD-10 conditions recorded before diagnosis in the full case-control cohort identified 23 conditions reaching FDR 5%: 13 enriched and 10 depleted (**Figure 5a** and **Supplementary Table 23**). Optic neuritis dominated the enrichments, accompanied by neurological prodrome features, infectious mononucleosis, and musculoskeletal and acute systemic events. All 10 depleted conditions formed a coherent cardiometabolic cluster, with essential hypertension, dyslipidaemia, osteoarthritis, and gastro-oesophageal reflux each substantially under-represented relative to matched controls.
+
+To resolve whether these comorbidities co-occur in distinct patient subgroups rather than being distributed uniformly across pre-MS cases, we applied unsupervised clustering to the binary ICD-10 block features. 3 discrete, non-overlapping clusters emerged (**Figure 5b**,c, **Supplementary Table 24**, **Supplementary Table 25**). C0 was dominated by musculoskeletal and chronic pain conditions; C1 combined optic neuritis and inflammatory features with depressive episode and infectious mononucleosis; C2 was defined by mixed neurological prodrome coinciding with infectious mononucleosis and acute hepatic and renal events. An independent mixture model confirmed 3 components as optimum, with <1% of cases spanning multiple clusters. The clusters differed substantially in age at diagnosis and genetic susceptibility (**Figure 5d–f** and **Supplementary Table 26**): C0 members were oldest at diagnosis and C1 youngest, whereas sex distribution was comparable across all three clusters. C2 was specifically characterized by under-representation of HLA-DRB1\*15:01 and the highest mean MS-PRS, consistent with a non-HLA polygenic path to pre-clinical MS that is also engaged by EBV-related prodromal events.
+
+Cluster-stratified differential expression against propensity-score-matched controls identified no FDR-significant proteins in C0 or C1; C2 alone yielded FDR-significant elevations in CCL3 and VWF (**Figure 5g–i** and **Supplementary Table 27**). Pathway analysis of the C2 DEPs revealed a dominant signature of leukocyte migration and chemokine–coagulation–adhesion biology, exceeding the GO term count of C0 and C1 by an order of magnitude (**Figure 5j–k**, **Extended Data Fig. 6**, **Supplementary Table 28**, **Extended Data Fig. 7**). Preranked GSEA on the cluster-versus-MS-None moderated-t statistic showed that C2 was characterised by coordinated elevation of markers across myeloid (macrophages, monocytes, dendritic cells), microglial, fibroblast, and cytotoxic-lymphocyte (T- and NK-cell) compartments, each with positive NES and FDR < 0.05, and no coordinate reduction of any CNS or stromal compartment (**Extended Data Fig. 8** and **Supplementary Table 29**). By contrast, the C0 and C1 enrichment profiles were narrower: C0 combined myeloid and B-cell elevation with coordinated reduction of neuronal, oligodendrocyte, OPC, astrocyte, microglial, and smooth-muscle markers, whereas C1 showed selective myeloid elevation only. The breadth of positive-NES enrichment in C2, spanning innate, adaptive, glial, and stromal compartments simultaneously, is consistent with a peri-onset inflammatory state rather than a focal lineage expansion. Pre-onset classifiers confirmed that C2 was the only cluster individually detectable above chance, whereas C0 and C1 classifiers performed at chance (**Figure 5m** and **Supplementary Table 30**). In post-onset cases, C2 lost both FDR-significant proteins and its pre-to-post effect-size concordance was substantially lower than for C0 or C1 (**Extended Data Fig. 9a–n**, **Supplementary Table 31**, **Supplementary Table 32**, **Supplementary Table 33**), identifying the C2 signature as a peri-onset chemokine and vascular feature rather than a sustained subtype marker.
+
+
+**Discussion**
+
+Pre-symptomatic MS harbours a biologically heterogeneous plasma proteome that resolves along temporal, genetic, sex-specific, and phenomic axes. A pre-diagnostic signature dominated by NEFL elevation and ERBB2 suppression is detectable up to six years before clinical onset, is selectively detectable in women, and is further stratified by phenomically-defined endophenotypes whose biological distinctiveness is not captured by genetic risk alone. These findings establish phenomic heterogeneity as a distinct axis of pre-clinical MS biology, orthogonal to genetic susceptibility, and provide a framework for biologically-matched early detection and stratified prevention.
+
+The sustained suppression of plasma ERBB2 throughout the pre-diagnostic window is a novel pre-symptomatic signal with mechanistic grounding distinct from classical neurodegeneration markers. ERBB2 is required for oligodendrocyte progenitor differentiation through neuregulin-1 signalling^15^; plasma neuregulin-1β1 is reduced before EAE onset and in early MS, and its restoration delays disease onset^16,17^. We show here that the receptor itself is suppressed six or more years before clinical onset and normalises after diagnosis, consistent with a pre-clinical deficit in remyelination signalling that precedes the neuroaxonal injury indexed by NEFL. Unlike neurofilament, which is non-specifically elevated across neurological disorders^10^, reduced plasma ERBB2 points toward myelin-specific pre-clinical biology. Independent validation in pre-symptomatic cohorts is warranted.
+
+The C2 endophenotype, defined by neurological prodrome, infectious mononucleosis, and acute hepatic and renal events, carried a plasma signature dominated by CCL3 and VWF with fibroblast cell-type enrichment, each component carrying a plausible mechanistic link to Epstein–Barr virus, the necessary infectious cause of MS^12^. EBV infection of brain microvascular endothelial cells upregulates VWF and inflammatory chemokines^18^, and LMP1 drives CCL3 induction through NF-κB in infected B cells^19^. CCL3 is independently established in actively demyelinating MS lesions and predicts CSF disease reactivation^20,21^. VWF elevation further reflects endothelial activation, which in MS is compounded by reduced ADAMTS13 activity^22,23^. The C2 fibroblast signature aligns with CNS fibroblast-driven scarring and meningeal tertiary lymphoid structures in neuroinflammation^24,25^. Notably, C2 also carried the lowest HLA-DRB1\*15:01 frequency and the highest mean MS-PRS in the cohort, pointing toward a non-HLA polygenic path to pre-clinical MS in which EBV-driven endothelial activation is the proximate inflammatory trigger.
+
+The MS plasma proteome resolved along two orthogonal genetic axes. HLA-DRB1\*15:01 carrier status was linked selectively to elevated LILRB4, a leukocyte immunoglobulin-like inhibitory receptor whose myeloid surface abundance is context-dependent^26,27^. Polygenic risk was linked to IL2RA, the founding non-HLA MS susceptibility locus^28^, whose allelic variation controls soluble IL-2Rα abundance^29^ and Th-cell GM-CSF production^30^. Both signals were additive rather than interactive. Critically, neither HLA status nor polygenic risk modified the MS-associated plasma signature or stratified the endophenotypes, confirming that phenomic heterogeneity captures pre-symptomatic variation that is not recoverable from current genetic risk tools.
+
+A female-specific pre-symptomatic signature reinforces a sex-specific asymmetry in the pre-diagnostic window. The multivariate classifier discriminated future MS from healthy controls above chance in women but at chance in men, consistent with sex differences in MS prodromal healthcare utilisation^31^ and CSF proteomics^32^. Pre-symptomatic screening frameworks developed predominantly in male-biased cohorts will systematically under-detect the population in whom pre-clinical MS biology is most evident.
+
+These findings position MS alongside type 1 diabetes and rheumatoid arthritis as a disease with biologically stratifiable pre-clinical stages. Teplizumab delayed clinical onset in biologically-defined stage 2 T1D at-risk individuals^33^; abatacept intercepted rheumatoid arthritis progression in seronegative individuals with biological stratification predicting response^34^; and disease-modifying therapy in radiologically isolated syndrome delays clinical MS by over 70%^35,36^. The C2 endophenotype, comprising neurological symptoms, EBV exposure, elevated polygenic risk, and a CCL3/VWF peri-onset plasma signal, defines a candidate population for trials of therapies targeting the EBV–endothelial–chemokine axis before the first clinical event. Endophenotype-stratified MS prevention trials should therefore select participants using integrated genetic, phenomic, and proteomic criteria rather than genetic risk alone.
+
+Our study has limitations. The cross-sectional blood-draw design precludes within-individual longitudinal trajectories^37^. Recruitment age of 40–69 years under-represents the typical 20–40-year MS onset window^38^, and healthy volunteer bias combined with approximately 94% European ancestry limits generalisability^37,39^. Case ascertainment relied on ICD-10 codes without clinical adjudication^40^, and the Olink platform provides relative rather than absolute protein quantification, requiring orthogonal validation^41^. The endophenotype clusters derive from 77 pre-onset cases (C2: n = 30), constraining cluster-specific power. EBV inference rests on the infectious mononucleosis ICD code rather than serology, and the pre-diagnostic classifier should be regarded as proof of principle rather than a deployable tool. Nevertheless, the convergence of genetic, phenomic, and proteomic signals across independent axes supports the central finding that pre-symptomatic MS harbours biologically coherent heterogeneity that can be resolved in plasma.
+
+In conclusion, pre-symptomatic MS is not a single uniform state but a biologically heterogeneous one. Integration of genotype, pre-diagnostic phenome, and plasma proteome defines pre-syndromic endophenotypes of MS with distinct underlying biology, and each endophenotype offers a biologically-matched candidate population for early detection and stratified prevention trials.
+
+
+**Methods**
+
+**Study population**
+
+UK Biobank is a prospective population cohort of approximately 500,000 volunteers aged 40–69 years recruited across the United Kingdom between 2006 and 2010, with blood drawn at the single baseline assessment visit for each participant. All participants provided written informed consent; UK Biobank holds Research Ethics Committee approval (REC reference 11/NW/0382) and this analysis was conducted under UK Biobank application 178779. Multiple sclerosis cases were ascertained from linked Hospital Episode Statistics and Scottish Morbidity Record inpatient records using ICD-10 code G35 (multiple sclerosis) recorded before or after the index blood draw. The blood draw date relative to the earliest ICD-10 G35 record defined the disease stage at sampling: participants whose blood was drawn before the earliest G35 record were designated pre-onset MS cases, and those whose blood was drawn after were designated post-onset MS cases. Healthy controls were drawn from UK Biobank participants with no neurological diagnosis (ICD-10 chapter G or H00–H59) and no dementia or movement disorder code, matched to the combined MS cohort at up to 100:1 by age at blood draw (±2 years), biological sex, and assessment centre using a greedy nearest-neighbour matching procedure without replacement.
+
+**Olink proteomics quality control**
+
+Olink Proximity Extension Assay data from the Olink Explore 3072 panel were obtained from UK Biobank instance 0 (baseline blood draw). Raw Normalized Protein eXpression (NPX) values represent log~2~-scaled relative protein abundance. Of 2,923 proteins measured across the full cohort, proteins with more than 20% missing NPX values were excluded, retaining 2,911 proteins for analysis. Sample-level quality control applied an inter-quartile range outlier detection procedure: per-sample 25th and 75th percentile NPX values were computed across all retained proteins, and samples were flagged as outliers if their 25th percentile fell more than 1.5 × IQR below the cohort's 25th-percentile distribution, or if their 75th percentile exceeded the corresponding upper bound. Flagged samples were retained in the dataset but excluded from all downstream modelling via the `qc_outlier` flag.
+
+**Proteome PCA and covariate construction**
+
+To capture and adjust for non-specific proteomic variation arising from demographic, technical, and population-level factors, a centred (unscaled) singular value decomposition of the retained protein matrix was fitted on healthy-control samples only using truncated SVD via `irlba` with sign alignment against a full-rank reference, and all participants (MS cases and controls) were projected into this control-derived PC space. The first two projected components (PC1, PC2) were carried forward as continuous covariates in all differential expression, Cox, and sex- and HLA-stratified association models, alongside age at blood draw, biological sex, and sample-level mean NPX (an Abdelhak-style correction for sample quality). Restricting the PCA to healthy controls avoids collinearity between the PC axes and the case-control outcome, so that variance regressed out by the PCs is not disease signal. A separate UMAP embedding of the same protein matrix (computed from the top 10 unrestricted principal components, 15 nearest neighbours, `umap` defaults) is shown for visualization only and is not used as a model covariate.
+
+**Differential expression analysis**
+
+Differential expression between MS cases and healthy controls was performed using `limma` with the `trend = TRUE` option for empirical Bayes variance moderation. All models included age at blood draw, biological sex, control-derived PC1 and PC2, and sample-level mean NPX as covariates. Within-MS temporal contrasts additionally included years to MS diagnosis as a continuous linear covariate to distinguish between stage-specific and time-invariant effects. For each protein, the moderated t-statistic and associated P-value were computed; multiple testing correction applied the Benjamini–Hochberg false discovery rate (FDR) method with a 5% threshold. Volcano plots display log~2~ fold change on the x-axis and –log10(P-value) on the y-axis; proteins reaching FDR < 5% are labelled. For HLA-stratified and sex-stratified analyses, sub-cohort limma models were run independently within each stratum with the same covariate set. Formal interaction testing (HLA × MS, PRS × MS, or sex × MS) was implemented via a model with an interaction term and the contrast estimated using `makeContrasts()`.
+
+**Temporal spline modelling**
+
+Protein abundance was modelled as a continuous function of time relative to diagnosis within MS cases by linear regression with a natural cubic spline basis (3 degrees of freedom; `splines::ns()`) on years-to-diagnosis, adjusting for age at blood draw, biological sex, and control-derived PC1/PC2. Fitted values and 95% confidence intervals were generated at 0.25-year resolution across the diagnosis-anchored window from −8 to +12 years. The healthy-control reference for each protein was computed from age- and sex-adjusted residuals added to the HC grand mean; a ±1 SD band is plotted for display, and a ±1.96 SE band on the HC mean is used as the divergence threshold. The earliest grid point at which the MS 95% confidence interval no longer overlapped the HC ±1.96 SE band, maintained for at least two consecutive intervals, was defined as the year of divergence from healthy controls; the first post-onset grid point at which the divergence condition no longer held was defined as the year of recovery. Proteins with fewer than 20 MS observations within the fitting window were excluded.
+
+**HLA-DRB1\*15:01 imputation and MS polygenic risk score**
+
+HLA imputed allele dosages were obtained from the UK Biobank HLA imputation table (field 22182). HLA-DRB1\*15:01 carrier status was defined as at least one imputed copy of the DRB1\*15:01 allele. The MS-PRS was the sum of two complementary published MS scores from the PGS Catalog: `PGS000809` (Barnes *et al*., 127 SNPs) and `PGS004699` (Loginovic *et al*., 307 non-HLA SNPs). PGS Catalog weights were applied to UK Biobank imputed dosages, and the combined score was standardised to mean 0 and standard deviation 1 across participants. PRS–proteome association in healthy controls was tested by Spearman correlation with BH FDR correction; PRS–MS proteome interaction was tested with the limma covariate set above, with `prs_z` entering both as a main effect and in interaction with case status.
+
+**Machine learning classification**
+
+For each stratification group (pre-onset, post-onset, combined-stage; and stratified by sex or by cluster), Boruta feature selection was applied to the training fold using 100 iterations at the `Boruta` default significance level of 0.01 across a five-fold split, retaining proteins confirmed as important in at least one fold. Classifiers were trained with `caret::train()` using repeated 5-fold cross-validation (10 repeats) on the Boruta-selected feature set with controls downsampled 1:1 per fold; candidate models were elastic net (`glmnet`), gradient boosting (`gbm`), random forest (`rf`), and single-hidden-layer neural net (`nnet`), tuned on AUC (ROC) as the CV metric, with median imputation, centring, and scaling as pre-processing. Discrimination was reported as AUC on a held-out 20% test split for the main cohorts and via leave-one-out cross-validation for the cluster-stratified pre-onset classifiers owing to small sample size. Feature contributions were summarised as linear SHAP for the elastic net (|coefficient| × training-set SD) and via `fastshap` for the gradient boosted model.
+
+**Cox proportional hazards analysis**
+
+To model prospective hazard of MS diagnosis as a function of baseline protein level, Cox proportional hazards models were fitted for each of the 184 combined MS DEPs with time to MS diagnosis as the outcome and scaled protein NPX as the predictor, adjusting for age at blood draw, biological sex, and control-derived PC1 and PC2. Pre-onset MS cases contributed events at `years_to_diagnosis`; healthy controls were censored at a uniform maximum follow-up time. The proportional hazards assumption was assessed using scaled Schoenfeld residuals. Rolling Cox analysis stratified the pre-diagnostic window into four bins (0–4, 4–8, 8–12, and >12 years before diagnosis) and refit independent Cox models within each bin against the full control set, allowing identification of proteins with time-varying hazard profiles. Hazard ratios and 95% confidence intervals are reported per standard deviation increase in NPX.
+
+**Pre-diagnostic phenome-wide association study**
+
+ICD-10 diagnostic codes recorded in hospital inpatient records before the blood draw date were assigned to 3-character ICD-10 blocks. Block-level prevalence was compared between pre-onset MS cases and matched controls using logistic regression adjusting for age and sex. Odds ratios and 95% confidence intervals were computed, and BH FDR correction was applied across all tested blocks. Blocks reaching FDR < 5% were retained as phenomically significant.
+
+**Unsupervised comorbidity endophenotype clustering**
+
+The binary matrix of FDR-significant enriched ICD-10 block features (present vs absent > 1 year before diagnosis) for pre-onset MS cases was embedded using UMAP (`uwot`) with a precomputed Jaccard distance (appropriate for binary data). A hyperparameter sweep over n_neighbours ∈ {10, 15, 20, 30}, min_dist ∈ {0.05, 0.10, 0.20}, and k ∈ 2:5 k-means cluster counts was performed, with the optimal configuration selected by mean silhouette on the UMAP embedding. Cluster-assignment robustness was confirmed by a Gaussian mixture model fitted on the multimodal feature set (protein PC1–10 + ICD block indicators) via `mclust` with component counts G = 2..5 selected by Bayesian Information Criterion; co-presenters were defined as participants whose maximum GMM posterior probability was < 0.90. For cluster-specific differential expression, each cluster was compared against the unassigned MS group ("None") using propensity-score matched `limma` (trend = TRUE, robust = TRUE), with 1:10 nearest-neighbour matching on age at blood draw, biological sex, and time-to-diagnosis (caliper 0.2 SD).
+
+**GO:BP enrichment and cell-type enrichment analysis**
+
+Gene Ontology Biological Process enrichment was performed using `clusterProfiler::enrichGO()` with the `org.Hs.eg.db` human gene ontology annotation. For each contrast, up- and down-regulated protein sets were tested separately against all 2,911 retained proteins as the background gene set; BH FDR < 5% terms are reported.
+
+Cell-type enrichment was tested by preranked gene set enrichment analysis (`fgsea::fgsea`) on the full signed limma moderated-t statistic from each contrast. Marker sets were built from two reference atlases and filtered for cell-type specificity rather than bulk abundance: the Wälchli vascular cell transcriptome signatures (four brain vascular compartments) and the Human Protein Atlas v23 single-cell RNA-sequencing nTPM tables (80 cell types). For each gene we computed the Yanai tissue-specificity score tau on log1p(nTPM) across all cell types of the source atlas and the per-cell-type z-score relative to the gene's across-cell-type mean. A gene qualified as a marker of a given cell type if tau ≥ 0.60 for HPA (0.45 for Walchli) and z ≥ 1.50 for HPA (1.00 for Walchli), with a minimum log1p(nTPM) ≥ log1p(1). This reduced per-set sizes from ~1,000–1,400 proteins (under the previously used nTPM ≥ 10 threshold) to ~50–400 proteins per cell type and removed the pan-lineage marker overlap that biases list-based over-representation tests. Preranked fgsea was run with `minSize = 5`, `maxSize = 500`, and eps = 0; P-values were BH FDR-adjusted within each contrast. For each contrast × cell type we report the normalised enrichment score (NES) and FDR. By convention, and as labelled in each figure subtitle, positive NES indicates the cell type's specificity-filtered marker set is coordinately higher in the case condition than in the reference condition (healthy controls for case-control contrasts, unassigned MS for cluster contrasts), and negative NES indicates the set is coordinately lower. Confirmatory inter-gene-correlation-aware testing was performed with `limma::cameraPR` (`inter.gene.cor = 0.01`). Because plasma abundance of a marker reflects secretion, turnover, and barrier permeability rather than tissue-level expression, NES polarity is interpreted throughout as a plasma-level readout of cell-type signal and not as evidence of cellular activation, expansion, or depletion.
+
+**Software and reproducibility**
+
+Analyses were performed in R 4.4 and Python 3.11. Key R packages: `limma`, `irlba`, `glmnet`, `caret`, `Boruta`, `fastshap`, `survival`, `clusterProfiler`, `org.Hs.eg.db`, `fgsea`, `splines`, `uwot`, `umap`, `mclust`, `MatchIt`, `ggplot2`, `flextable`, `officer`. Manuscript assembly used `knitr`, `rmarkdown`, and `pandoc`. Code is available at [repository URL upon acceptance]. UK Biobank data access is available to approved researchers via the UK Biobank Access Management System (https://www.ukbiobank.ac.uk/).
+
+
+**References**
+
+<!-- References are auto-numbered by order of first cite() call in the document.
+     To add: insert entry in analysis/manuscript/references.R and call cite("key") in text.
+     To delete: remove the cite() call from text (entry in references.R can stay).
+     To renumber: just move cite() calls — numbers update on next knit. -->
+
+1. Walton C, *et al*. Rising prevalence of multiple sclerosis worldwide: insights from the Atlas of MS, third edition. *Mult Scler* **26**, 1816–1821 (2020).
+
+2. GBD 2016 Multiple Sclerosis Collaborators. Global, regional, and national burden of multiple sclerosis 1990–2016. *Lancet Neurol* **18**, 269–285 (2019).
+
+3. De Meo E, *et al*. Disability worsening phenotypes in multiple sclerosis and impact of disease-modifying treatments. *Neurology* **105**, e214408 (2025).
+
+4. Wijnands JMA, *et al*. Health-care use before a first demyelinating event suggestive of a multiple sclerosis prodrome. *Lancet Neurol* **16**, 445–451 (2017).
+
+5. Ruiz-Algueró M, *et al*. Health care use before multiple sclerosis symptom onset. *JAMA Netw Open* **8**, e2524635 (2025).
+
+6. Marrie RA, *et al*. From the prodromal stage of multiple sclerosis to disease prevention. *Nat Rev Neurol* **18**, 559–572 (2022).
+
+7. Abdelhak A, *et al*. Myelin injury precedes axonal injury and symptomatic onset in multiple sclerosis. *Nat Med* **32**, 362–368 (2026).
+
+8. Bjornevik K, *et al*. Serum neurofilament light chain levels in patients with presymptomatic multiple sclerosis. *JAMA Neurol* **77**, 58–64 (2020).
+
+9. Disanto G, *et al*. Prodromal symptoms of multiple sclerosis in primary care. *Ann Neurol* **83**, 1162–1173 (2018).
+
+10. Khalil M, *et al*. Neurofilaments as biomarkers in neurological disorders: towards clinical application. *Nat Rev Neurol* **20**, 269–287 (2024).
+
+11. Goris A, *et al*. Genetics of multiple sclerosis: lessons from polygenicity. *Lancet Neurol* **21**, 830–842 (2022).
+
+12. Bjornevik K, *et al*. Longitudinal analysis reveals high prevalence of Epstein-Barr virus associated with multiple sclerosis. *Science* **375**, 296–301 (2022).
+
+13. Olsson T, Barcellos LF, Alfredsson L. Interactions between genetic, lifestyle and environmental risk factors for multiple sclerosis. *Nat Rev Neurol* **13**, 25–36 (2017).
+
+14. Gross CC, *et al*. Multiple sclerosis endophenotypes identified by high-dimensional blood signatures are associated with distinct disease trajectories. *Sci Transl Med* **16**, eade8560 (2024).
+
+15. Kim JY, *et al*. The role of ErbB2 signaling in the onset of terminal differentiation of oligodendrocytes *in vivo*. *J Neurosci* **23**, 5561–5571 (2003).
+
+16. Kataria H, *et al*. Neuregulin-1 beta 1 is implicated in pathogenesis of multiple sclerosis. *Brain* **144**, 162–185 (2021).
+
+17. Kataria H, Alizadeh A, Karimi-Abdolrezaee S. Neuregulin-1/ErbB network: an emerging modulator of nervous system injury and repair. *Prog Neurobiol* **180**, 101643 (2019).
+
+18. Indari O, Chandramohanadas R, Jha HC. Epstein-Barr virus infection modulates blood-brain barrier cells. *Pathog Dis* **79**, ftaa080 (2021).
+
+19. Tsai SC, *et al*. Autocrine CCL3 and CCL4 induced by the oncoprotein LMP1 promote Epstein-Barr virus-triggered B cell proliferation. *J Virol* **87**, 9041–9052 (2013).
+
+20. Balashov KE, *et al*. CCR5+ and CXCR3+ T cells are increased in multiple sclerosis and their ligands MIP-1α and IP-10 are expressed in demyelinating brain lesions. *Proc Natl Acad Sci USA* **96**, 6873–6878 (1999).
+
+21. Puthenparampil M, *et al*. Wide cytokine analysis in cerebrospinal fluid at diagnosis identified CCL-3 as a possible prognostic factor for multiple sclerosis. *Front Immunol* **11**, 174 (2020).
+
+22. Ziliotto N, *et al*. Hemostasis biomarkers in multiple sclerosis. *Eur J Neurol* **25**, 1169–1176 (2018).
+
+23. Zierfuss B, Larochelle C, Prat A. Blood-brain barrier dysfunction in multiple sclerosis: causes, consequences, and potential effects of therapies. *Lancet Neurol* **23**, 95–109 (2024).
+
+24. Dorrier CE, *et al*. CNS fibroblasts form a fibrotic scar in response to immune cell infiltration. *Nat Neurosci* **24**, 234–244 (2021).
+
+25. Pikor NB, *et al*. Integration of Th17- and lymphotoxin-derived signals initiates meningeal-resident stromal cell remodeling to propagate neuroinflammation. *Immunity* **43**, 1160–1173 (2015).
+
+26. Katz HR. Inhibition of pathologic inflammation by leukocyte Ig-like receptor B4 and related inhibitory receptors. *Immunol Rev* **217**, 222–230 (2007).
+
+27. Hou J, *et al*. Antibody-mediated targeting of human microglial leukocyte Ig-like receptor B4 attenuates amyloid pathology in a mouse model. *Sci Transl Med* **16**, eadj9052 (2024).
+
+28. International Multiple Sclerosis Genetics Consortium. Risk alleles for multiple sclerosis identified by a genomewide study. *N Engl J Med* **357**, 851–862 (2007).
+
+29. Maier LM, *et al*. Soluble IL-2RA levels in multiple sclerosis subjects and the effect of soluble IL-2RA on immune responses. *J Immunol* **182**, 1541–1547 (2009).
+
+30. Hartmann FJ, *et al*. Multiple sclerosis-associated IL2RA polymorphism controls GM-CSF production in human TH cells. *Nat Commun* **5**, 5056 (2014).
+
+31. Perwieniec J, *et al*. Gender-related differences in prodromal multiple sclerosis characteristics: a 7-year observation study. *J Clin Med* **10**, 3821 (2021).
+
+32. Kosa P, *et al*. Longitudinal proteomic profiling of cerebrospinal fluid in untreated multiple sclerosis defines evolving disease biology. *Nat Commun* **16**, 8891 (2025).
+
+33. Herold KC, *et al*. An anti-CD3 antibody, teplizumab, in relatives at risk for type 1 diabetes. *N Engl J Med* **381**, 603–613 (2019).
+
+34. Cope AP, *et al*. Abatacept in individuals at high risk of rheumatoid arthritis (APIPPRA): a randomised, double-blind, multicentre, parallel, placebo-controlled, phase 2b clinical trial. *Lancet* **403**, 838–849 (2024).
+
+35. Okuda DT, *et al*. Dimethyl fumarate delays multiple sclerosis in radiologically isolated syndrome. *Ann Neurol* **93**, 604–614 (2023).
+
+36. Lebrun-Frénay C, *et al*. Teriflunomide and time to clinical multiple sclerosis in patients with radiologically isolated syndrome: the TERIS randomized clinical trial. *JAMA Neurol* **80**, 1080–1088 (2023).
+
+37. Fry A, *et al*. Comparison of sociodemographic and health-related characteristics of UK Biobank participants with those of the general population. *Am J Epidemiol* **186**, 1026–1034 (2017).
+
+38. Nova A, Di Caprio G, Bernardinelli L, Fazia T. Genetic and early life factors influence on time-to-multiple sclerosis diagnosis: a UK Biobank study. *Mult Scler* **30**, 994–1003 (2024).
+
+39. Schoeler T, *et al*. Participation bias in the UK Biobank distorts genetic associations and downstream analyses. *Nat Hum Behav* **7**, 1216–1227 (2023).
+
+40. Rahimov F, *et al*. Common diseases in clinical cohorts: not always what they seem. *N Engl J Med* **393**, 1589–1598 (2025).
+
+41. Rooney MR, *et al*. Correlations within and between highly multiplexed proteomic assays of human plasma. *Clin Chem* **71**, hvaf030 (2025).
+
+**Figure Legends**
+
+**Figure 1.** The pre-onset multiple sclerosis plasma proteomic signature in UK Biobank. a, Study design: UK Biobank blood draw relative to MS diagnosis, showing pre-onset (>0 years before diagnosis) and post-onset participants and age-matched healthy controls. b, UMAP of Olink proteome coloured by disease status. c, Volcano plot of pre-onset MS vs healthy controls (limma; age, sex, UMAP1/2 adjusted). d, Ranked barplot of top 20 proteins by nominal P-value (pre-onset). e, GO:BP enrichment dotplot for up- and down-regulated pre-onset DEPs. f, STRING PPI network of pre-onset DEPs (edge weight ≥0.7; Louvain communities coloured). h, Cell-type enrichment (preranked fgsea on the pre-onset limma moderated-t statistic) against specificity-filtered Walchli vascular and HPA CNS/immune marker sets. Positive NES = marker set coordinately higher in pre-MS plasma than in matched healthy-control plasma; negative NES = lower. i, Pre-onset vs post-onset GO:BP pathway comparison heatmap. **a,** Study design schematic. **b,** UMAP cohort overview. **h,** Pre-onset cell-type enrichment (fgsea NES: HC vs pre-MS plasma). **c,** Pre-onset volcano. **d,** Pre-onset ranked barplot (top 20). **e,** Pre-onset GO:BP enrichment. **f,** Pre-onset PPI network. **g,** Pre-onset Walchli+HPA cell-type expression heatmap. **i,** Pre vs post GO:BP pathway comparison.
+
+**Figure 2.** The temporal proteomic window in pre-diagnostic multiple sclerosis. a, Distribution of blood-draw timing relative to MS diagnosis. b–e, Restricted cubic spline trajectories for NEFL, ERBB2, GFAP, and MOG across −8 to +12 years relative to diagnosis (blue ribbon = 95% CI; grey band = HC mean ±1 SD; arrow = earliest divergence from HC). f–h, Trajectories of the top immune/inflammatory pre-onset DEPs (KIR3DL1, OSM, OMG) across the same window. i, Pre-onset vs post-onset logFC concordance scatter. j, Temporal protein heatmap (all MS by 2-year bin). k, Cox model rolling hazard ratio. l, SHAP feature importance for pre-onset classifier. m, ML ROC curves for full-cohort vs pre-onset classifiers. n, Pre-diagnostic proteomic risk score by time-to-diagnosis bin. o, PRS × NEFL interaction trajectory. p, Temporal proteomic landscape summary. **a,** Sampling window distribution. **b,** NEFL trajectory. **c,** ERBB2 trajectory. **d,** GFAP trajectory. **e,** MOG trajectory. **f,** KIR3DL1 trajectory. **g,** OSM trajectory. **h,** OMG trajectory. **i,** Pre vs post logFC scatter. **j,** Temporal protein heatmap. **k,** Cox rolling hazard ratio. **l,** SHAP feature importance. **m,** ML ROC curves. **n,** Pre-diagnostic risk score by time bin. **o,** PRS × NEFL trajectory. **p,** Temporal landscape summary.
+
+**Figure 3.** Genetic heterogeneity in the MS proteomic signature: HLA and polygenic risk. a, HLA allele landscape in MS vs HC (LD-pruned, Fisher test). b, Within-MS proteomic differences by HLA-DRB1*15:01 carrier status. c, Sex stratification of HLA-associated proteome. d, LILRB4 plasma trajectory by HLA status. e, HLA-stratified logFC scatter (carrier vs non-carrier). f, GO:BP enrichment of HLA-associated DEPs. g, LILRB4 trajectory stratified by HLA and disease stage. h, LILRB4 trajectory stratified by sex and HLA. j, IL2RA trajectory by PRS tertile. l, GO:BP enrichment of PRS-correlated proteins. n, LILRB4/IL2RA scatter by genetic group. **a,** HLA allele landscape. **b,** Within-MS HLA DEPs. **c,** Sex comparison of HLA proteome. **d,** LILRB4 trajectory. **e,** HLA-stratified logFC scatter. **f,** HLA GO:BP enrichment. **g,** LILRB4 by HLA and stage. **h,** LILRB4 by sex and HLA. **j,** IL2RA by PRS tertile. **l,** PRS GO:BP enrichment. **n,** LILRB4/IL2RA scatter.
+
+**Figure 4.** Sex differences in the multiple sclerosis proteomic signature. a, Female vs male logFC scatter across the full proteome, coloured by biological compartment (CNS/vascular/immune). b, DEP landscape: female-specific, concordant, discordant, and male-specific proteins. c–d, Walchli+HPA cell-type expression heatmaps for female-specific (c) and male-specific (d) DEPs. e–f, GO:BP enrichment for female (e) and male (f) DEPs. g, Pre-onset sex differences: female vs male logFC scatter coloured by full-cohort category. h–i, Sex-stratified trajectories for top female-specific (CHGA, h) and male-specific (ENPP5, i) markers. j, Sex-stratified ML ROC curves (female/male × combined/pre-onset/post-onset, 6 curves). **a,** Female vs male logFC scatter. **b,** DEP landscape. **e,** Female GO:BP enrichment. **c,** Female DEP cell-type heatmap. **d,** Male DEP cell-type heatmap. **f,** Male GO:BP enrichment. **h,** CHGA sex-stratified trajectory. **i,** ENPP5 sex-stratified trajectory. **j,** Sex-stratified ML ROC (6 curves). **g,** Pre-onset sex differences scatter.
+
+**Figure 5.** Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in MS. a, Pre-MS comorbidity PheWAS lollipop: 23 conditions FDR<0.05 enriched or depleted before MS diagnosis. b, UMAP of pre-MS patients by comorbidity block profile; three clusters (C0/C1/C2) identified by k-means (k=3, silhouette=0.864). c, ICD block prevalence heatmap by cluster. d, Age at diagnosis by cluster. e, HLA-DRB1*15:01 carrier rate by cluster (Fisher test vs None shown). f, MS polygenic risk score by cluster (KW test). g–i, Volcano plots for C0, C1, and C2 vs MS-None (limma, PSM-matched controls). j, GO:BP enrichment for C2 (headline cluster). k, Cross-cluster GO:BP dotplot. m, Forest plot of LOOCV AUC by cluster for pre-MS classifier with 95% CI. Per-cluster GO:BP (C0/C1), PPI chord diagrams, and cell-type ORA are in Extended Data Figures 6–8. **a,** Pre-MS PheWAS (23 FDR<0.05). **b,** Comorbidity cluster UMAP. **c,** ICD block prevalence heatmap. **d,** Age at diagnosis by cluster. **e,** HLA carrier rate by cluster. **f,** PRS by cluster. **g,** C0 vs None volcano. **h,** C1 vs None volcano. **i,** C2 vs None volcano. **j,** C2 GO:BP enrichment (headline). **k,** Cross-cluster GO:BP. **m,** Pre-MS prediction AUC forest plot.
+
+**Table Legends**
+
+**Table 1.** Cohort characteristics. Pre-onset MS cases, post-onset MS cases, and age/sex-matched healthy controls included in Olink proteomic analysis. Values are median (IQR) or n (%) unless noted.
+
+
+**Figure Legends**
+
+**Figure 1.** The pre-onset multiple sclerosis plasma proteomic signature in UK Biobank.
+a, Study design: UK Biobank blood draw relative to MS diagnosis, showing pre-onset (>0 years before diagnosis) and post-onset participants and age-matched healthy controls.
+b, UMAP of Olink proteome coloured by disease status.
+c, Volcano plot of pre-onset MS vs healthy controls (limma; age, sex, UMAP1/2 adjusted).
+d, Ranked barplot of top 20 proteins by nominal P-value (pre-onset).
+e, GO:BP enrichment dotplot for up- and down-regulated pre-onset DEPs.
+f, STRING PPI network of pre-onset DEPs (edge weight ≥0.7; Louvain communities coloured).
+h, Cell-type enrichment (preranked fgsea on the pre-onset limma moderated-t statistic) against specificity-filtered Walchli vascular and HPA CNS/immune marker sets. Positive NES = marker set coordinately higher in pre-MS plasma than in matched healthy-control plasma; negative NES = lower.
+i, Pre-onset vs post-onset GO:BP pathway comparison heatmap.
+
+**Figure 2.** The temporal proteomic window in pre-diagnostic multiple sclerosis.
+a, Distribution of blood-draw timing relative to MS diagnosis.
+b–e, Restricted cubic spline trajectories for NEFL, ERBB2, GFAP, and MOG across −8 to +12 years relative to diagnosis (blue ribbon = 95% CI; grey band = HC mean ±1 SD; arrow = earliest divergence from HC).
+f–h, Trajectories of the top immune/inflammatory pre-onset DEPs (KIR3DL1, OSM, OMG) across the same window.
+i, Pre-onset vs post-onset logFC concordance scatter.
+j, Temporal protein heatmap (all MS by 2-year bin).
+k, Cox model rolling hazard ratio.
+l, SHAP feature importance for pre-onset classifier.
+m, ML ROC curves for full-cohort vs pre-onset classifiers.
+n, Pre-diagnostic proteomic risk score by time-to-diagnosis bin.
+o, PRS × NEFL interaction trajectory.
+p, Temporal proteomic landscape summary.
+
+**Figure 3.** Genetic heterogeneity in the MS proteomic signature: HLA and polygenic risk.
+a, HLA allele landscape in MS vs HC (LD-pruned, Fisher test).
+b, Within-MS proteomic differences by HLA-DRB1*15:01 carrier status.
+c, Sex stratification of HLA-associated proteome.
+d, LILRB4 plasma trajectory by HLA status.
+e, HLA-stratified logFC scatter (carrier vs non-carrier).
+f, GO:BP enrichment of HLA-associated DEPs.
+g, LILRB4 trajectory stratified by HLA and disease stage.
+h, LILRB4 trajectory stratified by sex and HLA.
+j, IL2RA trajectory by PRS tertile.
+l, GO:BP enrichment of PRS-correlated proteins.
+n, LILRB4/IL2RA scatter by genetic group.
+
+**Figure 4.** Sex differences in the multiple sclerosis proteomic signature.
+a, Female vs male logFC scatter across the full proteome, coloured by biological compartment (CNS/vascular/immune).
+b, DEP landscape: female-specific, concordant, discordant, and male-specific proteins.
+c–d, Walchli+HPA cell-type expression heatmaps for female-specific (c) and male-specific (d) DEPs.
+e–f, GO:BP enrichment for female (e) and male (f) DEPs.
+g, Pre-onset sex differences: female vs male logFC scatter coloured by full-cohort category.
+h–i, Sex-stratified trajectories for top female-specific (CHGA, h) and male-specific (ENPP5, i) markers.
+j, Sex-stratified ML ROC curves (female/male × combined/pre-onset/post-onset, 6 curves).
+
+**Figure 5.** Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in MS.
+a, Pre-MS comorbidity PheWAS lollipop: 23 conditions FDR<0.05 enriched or depleted before MS diagnosis.
+b, UMAP of pre-MS patients by comorbidity block profile; three clusters (C0/C1/C2) identified by k-means (k=3, silhouette=0.864).
+c, ICD block prevalence heatmap by cluster.
+d, Age at diagnosis by cluster.
+e, HLA-DRB1*15:01 carrier rate by cluster (Fisher test vs None shown).
+f, MS polygenic risk score by cluster (KW test).
+g–i, Volcano plots for C0, C1, and C2 vs MS-None (limma, PSM-matched controls).
+j, GO:BP enrichment for C2 (headline cluster).
+k, Cross-cluster GO:BP dotplot.
+m, Forest plot of LOOCV AUC by cluster for pre-MS classifier with 95% CI. Per-cluster GO:BP (C0/C1), PPI chord diagrams, and cell-type ORA are in Extended Data Figures 6–8.
+

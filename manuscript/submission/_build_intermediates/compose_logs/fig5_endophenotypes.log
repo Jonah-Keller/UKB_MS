@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing fig5_endophenotypes (12 panels): a(2c×2r), b, c, d, e, f, g, h, i, j, k, l
+  ✓ fig5_endophenotypes → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/main_figures/Figure_5_Endophenotypes.png
+    2760×4697 px @ 300 DPI  (5 rows × 3 cols, cell 3.0")

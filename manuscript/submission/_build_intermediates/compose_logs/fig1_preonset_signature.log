@@ -1,0 +1,8 @@
+Warning message:
+package ‘magick’ was built under R version 4.5.2 
+[00_config] project = ukb_ms_proteomics | target = Nature Medicine 
+Warning message:
+package ‘yaml’ was built under R version 4.5.2 
+Composing fig1_preonset_signature (9 panels): a, b(2c×1r), h(1c×2r), c, d, e, f, g(2c×1r), i
+  ✓ fig1_preonset_signature → /Users/jonahkeller/ELab/UKB_MS/manuscript/submission/main_figures/Figure_1_Preonset_Signature.png
+    3680×3059 px @ 300 DPI  (3 rows × 4 cols, cell 3.0")

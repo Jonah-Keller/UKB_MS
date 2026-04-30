@@ -1,0 +1,2 @@
+k,method,null_structure,mean_jaccard,stability,optimal_k_gap,optimal_k_sil
+2,silhouette,FALSE,0.433,unstable,1,2
