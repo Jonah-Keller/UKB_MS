@@ -1,22 +1,24 @@
 #!/usr/bin/env Rscript
 # 01_ppi_network.R
-# STRING PPI network + GO enrichment for MS combined DEPs (Abdelhak replication)
+# STRING PPI network + GO enrichment for combined disease DEPs (Abdelhak replication)
 #
 # Approach:
-#   1. Load 173 MS combined DEPs
+#   1. Load combined DEPs
 #   2. Fetch STRING interactions via REST API (species 9606, score >= 400)
 #   3. Build igraph; Louvain community detection
 #   4. ggraph network plot: nodes coloured by direction, sized by -log10(FDR)
 #   5. GO BP enrichment (clusterProfiler) + dotplot; separate for up/down
 #
-# Outputs: results/networks/
-#   ms_ppi_network.pdf
-#   ms_ppi_network_hires.pdf
-#   ms_go_enrichment_up.pdf
-#   ms_go_enrichment_down.pdf
-#   ms_go_enrichment_combined.pdf
-#   ms_string_edges.csv
-#   ms_go_results.csv
+# Cohort and project labels are read from configs/disease.yaml.
+#
+# Outputs: results/networks/ (cohort prefix from configs/disease.yaml)
+#   {cohort_short}_ppi_network.pdf
+#   {cohort_short}_ppi_network_hires.pdf
+#   {cohort_short}_go_enrichment_up.pdf
+#   {cohort_short}_go_enrichment_down.pdf
+#   {cohort_short}_go_enrichment_combined.pdf
+#   {cohort_short}_string_edges.csv
+#   {cohort_short}_go_results.csv
 
 suppressPackageStartupMessages({
     library(data.table)
@@ -30,6 +32,7 @@ suppressPackageStartupMessages({
     library(clusterProfiler)
     library(org.Hs.eg.db)
     library(enrichplot)
+    library(glue)
 })
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -38,6 +41,11 @@ file_arg  <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT       <- cfg$cohort_short
+DISEASE      <- cfg$disease_short_caps
+PROJECT_ID   <- cfg$project_short
 
 DIFF_DIR <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR  <- file.path(PROJ_DIR, "results", "networks")
@@ -48,13 +56,15 @@ FDR_THR          <- 0.05
 SPECIES          <- 9606  # Homo sapiens
 
 # ── 1. Load DEPs ──────────────────────────────────────────────────────────────
-cat("Loading MS combined DEPs...\n")
-deps <- fread(file.path(DIFF_DIR, "ms_combined_vs_hc.csv"))
+cat(sprintf("Loading combined %s DEPs...\n", DISEASE))
+deps <- fread(file.path(DIFF_DIR, glue("{COHORT}_combined_vs_hc.csv")))
 deps_sig <- deps[adj.P.Val < FDR_THR]
-deps_sig[, direction := fifelse(logFC > 0, "Up in MS", "Down in MS")]
+UP_LBL   <- glue("Up in {DISEASE}")
+DOWN_LBL <- glue("Down in {DISEASE}")
+deps_sig[, direction := fifelse(logFC > 0, UP_LBL, DOWN_LBL)]
 cat(sprintf("  %d DEPs: %d up, %d down\n",
-            nrow(deps_sig), sum(deps_sig$direction == "Up in MS"),
-            sum(deps_sig$direction == "Down in MS")))
+            nrow(deps_sig), sum(deps_sig$direction == UP_LBL),
+            sum(deps_sig$direction == DOWN_LBL)))
 
 gene_list <- toupper(deps_sig$protein)
 
@@ -68,7 +78,7 @@ resp <- tryCatch(
              identifiers     = paste(gene_list, collapse = "\n"),
              species         = as.character(SPECIES),
              required_score  = as.character(STRING_SCORE_THR),
-             caller_identity = "ukb_ms_proteomics"
+             caller_identity = PROJECT_ID
          ),
          encode = "form",
          timeout(60)),
@@ -96,7 +106,7 @@ edges <- edges[combined_score >= STRING_SCORE_THR / 1000]
 edges <- edges[gene_a %in% gene_list & gene_b %in% gene_list]
 
 cat(sprintf("  After filtering to DEPs only: %d edges\n", nrow(edges)))
-fwrite(edges, file.path(OUT_DIR, "ms_string_edges.csv"))
+fwrite(edges, file.path(OUT_DIR, glue("{COHORT}_string_edges.csv")))
 
 if (nrow(edges) == 0) stop("No STRING edges found for DEP set — check gene names.")
 
@@ -129,7 +139,7 @@ cat("Plotting PPI network...\n")
 tg <- as_tbl_graph(g)
 
 # Colour scheme matching UKB theme
-DIR_COLS <- c("Up in MS" = "#CC0066", "Down in MS" = "#56B4E9")
+DIR_COLS <- setNames(c("#CC0066", "#56B4E9"), c(UP_LBL, DOWN_LBL))
 
 # Node label: show only high-confidence hubs
 hub_threshold <- quantile(degree(g), 0.75)
@@ -148,8 +158,8 @@ p_net <- ggraph(tg, layout = "stress") +
     scale_colour_manual(values = DIR_COLS, name = NULL) +
     scale_size_continuous(name = expression(-log[10](FDR)),
                           range = c(1.5, 6), breaks = c(5, 10, 20, 30)) +
-    labs(title = sprintf("MS DEP PPI network (STRING score \u2265 %.1f)",
-                         STRING_SCORE_THR / 1000),
+    labs(title = sprintf("%s DEP PPI network (STRING score \u2265 %.1f)",
+                         DISEASE, STRING_SCORE_THR / 1000),
          subtitle = sprintf("%d nodes, %d edges | %d Louvain communities",
                             vcount(g), ecount(g), max(membership(communities)))) +
     theme_graph(base_size = 10, base_family = "") +
@@ -162,11 +172,13 @@ p_net <- ggraph(tg, layout = "stress") +
         plot.background   = element_rect(fill = "white", colour = NA)
     )
 
-ggsave(file.path(OUT_DIR, "ms_ppi_network.pdf"),
+net_pdf       <- glue("{COHORT}_ppi_network.pdf")
+net_pdf_hires <- glue("{COHORT}_ppi_network_hires.pdf")
+ggsave(file.path(OUT_DIR, net_pdf),
        p_net, width = 8, height = 7, device = cairo_pdf)
-ggsave(file.path(OUT_DIR, "ms_ppi_network_hires.pdf"),
+ggsave(file.path(OUT_DIR, net_pdf_hires),
        p_net, width = 12, height = 10, device = cairo_pdf)
-cat("  Saved: ms_ppi_network.pdf\n")
+cat(sprintf("  Saved: %s\n", net_pdf))
 
 # ── 5. GO BP enrichment ────────────────────────────────────────────────────────
 cat("Running GO BP enrichment...\n")
@@ -200,8 +212,8 @@ run_enrichment <- function(gene_symbols, label) {
 
 # Background: all proteins tested (all columns in the DEP file)
 all_tested <- toupper(deps$protein)
-up_genes   <- toupper(deps_sig[direction == "Up in MS",   protein])
-down_genes <- toupper(deps_sig[direction == "Down in MS", protein])
+up_genes   <- toupper(deps_sig[direction == UP_LBL,   protein])
+down_genes <- toupper(deps_sig[direction == DOWN_LBL, protein])
 all_genes  <- toupper(deps_sig$protein)
 
 ego_up   <- run_enrichment(up_genes,   "Up-regulated")
@@ -226,9 +238,12 @@ make_dotplot <- function(ego, title_str, filename, n_terms = 20) {
     cat(sprintf("  Saved: %s\n", filename))
 }
 
-make_dotplot(ego_up,   "GO BP: Up-regulated MS DEPs",   "ms_go_enrichment_up.pdf")
-make_dotplot(ego_down, "GO BP: Down-regulated MS DEPs", "ms_go_enrichment_down.pdf")
-make_dotplot(ego_all,  "GO BP: All MS DEPs (combined)", "ms_go_enrichment_combined.pdf")
+make_dotplot(ego_up,   sprintf("GO BP: Up-regulated %s DEPs", DISEASE),
+             glue("{COHORT}_go_enrichment_up.pdf"))
+make_dotplot(ego_down, sprintf("GO BP: Down-regulated %s DEPs", DISEASE),
+             glue("{COHORT}_go_enrichment_down.pdf"))
+make_dotplot(ego_all,  sprintf("GO BP: All %s DEPs (combined)", DISEASE),
+             glue("{COHORT}_go_enrichment_combined.pdf"))
 
 # Save results table
 if (!is.null(ego_all)) {
@@ -244,7 +259,7 @@ if (!is.null(ego_all)) {
         go_down_dt[, gene_set := "down_DEPs"]
         go_dt <- rbind(go_dt, go_down_dt, fill = TRUE)
     }
-    fwrite(go_dt, file.path(OUT_DIR, "ms_go_results.csv"))
+    fwrite(go_dt, file.path(OUT_DIR, glue("{COHORT}_go_results.csv")))
     cat(sprintf("  GO results written: %d rows\n", nrow(go_dt)))
 }
 
@@ -291,9 +306,12 @@ make_kegg_dotplot <- function(ekegg, title_str, filename, n_terms = 20) {
     cat(sprintf("  Saved: %s\n", filename))
 }
 
-make_kegg_dotplot(kegg_up,   "KEGG: Up-regulated MS DEPs",   "ms_kegg_up.pdf")
-make_kegg_dotplot(kegg_down, "KEGG: Down-regulated MS DEPs", "ms_kegg_down.pdf")
-make_kegg_dotplot(kegg_all,  "KEGG: All MS DEPs (combined)", "ms_kegg_combined.pdf")
+make_kegg_dotplot(kegg_up,   sprintf("KEGG: Up-regulated %s DEPs", DISEASE),
+                  glue("{COHORT}_kegg_up.pdf"))
+make_kegg_dotplot(kegg_down, sprintf("KEGG: Down-regulated %s DEPs", DISEASE),
+                  glue("{COHORT}_kegg_down.pdf"))
+make_kegg_dotplot(kegg_all,  sprintf("KEGG: All %s DEPs (combined)", DISEASE),
+                  glue("{COHORT}_kegg_combined.pdf"))
 
 # ── 7. WikiPathways enrichment ─────────────────────────────────────────────────
 cat("Running WikiPathways enrichment...\n")
@@ -334,12 +352,15 @@ make_wp_dotplot <- function(ewp, title_str, filename, n_terms = 20) {
     cat(sprintf("  Saved: %s\n", filename))
 }
 
-make_wp_dotplot(wp_up,   "WikiPathways: Up-regulated MS DEPs",   "ms_wp_up.pdf")
-make_wp_dotplot(wp_down, "WikiPathways: Down-regulated MS DEPs", "ms_wp_down.pdf")
-make_wp_dotplot(wp_all,  "WikiPathways: All MS DEPs (combined)", "ms_wp_combined.pdf")
+make_wp_dotplot(wp_up,   sprintf("WikiPathways: Up-regulated %s DEPs", DISEASE),
+                glue("{COHORT}_wp_up.pdf"))
+make_wp_dotplot(wp_down, sprintf("WikiPathways: Down-regulated %s DEPs", DISEASE),
+                glue("{COHORT}_wp_down.pdf"))
+make_wp_dotplot(wp_all,  sprintf("WikiPathways: All %s DEPs (combined)", DISEASE),
+                glue("{COHORT}_wp_combined.pdf"))
 
 # ── 8. Append KEGG + WP to combined results CSV ───────────────────────────────
-path_results_csv <- file.path(OUT_DIR, "ms_go_results.csv")
+path_results_csv <- file.path(OUT_DIR, glue("{COHORT}_go_results.csv"))
 pathway_rows <- list()
 
 for (res_obj in list(
@@ -368,7 +389,7 @@ if (length(pathway_rows) > 0) {
     } else {
         combined_dt <- pathway_dt
     }
-    fwrite(combined_dt, file.path(OUT_DIR, "ms_pathway_results.csv"))
+    fwrite(combined_dt, file.path(OUT_DIR, glue("{COHORT}_pathway_results.csv")))
     cat(sprintf("  Pathway results written: %d rows (KEGG + WikiPathways)\n", nrow(pathway_dt)))
 }
 

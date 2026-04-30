@@ -4,7 +4,7 @@
 #
 # Approach:
 #   For each key immune/CNS cell type:
-#   1. Identify which MS DEPs are expressed in that cell type
+#   1. Identify which disease DEPs are expressed in that cell type
 #      (curated from published scRNA-seq marker lists)
 #   2. Compute observed STRING connectivity density within that subset
 #   3. Permutation test (n=1000): randomly draw same-size subsets from all proteins
@@ -14,14 +14,17 @@
 #   B cells, NK cells, T cells, plasma cells, oligodendrocytes,
 #   microglia, monocytes (added for completeness)
 #
+# Cohort prefix is read from configs/disease.yaml.
+#
 # Output: results/networks/
-#   ms_celltype_connectivity.pdf
-#   ms_celltype_connectivity.csv
+#   {cohort_short}_celltype_connectivity.pdf
+#   {cohort_short}_celltype_connectivity.csv
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
     library(igraph)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -29,6 +32,10 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT  <- cfg$cohort_short
+DISEASE <- cfg$disease_short_caps
 
 NET_DIR  <- file.path(PROJ_DIR, "results", "networks")
 DIFF_DIR <- file.path(PROJ_DIR, "results", "differential")
@@ -41,8 +48,10 @@ set.seed(42)
 
 # ── 1. Load STRING edges (pre-computed by 01_ppi_network.R) ──────────────────
 cat("Loading STRING edges...\n")
-edges_file <- file.path(NET_DIR, "ms_string_edges.csv")
-if (!file.exists(edges_file)) stop("Run 01_ppi_network.R first to generate ms_string_edges.csv")
+edges_basename <- glue("{COHORT}_string_edges.csv")
+edges_file     <- file.path(NET_DIR, edges_basename)
+if (!file.exists(edges_file))
+    stop("Run 01_ppi_network.R first to generate ", edges_basename)
 
 edges <- fread(edges_file)
 cat(sprintf("  %d edges loaded (score >= 0.4)\n", nrow(edges)))
@@ -59,8 +68,8 @@ g_full    <- graph_from_data_frame(edges[, .(gene_a, gene_b, combined_score)], d
 cat(sprintf("  Full network: %d nodes, %d edges\n", vcount(g_full), ecount(g_full)))
 
 # ── 2. Load DEPs ──────────────────────────────────────────────────────────────
-cat("Loading MS DEPs...\n")
-deps_sig <- fread(file.path(DIFF_DIR, "ms_combined_vs_hc.csv"))[adj.P.Val < 0.05]
+cat(sprintf("Loading %s DEPs...\n", DISEASE))
+deps_sig <- fread(file.path(DIFF_DIR, glue("{COHORT}_combined_vs_hc.csv")))[adj.P.Val < 0.05]
 dep_genes <- toupper(deps_sig$protein)
 cat(sprintf("  %d DEPs, %d in STRING network\n", length(dep_genes),
             sum(dep_genes %in% all_nodes)))
@@ -175,7 +184,7 @@ if (length(results_list) == 0) stop("No cell types had >= 2 DEPs in markers")
 results_dt <- rbindlist(results_list)
 results_dt[, fdr := p.adjust(perm_p, method = "BH")]
 results_dt <- results_dt[order(perm_p)]
-fwrite(results_dt, file.path(OUT_DIR, "ms_celltype_connectivity.csv"))
+fwrite(results_dt, file.path(OUT_DIR, glue("{COHORT}_celltype_connectivity.csv")))
 cat(sprintf("\nResults written: %d cell types tested\n", nrow(results_dt)))
 print(results_dt[, .(cell_type, n_dep_markers, z_score, perm_p, fdr)])
 
@@ -198,18 +207,21 @@ p_conn <- ggplot(results_dt, aes(x = z_score, y = cell_f)) +
                       name = NULL) +
     labs(x = "Permutation Z-score (network connectivity)",
          y = NULL,
-         title = "MS DEP cell-type network connectivity",
+         title = sprintf("%s DEP cell-type network connectivity", DISEASE),
          subtitle = sprintf("STRING edges within DEPs ∩ cell-type markers (n=%d permutations)",
                             N_PERM),
          caption = "* FDR<0.05; ** FDR<0.01; + perm. p<0.05 (uncorrected)") +
     theme_ukb() +
     theme(legend.position = "bottom")
 
-ggsave(file.path(OUT_DIR, "ms_celltype_connectivity.pdf"),
+conn_pdf <- glue("{COHORT}_celltype_connectivity.pdf")
+ggsave(file.path(OUT_DIR, conn_pdf),
        p_conn, width = 5.5, height = 4.5, device = cairo_pdf)
-cat("  Saved: ms_celltype_connectivity.pdf\n")
+cat(sprintf("  Saved: %s\n", conn_pdf))
 
 # Panel B: dot plot showing which DEPs are in each cell type
+UP_LBL   <- glue("Up in {DISEASE}")
+DOWN_LBL <- glue("Down in {DISEASE}")
 ct_dep_long <- rbindlist(lapply(names(cell_type_markers), function(ct) {
     markers   <- toupper(cell_type_markers[[ct]])
     dep_in_ct <- intersect(dep_genes, markers)
@@ -217,7 +229,7 @@ ct_dep_long <- rbindlist(lapply(names(cell_type_markers), function(ct) {
     # Join with logFC and direction
     dt_sub <- deps_sig[toupper(protein) %in% dep_in_ct,
                        .(protein = toupper(protein), logFC, adj.P.Val,
-                         direction = fifelse(logFC > 0, "Up in MS", "Down in MS"))]
+                         direction = fifelse(logFC > 0, UP_LBL, DOWN_LBL))]
     dt_sub[, cell_type := ct]
     dt_sub
 }))
@@ -226,7 +238,7 @@ if (nrow(ct_dep_long) > 0) {
     ct_dep_long[, protein_f := reorder(protein, -logFC)]
     ct_dep_long[, cell_f := factor(cell_type, levels = rev(results_dt$cell_type))]
 
-    DIR_COLS <- c("Up in MS" = "#CC0066", "Down in MS" = "#56B4E9")
+    DIR_COLS <- setNames(c("#CC0066", "#56B4E9"), c(UP_LBL, DOWN_LBL))
 
     p_dot <- ggplot(ct_dep_long, aes(x = cell_f, y = protein_f,
                                       size = -log10(adj.P.Val), colour = direction)) +
@@ -240,10 +252,11 @@ if (nrow(ct_dep_long) > 0) {
         theme(axis.text.y = element_text(size = 6),
               axis.text.x = element_text(angle = 45, hjust = 1, size = 7))
 
-    ggsave(file.path(OUT_DIR, "ms_celltype_dep_dotplot.pdf"),
+    dot_pdf <- glue("{COHORT}_celltype_dep_dotplot.pdf")
+    ggsave(file.path(OUT_DIR, dot_pdf),
            p_dot, width = 7, height = max(3.5, length(unique(ct_dep_long$protein)) * 0.22),
            device = cairo_pdf)
-    cat("  Saved: ms_celltype_dep_dotplot.pdf\n")
+    cat(sprintf("  Saved: %s\n", dot_pdf))
 }
 
 cat("\n03_hpa_celltype_connectivity.R complete.\n")

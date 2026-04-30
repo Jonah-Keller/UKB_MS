@@ -1,19 +1,21 @@
 #!/usr/bin/env Rscript
 # 04_prepost_go.R
-# GO BP enrichment for pre-onset and post-onset MS DEPs separately.
+# GO BP enrichment for pre-onset and post-onset disease DEPs separately.
 # Used by figure1.R panels e (pre-onset GO dotplot) and i (pre vs post pathway comparison).
 #
 # Pre-onset uses FDR < 0.20 (liberal threshold appropriate for low-power pre-diagnosis window).
 # Post-onset uses FDR < 0.05 (standard threshold; well-powered).
 #
-# Outputs:
-#   results/networks/ms_pre_go_results.csv
-#   results/networks/ms_post_go_results.csv
+# Outputs (cohort prefix from configs/disease.yaml):
+#   results/networks/{cohort_short}_pre_go_results.csv
+#   results/networks/{cohort_short}_post_go_results.csv
+#   results/networks/{cohort_short}_combined_go_results.csv
 
 suppressPackageStartupMessages({
     library(data.table)
     library(clusterProfiler)
     library(org.Hs.eg.db)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -22,6 +24,10 @@ SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", fi
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "go_dotplot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT     <- cfg$cohort_short
+DISEASE    <- cfg$disease_short_caps
 
 DIFF_DIR <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR  <- file.path(PROJ_DIR, "results", "networks")
@@ -35,7 +41,7 @@ POST_FDR <- 0.05   # post-onset: well powered
 # Pre-onset DEPs
 # ---------------------------------------------------------------------------
 cat("=== Pre-onset DEPs (FDR <", PRE_FDR, ") ===\n")
-pre_all <- fread(file.path(DIFF_DIR, "ms_pre_vs_hc.csv"))
+pre_all <- fread(file.path(DIFF_DIR, glue("{COHORT}_pre_vs_hc.csv")))
 pre_sig <- pre_all[adj.P.Val < PRE_FDR]
 cat(sprintf("  Pre-onset DEPs: %d total (%d up, %d down)\n",
             nrow(pre_sig),
@@ -52,19 +58,20 @@ go_pre_dt <- rbindlist(Filter(Negate(is.null), list(
     collect_go(ego_pre_up,   "up_DEPs"),
     collect_go(ego_pre_down, "down_DEPs")
 )))
+pre_out <- glue("{COHORT}_pre_go_results.csv")
 if (nrow(go_pre_dt) > 0) {
-    fwrite(go_pre_dt, file.path(OUT_DIR, "ms_pre_go_results.csv"))
-    cat(sprintf("  Saved ms_pre_go_results.csv (%d rows)\n", nrow(go_pre_dt)))
+    fwrite(go_pre_dt, file.path(OUT_DIR, pre_out))
+    cat(sprintf("  Saved %s (%d rows)\n", pre_out, nrow(go_pre_dt)))
 } else {
     cat("  No significant GO terms — writing empty file\n")
-    fwrite(data.table(), file.path(OUT_DIR, "ms_pre_go_results.csv"))
+    fwrite(data.table(), file.path(OUT_DIR, pre_out))
 }
 
 # ---------------------------------------------------------------------------
 # Post-onset DEPs
 # ---------------------------------------------------------------------------
 cat("\n=== Post-onset DEPs (FDR <", POST_FDR, ") ===\n")
-post_all <- fread(file.path(DIFF_DIR, "ms_post_vs_hc.csv"))
+post_all <- fread(file.path(DIFF_DIR, glue("{COHORT}_post_vs_hc.csv")))
 post_sig <- post_all[adj.P.Val < POST_FDR]
 cat(sprintf("  Post-onset DEPs: %d total (%d up, %d down)\n",
             nrow(post_sig),
@@ -81,19 +88,20 @@ go_post_dt <- rbindlist(Filter(Negate(is.null), list(
     collect_go(ego_post_up,   "up_DEPs"),
     collect_go(ego_post_down, "down_DEPs")
 )))
+post_out <- glue("{COHORT}_post_go_results.csv")
 if (nrow(go_post_dt) > 0) {
-    fwrite(go_post_dt, file.path(OUT_DIR, "ms_post_go_results.csv"))
-    cat(sprintf("  Saved ms_post_go_results.csv (%d rows)\n", nrow(go_post_dt)))
+    fwrite(go_post_dt, file.path(OUT_DIR, post_out))
+    cat(sprintf("  Saved %s (%d rows)\n", post_out, nrow(go_post_dt)))
 } else {
     cat("  No significant GO terms — writing empty file\n")
-    fwrite(data.table(), file.path(OUT_DIR, "ms_post_go_results.csv"))
+    fwrite(data.table(), file.path(OUT_DIR, post_out))
 }
 
 # ---------------------------------------------------------------------------
-# Combined MS vs HC DEPs (for supplementary figure)
+# Combined disease vs HC DEPs (for supplementary figure)
 # ---------------------------------------------------------------------------
-cat("\n=== Combined MS vs HC DEPs (FDR < 0.05) ===\n")
-comb_all <- fread(file.path(DIFF_DIR, "ms_combined_vs_hc.csv"))
+cat(sprintf("\n=== Combined %s vs HC DEPs (FDR < 0.05) ===\n", DISEASE))
+comb_all <- fread(file.path(DIFF_DIR, glue("{COHORT}_combined_vs_hc.csv")))
 comb_sig <- comb_all[adj.P.Val < 0.05]
 cat(sprintf("  Combined DEPs: %d total (%d up, %d down)\n",
             nrow(comb_sig),
@@ -110,12 +118,13 @@ go_comb_dt <- rbindlist(Filter(Negate(is.null), list(
     collect_go(ego_comb_up,   "up_DEPs"),
     collect_go(ego_comb_down, "down_DEPs")
 )))
+comb_out <- glue("{COHORT}_combined_go_results.csv")
 if (nrow(go_comb_dt) > 0) {
-    fwrite(go_comb_dt, file.path(OUT_DIR, "ms_combined_go_results.csv"))
-    cat(sprintf("  Saved ms_combined_go_results.csv (%d rows)\n", nrow(go_comb_dt)))
+    fwrite(go_comb_dt, file.path(OUT_DIR, comb_out))
+    cat(sprintf("  Saved %s (%d rows)\n", comb_out, nrow(go_comb_dt)))
 } else {
     cat("  No significant GO terms — writing empty file\n")
-    fwrite(data.table(), file.path(OUT_DIR, "ms_combined_go_results.csv"))
+    fwrite(data.table(), file.path(OUT_DIR, comb_out))
 }
 
 cat("\nDone.\n")

@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 # 01_ms_ml_classifier.R
-# Binary ML classifier: MS vs healthy controls — Abdelhak 2026 replication
+# Binary ML classifier: disease vs healthy controls — Abdelhak 2026 replication
 #
 # Approach (per Chia template + Abdelhak Methods):
-#   - Features: 173 combined DEPs (FDR < 0.05)
+#   - Features: combined DEPs (FDR < 0.05)
 #   - PSM-matched cohort (1:10 nearest-neighbour, same as limma)
 #   - Stratified 80/20 split (train / held-out test)
 #   - Inner cross-validation: 5-fold × 10 repeats, ROC metric
@@ -11,15 +11,17 @@
 #             rf (random forest), nnet (neural net)
 #   - Outputs: ROC curves, model comparison, variable importance
 #
+# Cohort, status column, and filename prefixes are read from configs/disease.yaml.
+#
 # Input:
-#   data/ukb/olink/processed/ms_olink_qc.csv  (already contains PSM covariates)
-#   results/differential/ms_combined_vs_hc.csv
+#   data/ukb/olink/processed/{cohort_short}_olink_qc.csv
+#   results/differential/{cohort_short}_combined_vs_hc.csv
 #
 # Output: results/ml/
-#   ms_ml_roc_curves.pdf
-#   ms_ml_model_comparison.pdf
-#   ms_ml_feature_importance.pdf
-#   ms_ml_results.csv
+#   {cohort_short}_ml_roc_curves.pdf
+#   {cohort_short}_ml_model_comparison.pdf
+#   {cohort_short}_ml_feature_importance.pdf
+#   {cohort_short}_ml_results.csv
 #   models/  (one .rds per model)
 
 suppressPackageStartupMessages({
@@ -31,6 +33,7 @@ suppressPackageStartupMessages({
     library(ggrepel)
     library(MatchIt)
     library(patchwork)
+    library(glue)
 })
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -39,9 +42,18 @@ file_arg  <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT      <- cfg$cohort_short
+DISEASE     <- cfg$disease_short_caps
+STATUS_COL  <- cfg$cohort_status_col
+PRE_VAL     <- cfg$status_values$pre_onset
+POST_VAL    <- cfg$status_values$post_onset
 
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-DIFF_FILE   <- file.path(PROJ_DIR, "results", "differential", "ms_combined_vs_hc.csv")
+QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed",
+                         glue("{COHORT}_olink_qc.csv"))
+DIFF_FILE   <- file.path(PROJ_DIR, "results", "differential",
+                         glue("{COHORT}_combined_vs_hc.csv"))
 CADASIL_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
 OUT_DIR   <- file.path(PROJ_DIR, "results", "ml")
 MODEL_DIR <- file.path(OUT_DIR, "models")
@@ -82,7 +94,7 @@ cat(sprintf("  %d top DEPs as features (top 50 by FDR)\n", length(dep_proteins))
 cat("Loading QC'd Olink data...\n")
 dt <- fread(QC_FILE, showProgress = FALSE)
 
-META_COLS <- c("eid","ms_status","age_at_sampling","age_at_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling","age_at_diagnosis",
                "years_to_diagnosis","sex","olink_instance",
                "qc_outlier","UMAP1","UMAP2","mean_npx")
 
@@ -96,15 +108,16 @@ dt_filt <- dt[qc_outlier == FALSE &
               !is.na(age_at_sampling) & !is.na(sex) &
               !is.na(UMAP1) & !is.na(UMAP2)]
 cat(sprintf("  After QC filter: %d participants\n", nrow(dt_filt)))
+status_tbl <- table(dt_filt[[STATUS_COL]])
 cat(sprintf("  Status: %s\n",
-            paste(names(table(dt_filt$ms_status)),
-                  as.integer(table(dt_filt$ms_status)), sep="=", collapse="  ")))
+            paste(names(status_tbl), as.integer(status_tbl),
+                  sep = "=", collapse = "  ")))
 
 # ── 3. PSM: combine pre + post-onset vs control ───────────────────────────────
-cat("\nPSM matching (combined MS vs HC)...\n")
+cat(sprintf("\nPSM matching (combined %s vs HC)...\n", DISEASE))
 PSM_VARS <- c("age_at_sampling","sex_num","bmi","ever_smoker","diabetes","alcohol_freq")
 
-dt_filt[, is_case := as.integer(ms_status %in% c("pre_onset","post_onset"))]
+dt_filt[, is_case := as.integer(get(STATUS_COL) %in% c(PRE_VAL, POST_VAL))]
 dt_c <- dt_filt[complete.cases(as.data.frame(dt_filt[, c("is_case", ..PSM_VARS)]))]
 cat(sprintf("  PSM input: %d cases, %d controls (%d excluded)\n",
             sum(dt_c$is_case), sum(!dt_c$is_case), nrow(dt_filt) - nrow(dt_c)))
@@ -128,15 +141,18 @@ if (length(miss_prots) > 0)
     message("  WARNING: ", length(miss_prots), " DEP proteins not found in data — skipping")
 cat(sprintf("  Using %d / %d DEPs\n", length(avail_prots), length(dep_proteins)))
 
-# Outcome: binary factor (positive class = MS)
-dt_ml[, outcome := factor(fifelse(is_case == 1L, "MS", "Control"),
-                          levels = c("MS", "Control"))]
+# Outcome: binary factor (positive class = disease)
+POS_LBL <- DISEASE
+NEG_LBL <- "Control"
+dt_ml[, outcome := factor(fifelse(is_case == 1L, POS_LBL, NEG_LBL),
+                          levels = c(POS_LBL, NEG_LBL))]
 
 feat_cols <- c("outcome", avail_prots)
 ml_dt <- dt_ml[, ..feat_cols]
 ml_dt <- ml_dt[complete.cases(ml_dt)]
-cat(sprintf("  Complete cases: %d  (MS=%d, Control=%d)\n",
-            nrow(ml_dt), sum(ml_dt$outcome=="MS"), sum(ml_dt$outcome=="Control")))
+cat(sprintf("  Complete cases: %d  (%s=%d, %s=%d)\n",
+            nrow(ml_dt), POS_LBL, sum(ml_dt$outcome == POS_LBL),
+            NEG_LBL, sum(ml_dt$outcome == NEG_LBL)))
 
 # ── 5. Stratified 80/20 split ─────────────────────────────────────────────────
 cat("\nSplitting 80/20...\n")
@@ -144,10 +160,12 @@ ml_df <- as.data.frame(ml_dt)
 train_idx <- createDataPartition(ml_df$outcome, p = TRAIN_PROP, list = FALSE)
 train_df  <- ml_df[ train_idx, ]
 test_df   <- ml_df[-train_idx, ]
-cat(sprintf("  Train: %d  (MS=%d, Control=%d)\n",
-            nrow(train_df), sum(train_df$outcome=="MS"), sum(train_df$outcome=="Control")))
-cat(sprintf("  Test : %d  (MS=%d, Control=%d)\n",
-            nrow(test_df),  sum(test_df$outcome=="MS"),  sum(test_df$outcome=="Control")))
+cat(sprintf("  Train: %d  (%s=%d, %s=%d)\n",
+            nrow(train_df), POS_LBL, sum(train_df$outcome == POS_LBL),
+            NEG_LBL, sum(train_df$outcome == NEG_LBL)))
+cat(sprintf("  Test : %d  (%s=%d, %s=%d)\n",
+            nrow(test_df), POS_LBL, sum(test_df$outcome == POS_LBL),
+            NEG_LBL, sum(test_df$outcome == NEG_LBL)))
 
 # ── 6. caret trainControl ────────────────────────────────────────────────────
 cat("\nSetting up cross-validation...\n")
@@ -223,13 +241,14 @@ p_compare <- ggplot(resamp_long, aes(x = reorder(model, -value, median), y = val
                  width = 0.5) +
     geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50", linewidth = 0.3) +
     labs(x = NULL, y = "Cross-validated AUC (ROC)",
-         title = "MS classifier: 5-fold CV × 10 repeats (train set)") +
+         title = sprintf("%s classifier: 5-fold CV × 10 repeats (train set)", DISEASE)) +
     coord_cartesian(ylim = c(0.4, 1.0)) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_ml_model_comparison.pdf"),
+cmp_pdf <- glue("{COHORT}_ml_model_comparison.pdf")
+ggsave(file.path(OUT_DIR, cmp_pdf),
        p_compare, width = 4.5, height = 4, device = cairo_pdf)
-cat("  Saved: ms_ml_model_comparison.pdf\n")
+cat(sprintf("  Saved: %s\n", cmp_pdf))
 
 # ── 9. ROC curves on held-out test set ────────────────────────────────────────
 cat("\nEvaluating on held-out test set...\n")
@@ -241,12 +260,12 @@ for (i in seq_along(model_list)) {
     nm  <- names(model_list)[i]
     mod <- model_list[[i]]
     probs <- tryCatch(
-        predict(mod, newdata = test_df, type = "prob")[, "MS"],
+        predict(mod, newdata = test_df, type = "prob")[, POS_LBL],
         error = function(e) NULL
     )
     if (is.null(probs)) next
-    roc_obj <- roc(test_df$outcome, probs, levels = c("Control","MS"), direction = "<",
-                   quiet = TRUE)
+    roc_obj <- roc(test_df$outcome, probs, levels = c(NEG_LBL, POS_LBL),
+                   direction = "<", quiet = TRUE)
     roc_dt_list[[nm]] <- data.table(
         model = nm,
         fpr   = 1 - roc_obj$specificities,
@@ -277,16 +296,18 @@ if (length(roc_dt_list) > 0) {
         coord_equal(xlim = c(0,1), ylim = c(0,1)) +
         theme_ukb()
 
-    ggsave(file.path(OUT_DIR, "ms_ml_roc_curves.pdf"),
+    roc_pdf <- glue("{COHORT}_ml_roc_curves.pdf")
+    ggsave(file.path(OUT_DIR, roc_pdf),
            p_roc, width = 5.5, height = 5, device = cairo_pdf)
-    cat("  Saved: ms_ml_roc_curves.pdf\n")
+    cat(sprintf("  Saved: %s\n", roc_pdf))
 }
 
 # Save results summary
 if (length(test_results) > 0) {
     results_dt <- rbindlist(test_results)
-    fwrite(results_dt, file.path(OUT_DIR, "ms_ml_results.csv"))
-    cat("  Saved: ms_ml_results.csv\n")
+    res_csv    <- glue("{COHORT}_ml_results.csv")
+    fwrite(results_dt, file.path(OUT_DIR, res_csv))
+    cat(sprintf("  Saved: %s\n", res_csv))
 }
 
 # ── 10. Feature importance ─────────────────────────────────────────────────────
@@ -298,7 +319,7 @@ for (nm in names(model_list)) {
     if (is.null(imp)) next
     imp_dt <- as.data.table(imp, keep.rownames = "protein")
     # varImp can return one or two columns
-    val_col <- intersect(c("MS", "Overall", names(imp_dt)[-1]), names(imp_dt))[1]
+    val_col <- intersect(c(POS_LBL, "Overall", names(imp_dt)[-1]), names(imp_dt))[1]
     imp_dt[, importance := get(val_col)]
     imp_dt[, model := nm]
     imp_list[[nm]] <- imp_dt[, .(protein, importance, model)]
@@ -315,15 +336,16 @@ if (length(imp_list) > 0) {
         geom_col(fill = "#CC0066", width = 0.7) +
         labs(x = "Mean variable importance (across models)",
              y = NULL,
-             title = "Top 30 features: MS classifier") +
+             title = sprintf("Top 30 features: %s classifier", DISEASE)) +
         theme_ukb() +
         theme(axis.text.y = element_text(size = 7))
 
-    ggsave(file.path(OUT_DIR, "ms_ml_feature_importance.pdf"),
+    imp_pdf <- glue("{COHORT}_ml_feature_importance.pdf")
+    ggsave(file.path(OUT_DIR, imp_pdf),
            p_imp, width = 5.5, height = 6, device = cairo_pdf)
-    cat("  Saved: ms_ml_feature_importance.pdf\n")
+    cat(sprintf("  Saved: %s\n", imp_pdf))
 
-    fwrite(imp_avg, file.path(OUT_DIR, "ms_ml_feature_importance.csv"))
+    fwrite(imp_avg, file.path(OUT_DIR, glue("{COHORT}_ml_feature_importance.csv")))
 }
 
 cat("\n01_ms_ml_classifier.R complete.\n")

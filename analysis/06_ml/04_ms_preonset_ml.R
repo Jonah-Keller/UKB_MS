@@ -1,25 +1,27 @@
 #!/usr/bin/env Rscript
 # 04_ms_preonset_ml.R
-# Presymptomatic MS ML classifier — Abdelhak 2026 replication
+# Presymptomatic disease ML classifier — Abdelhak 2026 replication
 #
 # Approach (per Abdelhak Methods):
 #   - Features: top 50 combined DEPs (FDR < 0.05)
-#   - Restricted to pre-onset MS cases + PSM-matched controls (1:5)
+#   - Restricted to pre-onset cases + PSM-matched controls (1:5)
 #   - Stratified 80/20 split
 #   - 5-fold × 10 repeats, ROC metric
 #   - Models: glmnet, gbm, rf, nnet
 #   - Paper AUC: ~0.81 (random forest)
 #
+# Cohort, status column, and filename prefixes are read from configs/disease.yaml.
+#
 # Input:
-#   data/ukb/olink/processed/ms_olink_qc.csv
-#   results/differential/ms_combined_vs_hc.csv
+#   data/ukb/olink/processed/{cohort_short}_olink_qc.csv
+#   results/differential/{cohort_short}_combined_vs_hc.csv
 #
 # Output: results/ml/
-#   ms_preonset_ml_roc_curves.pdf
-#   ms_preonset_ml_model_comparison.pdf
-#   ms_preonset_ml_feature_importance.pdf
-#   ms_preonset_ml_results.csv
-#   models/  (ms_pre_*.rds)
+#   {cohort_short}_preonset_ml_roc_curves.pdf
+#   {cohort_short}_preonset_ml_model_comparison.pdf
+#   {cohort_short}_preonset_ml_feature_importance.pdf
+#   {cohort_short}_preonset_ml_results.csv
+#   models/  ({cohort_short}_pre_*.rds)
 
 suppressPackageStartupMessages({
     library(data.table)
@@ -30,6 +32,7 @@ suppressPackageStartupMessages({
     library(MatchIt)
     library(patchwork)
     library(Boruta)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -37,9 +40,20 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT     <- cfg$cohort_short
+DISEASE    <- cfg$disease_short_caps
+STATUS_COL <- cfg$cohort_status_col
+PRE_VAL    <- cfg$status_values$pre_onset
+CTRL_VAL   <- cfg$status_values$control
+POS_LBL    <- DISEASE
+NEG_LBL    <- "Control"
 
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-DIFF_FILE   <- file.path(PROJ_DIR, "results", "differential", "ms_combined_vs_hc.csv")
+QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed",
+                         glue("{COHORT}_olink_qc.csv"))
+DIFF_FILE   <- file.path(PROJ_DIR, "results", "differential",
+                         glue("{COHORT}_combined_vs_hc.csv"))
 CADASIL_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
 OUT_DIR     <- file.path(PROJ_DIR, "results", "ml")
 MODEL_DIR   <- file.path(OUT_DIR, "models")
@@ -93,15 +107,15 @@ dt_filt <- dt[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex) &
 
 # ── 3. RESTRICT to pre-onset cases + controls ──────────────────────────────────
 cat("\nRestricting to pre-onset cases...\n")
-dt_pre <- dt_filt[ms_status %in% c("pre_onset","control")]
-cat(sprintf("  Pre-onset MS: %d, Controls: %d\n",
-            sum(dt_pre$ms_status == "pre_onset"),
-            sum(dt_pre$ms_status == "control")))
+dt_pre <- dt_filt[get(STATUS_COL) %in% c(PRE_VAL, CTRL_VAL)]
+cat(sprintf("  Pre-onset %s: %d, Controls: %d\n", DISEASE,
+            sum(dt_pre[[STATUS_COL]] == PRE_VAL),
+            sum(dt_pre[[STATUS_COL]] == CTRL_VAL)))
 
 PSM_VARS <- c("age_at_sampling","sex_num","bmi","ever_smoker","diabetes","alcohol_freq")
-# SBP excluded: not in paper's PSM spec, and its missingness costs ~11 pre-onset MS cases
+# SBP excluded: not in paper's PSM spec, and its missingness costs ~11 pre-onset cases
 
-dt_pre[, is_case := as.integer(ms_status == "pre_onset")]
+dt_pre[, is_case := as.integer(get(STATUS_COL) == PRE_VAL)]
 
 # Keep PSM vars that are available; drop any that are all-NA
 psm_avail <- PSM_VARS[PSM_VARS %in% names(dt_pre) &
@@ -127,7 +141,8 @@ avail_demo  <- intersect(DEMO_FEATS,   names(dt_ml))   # demographics always in 
 cat(sprintf("  Proteins: %d DEPs | Demographics: %s\n",
             length(avail_prots), paste(avail_demo, collapse=", ")))
 
-dt_ml[, outcome := factor(fifelse(is_case == 1L, "MS", "Control"), levels = c("MS","Control"))]
+dt_ml[, outcome := factor(fifelse(is_case == 1L, POS_LBL, NEG_LBL),
+                          levels = c(POS_LBL, NEG_LBL))]
 feat_cols <- c("outcome", avail_prots, avail_demo)
 ml_dt     <- dt_ml[, ..feat_cols]
 
@@ -140,11 +155,13 @@ for (col in avail_prots) {
     }
 }
 ml_dt <- ml_dt[complete.cases(ml_dt)]   # now only removes rows with missing demographics
-cat(sprintf("  Complete cases: %d  (MS=%d, Control=%d)\n",
-            nrow(ml_dt), sum(ml_dt$outcome=="MS"), sum(ml_dt$outcome=="Control")))
+cat(sprintf("  Complete cases: %d  (%s=%d, %s=%d)\n",
+            nrow(ml_dt), POS_LBL, sum(ml_dt$outcome == POS_LBL),
+            NEG_LBL, sum(ml_dt$outcome == NEG_LBL)))
 
-if (sum(ml_dt$outcome == "MS") < 20) {
-    stop("Too few pre-onset MS cases for ML (n=", sum(ml_dt$outcome=="MS"), ")")
+if (sum(ml_dt$outcome == POS_LBL) < 20) {
+    stop("Too few pre-onset ", DISEASE, " cases for ML (n=",
+         sum(ml_dt$outcome == POS_LBL), ")")
 }
 
 # ── 5. 80/20 split ─────────────────────────────────────────────────────────────
@@ -152,13 +169,15 @@ ml_df     <- as.data.frame(ml_dt)
 train_idx <- createDataPartition(ml_df$outcome, p = TRAIN_PROP, list = FALSE)
 train_df  <- ml_df[ train_idx, ]
 test_df   <- ml_df[-train_idx, ]
-cat(sprintf("  Train: %d  (MS=%d, Control=%d)\n",
-            nrow(train_df), sum(train_df$outcome=="MS"), sum(train_df$outcome=="Control")))
-cat(sprintf("  Test : %d  (MS=%d, Control=%d)\n",
-            nrow(test_df), sum(test_df$outcome=="MS"), sum(test_df$outcome=="Control")))
+cat(sprintf("  Train: %d  (%s=%d, %s=%d)\n",
+            nrow(train_df), POS_LBL, sum(train_df$outcome == POS_LBL),
+            NEG_LBL, sum(train_df$outcome == NEG_LBL)))
+cat(sprintf("  Test : %d  (%s=%d, %s=%d)\n",
+            nrow(test_df), POS_LBL, sum(test_df$outcome == POS_LBL),
+            NEG_LBL, sum(test_df$outcome == NEG_LBL)))
 
 # ── 5b. Boruta feature selection (paper: LOO 5-fold, features in ≥2 folds) ────
-BORUTA_FILE <- file.path(MODEL_DIR, "ms_pre_boruta_features.rds")
+BORUTA_FILE <- file.path(MODEL_DIR, glue("{COHORT}_pre_boruta_features.rds"))
 
 if (file.exists(BORUTA_FILE)) {
     cat("\nLoading cached Boruta features...\n")
@@ -195,7 +214,7 @@ if (length(boruta_feats) >= 2) {
     test_df     <- test_df[,  c("outcome", final_feats), drop = FALSE]
     avail_prots <- final_feats
     fwrite(data.table(feature = boruta_avail, type = "protein"),
-           file.path(OUT_DIR, "ms_preonset_boruta_features.csv"))
+           file.path(OUT_DIR, glue("{COHORT}_preonset_boruta_features.csv")))
 } else {
     # No Boruta: use all proteins + demographics
     demo_avail  <- intersect(avail_demo, names(train_df))
@@ -213,7 +232,8 @@ myControl <- trainControl(
 )
 
 train_model <- function(method, label, extra_args = list()) {
-    rds_path <- file.path(MODEL_DIR, paste0("ms_pre_boruta_", method, "_model.rds"))
+    rds_path <- file.path(MODEL_DIR,
+                          glue("{COHORT}_pre_boruta_{method}_model.rds"))
     if (file.exists(rds_path)) {
         cat(sprintf("  Loading cached: %s\n", label))
         model <- readRDS(rds_path)
@@ -254,14 +274,15 @@ p_compare <- ggplot(resamp_long, aes(x = reorder(model, -value, median), y = val
     annotate("text", x = 0.6, y = 0.82, label = "Abdelhak et al. AUC 0.81",
              size = 2.5, colour = "#CC0066", hjust = 0) +
     labs(x = NULL, y = "Cross-validated AUC (ROC)",
-         title = "Pre-onset MS: elastic net classifier",
+         title = sprintf("Pre-onset %s: elastic net classifier", DISEASE),
          subtitle = "5-fold CV × 10 repeats | PSM-matched HC 1:5 | Boruta features") +
     coord_cartesian(ylim = c(0.4, 1.0)) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_preonset_ml_model_comparison.pdf"),
+cmp_pdf <- glue("{COHORT}_preonset_ml_model_comparison.pdf")
+ggsave(file.path(OUT_DIR, cmp_pdf),
        p_compare, width = 4.5, height = 4, device = cairo_pdf)
-cat("  Saved: ms_preonset_ml_model_comparison.pdf\n")
+cat(sprintf("  Saved: %s\n", cmp_pdf))
 
 # ── 8. ROC on test set ─────────────────────────────────────────────────────────
 MODEL_COLS  <- c("#CC0066","#2B4C7E","#E6A817","#56B4E9")
@@ -271,9 +292,11 @@ test_results <- list()
 for (i in seq_along(model_list)) {
     nm  <- names(model_list)[i]
     mod <- model_list[[i]]
-    probs <- tryCatch(predict(mod, newdata = test_df, type = "prob")[,"MS"], error = function(e) NULL)
+    probs <- tryCatch(predict(mod, newdata = test_df, type = "prob")[, POS_LBL],
+                      error = function(e) NULL)
     if (is.null(probs)) next
-    roc_obj <- roc(test_df$outcome, probs, levels = c("Control","MS"), direction = "<", quiet = TRUE)
+    roc_obj <- roc(test_df$outcome, probs, levels = c(NEG_LBL, POS_LBL),
+                   direction = "<", quiet = TRUE)
     roc_dt_list[[nm]] <- data.table(model = nm, fpr = 1 - roc_obj$specificities,
                                     tpr = roc_obj$sensitivities, auc = as.numeric(auc(roc_obj)))
     test_results[[nm]] <- data.table(model = nm, AUC = round(as.numeric(auc(roc_obj)), 4))
@@ -290,17 +313,18 @@ if (length(roc_dt_list) > 0) {
         scale_colour_manual(values = setNames(MODEL_COLS[seq_along(model_list)],
                                               unique(roc_all$model_label)), name = NULL) +
         labs(x = "1 – Specificity (FPR)", y = "Sensitivity (TPR)",
-             title = "Pre-onset MS: ROC curves (held-out test set)") +
+             title = sprintf("Pre-onset %s: ROC curves (held-out test set)", DISEASE)) +
         coord_equal(xlim = c(0,1), ylim = c(0,1)) +
         theme_ukb()
-    ggsave(file.path(OUT_DIR, "ms_preonset_ml_roc_curves.pdf"),
+    roc_pdf <- glue("{COHORT}_preonset_ml_roc_curves.pdf")
+    ggsave(file.path(OUT_DIR, roc_pdf),
            p_roc, width = 5.5, height = 5, device = cairo_pdf)
-    cat("  Saved: ms_preonset_ml_roc_curves.pdf\n")
+    cat(sprintf("  Saved: %s\n", roc_pdf))
 }
 
 if (length(test_results) > 0) {
     results_dt <- rbindlist(test_results)
-    fwrite(results_dt, file.path(OUT_DIR, "ms_preonset_ml_results.csv"))
+    fwrite(results_dt, file.path(OUT_DIR, glue("{COHORT}_preonset_ml_results.csv")))
 }
 
 # ── 9. Feature importance ──────────────────────────────────────────────────────
@@ -309,7 +333,7 @@ for (nm in names(model_list)) {
     imp <- tryCatch(varImp(model_list[[nm]])$importance, error = function(e) NULL)
     if (is.null(imp)) next
     imp_dt  <- as.data.table(imp, keep.rownames = "protein")
-    val_col <- intersect(c("MS","Overall", names(imp_dt)[-1]), names(imp_dt))[1]
+    val_col <- intersect(c(POS_LBL, "Overall", names(imp_dt)[-1]), names(imp_dt))[1]
     imp_dt[, importance := get(val_col)][, model := nm]
     imp_list[[nm]] <- imp_dt[, .(protein, importance, model)]
 }
@@ -322,13 +346,14 @@ if (length(imp_list) > 0) {
     p_imp <- ggplot(imp_avg, aes(x = mean_imp, y = protein_f)) +
         geom_col(fill = "#CC0066", width = 0.7) +
         labs(x = "Mean variable importance", y = NULL,
-             title = "Top features: pre-onset MS classifier") +
+             title = sprintf("Top features: pre-onset %s classifier", DISEASE)) +
         theme_ukb() +
         theme(axis.text.y = element_text(size = 7))
-    ggsave(file.path(OUT_DIR, "ms_preonset_ml_feature_importance.pdf"),
+    imp_pdf <- glue("{COHORT}_preonset_ml_feature_importance.pdf")
+    ggsave(file.path(OUT_DIR, imp_pdf),
            p_imp, width = 5, height = 5.5, device = cairo_pdf)
-    cat("  Saved: ms_preonset_ml_feature_importance.pdf\n")
-    fwrite(imp_avg, file.path(OUT_DIR, "ms_preonset_ml_feature_importance.csv"))
+    cat(sprintf("  Saved: %s\n", imp_pdf))
+    fwrite(imp_avg, file.path(OUT_DIR, glue("{COHORT}_preonset_ml_feature_importance.csv")))
 }
 
 cat("\n04_ms_preonset_ml.R complete.\n")
