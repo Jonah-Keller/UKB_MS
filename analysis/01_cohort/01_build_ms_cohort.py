@@ -1,10 +1,15 @@
-"""Build MS cohort for UKB proteomics analysis.
+"""Build disease cohort for UKB proteomics analysis (config-driven).
 
-Replicating Abdelhak et al. 2026 (Nature Medicine) cohort approach in UKB:
-  - Cases:    G35 first-occurrence (field p131042, 2,619 UKB participants)
-  - Controls: no demyelinating / epilepsy / movement / dementia codes
-  - Timing:   classify each Olink participant as pre_onset, post_onset, or control
-  - Output:   data/ukb/cohort/ms_cohort.csv
+All disease-specific constants (ICD codes, first-occurrence field, status
+column name, output filename prefix) come from configs/disease.yaml. To
+replicate this study on a different disease cohort, edit that file.
+
+Replicating Abdelhak et al. 2026 (Nature Medicine) cohort approach in UKB
+for the configured disease (default: MS / G35):
+  - Cases:    cfg.icd_codes first-occurrence (field cfg.first_occurrence_field)
+  - Controls: no codes from cfg.control_exclusion_codes
+  - Timing:   classify each Olink participant as pre_onset, post_onset, control
+  - Output:   data/ukb/cohort/{cfg.cohort_short}_cohort.csv
 
 Data sources:
   - First-occurrence dates: CADASIL repo diagnoses/ukb_first_occurrence_FINAL_*.csv
@@ -30,28 +35,48 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CADASIL_ROOT = REPO_ROOT.parent / "CADASIL_Proteome_ML_Keller_2024_Rebuttal"
 sys.path.insert(0, str(REPO_ROOT / "analysis"))
 
+from helpers.disease_config import load_disease_config
 from helpers.ukb_ms_outcomes import classify_ms_timing, years_to_ms_diagnosis
+
+cfg = load_disease_config()
+STATUS_COL = cfg.cohort_status_col
+STATUS_CONTROL = cfg.status_values["control"]
+STATUS_PRE = cfg.status_values["pre_onset"]
+STATUS_POST = cfg.status_values["post_onset"]
 
 # --- PATHS ---
 FIRST_OCC_PATH = CADASIL_ROOT / "data" / "ukb" / "diagnoses" / "ukb_first_occurrence_FINAL_20251031_144424.csv"
 OLINK_PATH = CADASIL_ROOT / "data" / "ukb" / "olink" / "i0" / "olink_instance_0_extracted_data.csv"
 AGE_INST_PATH = CADASIL_ROOT / "data" / "ukb" / "misc" / "ukb_age_of_instance.csv"
-OUTPUT_FILE = REPO_ROOT / "data" / "ukb" / "cohort" / "ms_cohort.csv"
+OUTPUT_FILE = REPO_ROOT / "data" / "ukb" / "cohort" / f"{cfg.cohort_short}_cohort.csv"
 OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-# --- FIELD MAPPING (verified Apr 2026) ---
-MS_FIELD = "first_date_icd10_p131042"   # G35 MS (2,619 participants)
+# --- FIELD MAPPING (loaded from configs/disease.yaml) ---
+# e.g. cfg.first_occurrence_field == "p131042" → "first_date_icd10_p131042" (G35 MS)
+MS_FIELD = f"first_date_icd10_{cfg.first_occurrence_field}"
 
-EXCLUSION_FIELDS = [
-    "first_date_icd10_p131042",  # G35 MS
-    "first_date_icd10_p131044",  # G36 Other acute disseminated demyelination
-    "first_date_icd10_p131046",  # G37 Other demyelinating diseases of CNS
-    "first_date_icd10_p131022",  # G20 Parkinson's disease
-    "first_date_icd10_p131024",  # G21 Secondary parkinsonism
-    "first_date_icd10_p131036",  # G30 Alzheimer's disease
-    "first_date_icd10_p131038",  # G31 Other degenerative diseases of nervous system
-    "first_date_icd10_p131048",  # G40 Epilepsy
-]
+# Control-exclusion fields: the case field plus every other disqualifying
+# first-occurrence column derived from configs/disease.yaml. Static mapping
+# of UKB ICD-10 root → first-occurrence field id (extend here as new diseases
+# are configured in disease.yaml).
+_ICD_TO_FIELD = {
+    "G12": "p131016",  # Motor neuron disease
+    "G20": "p131022",  # Parkinson's disease
+    "G21": "p131024",  # Secondary parkinsonism
+    "G30": "p131036",  # Alzheimer's disease
+    "G31": "p131038",  # Other degenerative diseases of nervous system
+    "G32": "p131040",  # Other degenerative disorders of nervous system
+    "G35": "p131042",  # Multiple sclerosis
+    "G36": "p131044",  # Other acute disseminated demyelination
+    "G37": "p131046",  # Other demyelinating diseases of CNS
+    "G40": "p131048",  # Epilepsy
+}
+
+EXCLUSION_FIELDS = sorted({
+    f"first_date_icd10_{_ICD_TO_FIELD[code]}"
+    for code in cfg.all_exclusion_codes
+    if code in _ICD_TO_FIELD
+} | {MS_FIELD})
 
 # Only read these columns from the 1582-column CSV to keep load time fast
 FIRST_OCC_COLS = ["participant_id", "sex", "year_birth", "age_recruitment",
@@ -59,7 +84,7 @@ FIRST_OCC_COLS = ["participant_id", "sex", "year_birth", "age_recruitment",
 
 
 def build_ms_cohort() -> pd.DataFrame:
-    """Build MS cohort by cross-referencing diagnoses with Olink participants."""
+    """Build disease cohort by cross-referencing diagnoses with Olink participants."""
 
     # ---- 1. Load first-occurrence dates (only needed columns) ----
     print(f"Loading first-occurrence dates: {FIRST_OCC_PATH.name}")
@@ -97,7 +122,7 @@ def build_ms_cohort() -> pd.DataFrame:
     df = first_occ[first_occ["eid"].isin(olink_eid_set)].copy()
     print(f"  {len(df):,} participants with both Olink + diagnosis data")
 
-    # ---- 5. Age at MS diagnosis (year of first G35 record - year of birth) ----
+    # ---- 5. Age at diagnosis (year of first case-ICD record - year of birth) ----
     if MS_FIELD in df.columns:
         ms_year = pd.to_datetime(df[MS_FIELD], errors="coerce").dt.year
         df["age_at_diagnosis"] = (ms_year - df["year_birth"]).where(ms_year.notna())
@@ -120,32 +145,32 @@ def build_ms_cohort() -> pd.DataFrame:
             exclusion_mask |= pd.to_datetime(df[field], errors="coerce").notna()
 
     # ---- 8. Classify (vectorized) ----
-    has_ms = df["age_at_diagnosis"].notna()
+    has_case = df["age_at_diagnosis"].notna()
     has_sampling = df["age_at_sampling"].notna()
-    is_excluded = exclusion_mask & ~has_ms
+    is_excluded = exclusion_mask & ~has_case
 
     keep = has_sampling & ~is_excluded
     df = df[keep].copy()
-    has_ms = has_ms[keep]
+    has_case = has_case[keep]
 
     # Controls
-    df["ms_status"] = "control"
+    df[STATUS_COL] = STATUS_CONTROL
     df["years_to_diagnosis"] = np.nan
 
-    # MS cases
-    ms_idx = df.index[has_ms[keep]]
-    age_samp_ms = df.loc[ms_idx, "age_at_sampling"]
-    age_dx_ms = df.loc[ms_idx, "age_at_diagnosis"]
-    ytd = age_dx_ms - age_samp_ms  # positive = presymptomatic
-    df.loc[ms_idx, "ms_status"] = ytd.apply(
-        lambda y: "pre_onset" if y > 0 else "post_onset"
+    # Cases
+    case_idx = df.index[has_case[keep]]
+    age_samp_case = df.loc[case_idx, "age_at_sampling"]
+    age_dx_case = df.loc[case_idx, "age_at_diagnosis"]
+    ytd = age_dx_case - age_samp_case  # positive = presymptomatic
+    df.loc[case_idx, STATUS_COL] = ytd.apply(
+        lambda y: STATUS_PRE if y > 0 else STATUS_POST
     )
-    df.loc[ms_idx, "years_to_diagnosis"] = ytd.round(2)
+    df.loc[case_idx, "years_to_diagnosis"] = ytd.round(2)
 
     # Clear age_at_diagnosis for controls
-    df.loc[~has_ms[keep], "age_at_diagnosis"] = np.nan
+    df.loc[~has_case[keep], "age_at_diagnosis"] = np.nan
 
-    out = df[["eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
+    out = df[["eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
               "years_to_diagnosis", "sex"]].copy()
     out["age_at_sampling"] = out["age_at_sampling"].round(2)
     out["age_at_diagnosis"] = out["age_at_diagnosis"].round(2)
@@ -154,15 +179,15 @@ def build_ms_cohort() -> pd.DataFrame:
 
 
 def print_summary(cohort: pd.DataFrame) -> None:
-    print("\n=== MS Cohort Summary ===")
-    counts = cohort["ms_status"].value_counts()
-    n_pre = counts.get("pre_onset", 0)
-    n_post = counts.get("post_onset", 0)
-    n_hc = counts.get("control", 0)
+    print(f"\n=== {cfg.disease_short_caps} Cohort Summary ===")
+    counts = cohort[STATUS_COL].value_counts()
+    n_pre = counts.get(STATUS_PRE, 0)
+    n_post = counts.get(STATUS_POST, 0)
+    n_hc = counts.get(STATUS_CONTROL, 0)
     print(f"Total participants:  {len(cohort):,}")
-    print(f"MS cases:           {n_pre + n_post:,}")
+    print(f"{cfg.disease_short_caps} cases:           {n_pre + n_post:,}")
     if n_pre > 0:
-        med_ytd = cohort.loc[cohort["ms_status"] == "pre_onset",
+        med_ytd = cohort.loc[cohort[STATUS_COL] == STATUS_PRE,
                              "years_to_diagnosis"].median()
         print(f"  Pre-onset:        {n_pre:,}  (median {med_ytd:.1f} yrs before Dx)")
     print(f"  Post-onset:       {n_post:,}")
@@ -173,7 +198,7 @@ def print_summary(cohort: pd.DataFrame) -> None:
 
 
 def main() -> None:
-    print("Building MS cohort from real UKB data...")
+    print(f"Building {cfg.disease_short_caps} cohort from real UKB data...")
     cohort = build_ms_cohort()
     cohort.to_csv(OUTPUT_FILE, index=False)
     print_summary(cohort)

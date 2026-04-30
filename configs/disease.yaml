@@ -28,14 +28,18 @@ cohort_status_col: "ms_status"              # column name written by 01_cohort
 status_values:
   pre_onset: "pre_onset"
   post_onset: "post_onset"
-  control: "hc"
+  control: "control"          # value written to cohort_status_col for non-cases
 
-# Codes that disqualify a participant from the control pool
+# Codes that disqualify a participant from the control pool.
+# Read by analysis/helpers/ukb_disease_outcomes.py and analysis/01_cohort/.
+# Group keys are arbitrary labels for documentation; the cohort builder
+# unions them via cfg.all_exclusion_codes.
 control_exclusion_codes:
-  demyelinating: ["G35", "G36", "G37"]
-  epilepsy:      ["G40", "G41"]
-  movement:      ["G20", "G21", "G22", "G23", "G24", "G25", "G26"]
-  dementia:      ["F00", "F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09"]
+  demyelinating:    ["G35", "G36", "G37"]
+  epilepsy:         ["G40", "G41"]
+  movement:         ["G20", "G21", "G22", "G23", "G24", "G25", "G26"]
+  dementia:         ["F00", "F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09"]
+  neurodegen_g3x:   ["G30", "G31"]   # G30 Alzheimer's, G31 other neurodegenerative
 
 # ── HLA risk locus ─────────────────────────────────────────────────────────
 # Read by analysis/07_hla_subgroup/ and analysis/03_covariates/

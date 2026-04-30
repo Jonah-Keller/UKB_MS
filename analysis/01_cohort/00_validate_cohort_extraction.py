@@ -31,16 +31,31 @@ from scipy import stats
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CADASIL_ROOT = REPO_ROOT.parent / "CADASIL_Proteome_ML_Keller_2024_Rebuttal"
+sys.path.insert(0, str(REPO_ROOT / "analysis"))
+
+from helpers.disease_config import load_disease_config
+
+cfg = load_disease_config()
+DISEASE_STATUS_COL = cfg.cohort_status_col
+DISEASE_STATUS_CONTROL = cfg.status_values["control"]
 
 # --- PATHS ---
-MS_COHORT = REPO_ROOT / "data" / "ukb" / "cohort" / "ms_cohort.csv"
+DISEASE_COHORT = REPO_ROOT / "data" / "ukb" / "cohort" / f"{cfg.cohort_short}_cohort.csv"
 ALS_COHORT = REPO_ROOT / "data" / "ukb" / "cohort" / "als_cohort.csv"
-MS_OLINK_QC = REPO_ROOT / "data" / "ukb" / "olink" / "processed" / "ms_olink_qc.csv"
+DISEASE_OLINK_QC = REPO_ROOT / "data" / "ukb" / "olink" / "processed" / f"{cfg.cohort_short}_olink_qc.csv"
 ALS_OLINK_QC = REPO_ROOT / "data" / "ukb" / "olink" / "processed" / "als_olink_qc.csv"
 
-# Ground truth ICD-10 code tables
+# Ground truth ICD-10 code tables. The primary case table is resolved from the
+# first configured ICD code (e.g. G35 → G/G3/G35/G35.csv). ALS is a secondary
+# comparison cohort and remains hardcoded.
+def _icd_table_path(code: str) -> Path:
+    """Resolve CADASIL repo path for a given ICD-10 code (e.g. 'G35')."""
+    letter = code[0]
+    bucket = f"{letter}{code[1]}" if len(code) > 1 else letter
+    return CADASIL_ROOT / "data" / "ukb" / "diagnoses" / "icd_codes" / letter / bucket / code / f"{code}.csv"
+
+DISEASE_ICD_TABLE = _icd_table_path(cfg.icd_codes[0])
 G12_ICD = CADASIL_ROOT / "data" / "ukb" / "diagnoses" / "icd_codes" / "G" / "G1" / "G12" / "G12.csv"
-G35_ICD = CADASIL_ROOT / "data" / "ukb" / "diagnoses" / "icd_codes" / "G" / "G3" / "G35" / "G35.csv"
 ALGO_MND = CADASIL_ROOT / "data" / "ukb" / "diagnoses" / "algorithmic_outcomes" / "ALGO_MOTOR_NEURONE_DISEASE" / "ALGO_MOTOR_NEURONE_DISEASE.csv"
 
 # Olink data
@@ -50,6 +65,14 @@ OLINK_PATH = CADASIL_ROOT / "data" / "ukb" / "olink" / "i0" / "olink_instance_0_
 OUT_DIR = REPO_ROOT / "results" / "validation"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Per-cohort metadata: (label, cohort path, status col, control label).
+# The disease cohort is configured via disease.yaml; ALS is a fixed
+# secondary comparison cohort.
+COHORT_PANELS = [
+    (cfg.disease_short_caps, DISEASE_COHORT, DISEASE_STATUS_COL, DISEASE_STATUS_CONTROL),
+    ("ALS",                  ALS_COHORT,     "als_status",       "control"),
+]
+
 
 def validate_icd_overlap():
     """Cross-reference our cohort EIDs with the granular ICD-10 tables."""
@@ -57,17 +80,23 @@ def validate_icd_overlap():
     print("VALIDATION 1: ICD-10 Code Cross-Reference")
     print("=" * 60)
 
-    # --- MS Validation ---
-    ms_cohort = pd.read_csv(MS_COHORT)
-    ms_cases = ms_cohort[ms_cohort["ms_status"] != "control"]["eid"].values
+    # --- Disease Validation (MS by default; configured via disease.yaml) ---
+    disease_label = cfg.disease_short_caps
+    primary_icd = cfg.icd_codes[0]
+    disease_cohort = pd.read_csv(DISEASE_COHORT)
+    disease_cases = disease_cohort[
+        disease_cohort[DISEASE_STATUS_COL] != DISEASE_STATUS_CONTROL
+    ]["eid"].values
 
-    g35_icd = pd.read_csv(G35_ICD)
-    g35_eids = set(g35_icd["eid"].values)
+    icd_truth = pd.read_csv(DISEASE_ICD_TABLE)
+    icd_truth_eids = set(icd_truth["eid"].values)
 
-    ms_in_g35 = len(set(ms_cases) & g35_eids)
-    print(f"\nMS Cases in our cohort: {len(ms_cases)}")
-    print(f"G35 ICD-10 code table: {len(g35_eids)} total UKB participants")
-    print(f"Our MS cases found in G35 table: {ms_in_g35}/{len(ms_cases)} ({100*ms_in_g35/max(len(ms_cases),1):.1f}%)")
+    cases_in_truth = len(set(disease_cases) & icd_truth_eids)
+    print(f"\n{disease_label} Cases in our cohort: {len(disease_cases)}")
+    print(f"{primary_icd} ICD-10 code table: {len(icd_truth_eids)} total UKB participants")
+    print(f"Our {disease_label} cases found in {primary_icd} table: "
+          f"{cases_in_truth}/{len(disease_cases)} "
+          f"({100*cases_in_truth/max(len(disease_cases),1):.1f}%)")
 
     # --- ALS Validation ---
     als_cohort = pd.read_csv(ALS_COHORT)
@@ -147,10 +176,7 @@ def validate_nefl_signal():
 
     results = []
 
-    for disease, cohort_path, status_col in [
-        ("MS", MS_COHORT, "ms_status"),
-        ("ALS", ALS_COHORT, "als_status"),
-    ]:
+    for disease, cohort_path, status_col, control_label in COHORT_PANELS:
         cohort = pd.read_csv(cohort_path)
         cohort["eid"] = cohort["eid"].astype(int)
         merged = cohort.merge(olink, on="eid", how="inner")
@@ -160,8 +186,8 @@ def validate_nefl_signal():
             if protein not in merged.columns:
                 continue
 
-            cases = merged.loc[merged[status_col] != "control", protein].dropna()
-            controls = merged.loc[merged[status_col] == "control", protein].dropna()
+            cases = merged.loc[merged[status_col] != control_label, protein].dropna()
+            controls = merged.loc[merged[status_col] == control_label, protein].dropna()
 
             if len(cases) < 2 or len(controls) < 2:
                 continue
@@ -202,24 +228,23 @@ def validate_nefl_signal():
     if results:
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-        for idx, disease in enumerate(["MS", "ALS"]):
+        for idx, (disease, cohort_path, status_col, control_label) in enumerate(COHORT_PANELS):
             ax = axes[idx]
-            cohort = pd.read_csv(MS_COHORT if disease == "MS" else ALS_COHORT)
-            status_col = "ms_status" if disease == "MS" else "als_status"
+            cohort = pd.read_csv(cohort_path)
             cohort["eid"] = cohort["eid"].astype(int)
             merged = cohort.merge(olink, on="eid", how="inner")
 
             if "NEFL" in merged.columns:
-                order = ["control", "pre_onset", "post_onset"]
+                order = [control_label, "pre_onset", "post_onset"]
                 available = [s for s in order if s in merged[status_col].values]
-                colors = {"control": "#3498DB", "pre_onset": "#E67E22", "post_onset": "#E74C3C"}
+                colors = {control_label: "#3498DB", "pre_onset": "#E67E22", "post_onset": "#E74C3C"}
                 palette = [colors[s] for s in available]
 
                 sns.violinplot(data=merged, x=status_col, y="NEFL",
                               order=available, palette=palette, alpha=0.6, ax=ax)
-                sns.stripplot(data=merged[merged[status_col] != "control"],
+                sns.stripplot(data=merged[merged[status_col] != control_label],
                               x=status_col, y="NEFL",
-                              order=[s for s in available if s != "control"],
+                              order=[s for s in available if s != control_label],
                               color="black", alpha=0.5, size=3, ax=ax)
 
                 ax.set_title(f"{disease} — NEFL (Neurofilament Light Chain)")

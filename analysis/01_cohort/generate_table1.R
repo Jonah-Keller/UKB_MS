@@ -1,33 +1,46 @@
 #!/usr/bin/env Rscript
 # generate_table1.R — Cohort characteristics table for manuscript Table 1
+# (config-driven; disease/HLA/PRS labels read from configs/disease.yaml)
 #
 # Output: manuscript/submission/_build_intermediates/Table_1_Cohort.csv
 #
-# Columns: Healthy Controls | Pre-onset MS | Post-onset MS
+# Columns: Healthy Controls | Pre-onset {disease} | Post-onset {disease}
 # Rows:    N, age at blood draw, sex, BMI, smoking, diabetes,
-#          HLA-DRB1*15:01 carrier, MS PRS, timing variables
+#          HLA carrier, disease PRS, timing variables
 
-suppressPackageStartupMessages(library(data.table))
+suppressPackageStartupMessages({
+  library(data.table)
+  library(here)
+  library(glue)
+})
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-CADASIL_DIR <- file.path(dirname(PROJ_DIR),
-                         "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
-                         "data", "ukb")
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-QC_FILE   <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-HLA_FILE  <- file.path(PROJ_DIR, "data", "ukb", "genetics", "hla_drb1_imputed.csv")
-PRS_FILE  <- file.path(PROJ_DIR, "data", "ukb", "genetics", "ms_prs_scores.csv")
-OUT_FILE  <- file.path(PROJ_DIR, "manuscript", "submission", "_build_intermediates",
+STATUS_COL     <- cfg$cohort_status_col
+STATUS_CONTROL <- cfg$status_values$control
+STATUS_PRE     <- cfg$status_values$pre_onset
+STATUS_POST    <- cfg$status_values$post_onset
+
+QC_FILE  <- here::here("data", "ukb", "olink", "processed",
+                       glue::glue("{cfg$cohort_short}_olink_qc.csv"))
+HLA_FILE <- here::here("data", "ukb", "genetics", "hla_drb1_imputed.csv")
+PRS_FILE <- here::here("data", "ukb", "genetics",
+                       glue::glue("{cfg$cohort_short}_prs_scores.csv"))
+OUT_FILE <- here::here("manuscript", "submission", "_build_intermediates",
                        "Table_1_Cohort.csv")
+
+# Sibling repo (CADASIL) provides covariate tables; resolve relative to project root.
+CADASIL_DIR <- normalizePath(file.path(here::here(), "..",
+                                       "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
+                                       "data", "ukb"),
+                             mustWork = FALSE)
 
 dir.create(dirname(OUT_FILE), showWarnings = FALSE, recursive = TRUE)
 
 # ── 1. Load QC data ──────────────────────────────────────────────────────────
 cat("Loading QC data...\n")
-keep_cols <- c("eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
+keep_cols <- c("eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
                "years_to_diagnosis", "sex", "olink_instance", "qc_outlier")
 qc <- fread(QC_FILE, select = intersect(keep_cols, names(fread(QC_FILE, nrows = 0))))
 qc <- qc[qc_outlier == FALSE]
@@ -62,33 +75,35 @@ cat(sprintf("  BMI: %d/%d  Smoking: %d/%d  Diabetes: %d/%d\n",
             sum(!is.na(qc$ever_smoker)), nrow(qc),
             sum(!is.na(qc$diabetes)), nrow(qc)))
 
-# ── 3. Merge HLA-DRB1*15:01 ──────────────────────────────────────────────────
+# ── 3. Merge HLA carrier ─────────────────────────────────────────────────────
+hla_col <- cfg$hla_carrier_col
 if (file.exists(HLA_FILE)) {
-    cat("Loading HLA-DRB1*15:01...\n")
+    cat(sprintf("Loading HLA-%s...\n", cfg$hla_allele))
     hla <- fread(HLA_FILE, showProgress = FALSE)
-    qc <- merge(qc, hla[, .(eid, drb1_1501_carrier)], by = "eid", all.x = TRUE)
-    cat(sprintf("  HLA: %d/%d\n", sum(!is.na(qc$drb1_1501_carrier)), nrow(qc)))
+    qc <- merge(qc, hla[, .SD, .SDcols = c("eid", hla_col)], by = "eid", all.x = TRUE)
+    cat(sprintf("  HLA: %d/%d\n", sum(!is.na(qc[[hla_col]])), nrow(qc)))
 } else {
-    qc[, drb1_1501_carrier := NA_integer_]
+    qc[, (hla_col) := NA_integer_]
     cat("  HLA file not found — skipping\n")
 }
 
-# ── 4. Merge MS PRS ──────────────────────────────────────────────────────────
+# ── 4. Merge disease PRS ─────────────────────────────────────────────────────
+prs_col <- cfg$prs_combined_col
 if (file.exists(PRS_FILE)) {
-    cat("Loading MS PRS...\n")
+    cat(sprintf("Loading %s...\n", cfg$prs_label))
     prs <- fread(PRS_FILE, showProgress = FALSE)
-    qc <- merge(qc, prs[, .(eid, prs_score)], by = "eid", all.x = TRUE)
-    cat(sprintf("  PRS: %d/%d\n", sum(!is.na(qc$prs_score)), nrow(qc)))
+    qc <- merge(qc, prs[, .SD, .SDcols = c("eid", prs_col)], by = "eid", all.x = TRUE)
+    cat(sprintf("  PRS: %d/%d\n", sum(!is.na(qc[[prs_col]])), nrow(qc)))
 } else {
-    qc[, prs_score := NA_real_]
+    qc[, (prs_col) := NA_real_]
     cat("  PRS file not found — skipping\n")
 }
 
 # sex: 0 = female, 1 = male (UKB field 31 convention)
 groups <- list(
-  hc   = qc[ms_status == "control"],
-  pre  = qc[ms_status == "pre_onset"],
-  post = qc[ms_status == "post_onset"]
+  hc   = qc[get(STATUS_COL) == STATUS_CONTROL],
+  pre  = qc[get(STATUS_COL) == STATUS_PRE],
+  post = qc[get(STATUS_COL) == STATUS_POST]
 )
 
 # ── Formatting helpers ────────────────────────────────────────────────────────
@@ -139,27 +154,27 @@ rows <- list(
     npct(groups$pre$diabetes,  groups$pre$diabetes  == 1),
     npct(groups$post$diabetes, groups$post$diabetes == 1)),
 
-  c("HLA-DRB1*15:01 carrier, n (%)",
-    npct(groups$hc$drb1_1501_carrier,   groups$hc$drb1_1501_carrier   == 1),
-    npct(groups$pre$drb1_1501_carrier,  groups$pre$drb1_1501_carrier  == 1),
-    npct(groups$post$drb1_1501_carrier, groups$post$drb1_1501_carrier == 1)),
+  c(glue::glue("HLA-{cfg$hla_allele} carrier, n (%)"),
+    npct(groups$hc[[hla_col]],   groups$hc[[hla_col]]   == 1),
+    npct(groups$pre[[hla_col]],  groups$pre[[hla_col]]  == 1),
+    npct(groups$post[[hla_col]], groups$post[[hla_col]] == 1)),
 
-  c("MS polygenic risk score, median (IQR)",
-    miqr(groups$hc$prs_score),
-    miqr(groups$pre$prs_score),
-    miqr(groups$post$prs_score)),
+  c(glue::glue("{cfg$disease_short_caps} polygenic risk score, median (IQR)"),
+    miqr(groups$hc[[prs_col]]),
+    miqr(groups$pre[[prs_col]]),
+    miqr(groups$post[[prs_col]])),
 
-  c("Age at MS diagnosis, median (IQR), years",
+  c(glue::glue("Age at {cfg$disease_short_caps} diagnosis, median (IQR), years"),
     "\u2014",
     miqr(groups$pre$age_at_diagnosis),
     miqr(groups$post$age_at_diagnosis)),
 
-  c("Years before MS diagnosis (pre-onset), median (IQR)",
+  c(glue::glue("Years before {cfg$disease_short_caps} diagnosis (pre-onset), median (IQR)"),
     "\u2014",
     miqr(groups$pre$years_to_diagnosis),
     "\u2014"),
 
-  c("Years since MS diagnosis (post-onset), median (IQR)",
+  c(glue::glue("Years since {cfg$disease_short_caps} diagnosis (post-onset), median (IQR)"),
     "\u2014",
     "\u2014",
     miqr(abs(groups$post$years_to_diagnosis)))
@@ -168,8 +183,8 @@ rows <- list(
 col_names <- c(
   "Characteristic",
   sprintf("Healthy Controls (n=%s)", format(nrow(groups$hc), big.mark = ",")),
-  sprintf("Pre-onset MS (n=%s)",      format(nrow(groups$pre), big.mark = ",")),
-  sprintf("Post-onset MS (n=%s)",     format(nrow(groups$post), big.mark = ","))
+  sprintf("Pre-onset %s (n=%s)",  cfg$disease_short_caps, format(nrow(groups$pre), big.mark = ",")),
+  sprintf("Post-onset %s (n=%s)", cfg$disease_short_caps, format(nrow(groups$post), big.mark = ","))
 )
 
 tbl <- as.data.frame(do.call(rbind, rows), stringsAsFactors = FALSE)
