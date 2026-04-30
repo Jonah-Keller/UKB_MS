@@ -9,6 +9,7 @@ suppressPackageStartupMessages({
     library(ggrepel)
     library(patchwork)
     library(splines)
+    library(glue)
 })
 HAS_GGSIGNIF <- requireNamespace("ggsignif", quietly = TRUE)
 if (HAS_GGSIGNIF) suppressPackageStartupMessages(library(ggsignif))
@@ -27,6 +28,21 @@ PROJ_DIR <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
+HLA_CARRIER  <- cfg$hla_carrier_col
+HLA_DOSAGE   <- cfg$hla_dosage_col
+PRS_COL      <- cfg$prs_combined_col
+HLA_ALLELE   <- cfg$hla_allele
+HLA_LBL      <- paste0("HLA-", HLA_ALLELE)
+PRS_LABEL    <- cfg$prs_label
+PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
+POST_LBL     <- glue("post-{DISEASE_CAPS}")
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "3")
 SUPP_DIR <- file.path(PROJ_DIR, "results", "figures", "3_supp")
@@ -56,19 +72,19 @@ ENDO_DIR  <- file.path(PROJ_DIR, "results", "endophenotype")
 PRS_DIR   <- file.path(PROJ_DIR, "results", "prs")
 DIFF_DIR  <- file.path(PROJ_DIR, "results", "differential")
 
-QC_FILE       <- file.path(DATA_DIR,  "ms_olink_qc.csv")
+QC_FILE       <- file.path(DATA_DIR,  glue("{COHORT}_olink_qc.csv"))
 HLA_FILE      <- file.path(GEN_DIR,   "hla_imputed.csv")
-PRS_FILE      <- file.path(GEN_DIR,   "ms_prs_scores.csv")
-HLA_DEP_FILE  <- file.path(ENDO_DIR,  "ms_hla_dep_results.csv")
-HLA_INT_FILE      <- file.path(ENDO_DIR, "ms_hla_interaction_all.csv")
-HLA_INT_PRE_FILE  <- file.path(ENDO_DIR, "ms_hla_interaction_pre.csv")
-HLA_INT_POST_FILE <- file.path(ENDO_DIR, "ms_hla_interaction_post.csv")
-HLA_STR_FILE  <- file.path(ENDO_DIR,  "ms_hla_stratified_logfc.csv")
-COMOR_FILE    <- file.path(ENDO_DIR,  "ms_hla_prems_comorbidity.csv")
-PRS_RES_FILE  <- file.path(PRS_DIR,   "ms_prs_results.csv")
+PRS_FILE      <- file.path(GEN_DIR,   glue("{COHORT}_prs_scores.csv"))
+HLA_DEP_FILE  <- file.path(ENDO_DIR,  glue("{COHORT}_hla_dep_results.csv"))
+HLA_INT_FILE      <- file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_all.csv"))
+HLA_INT_PRE_FILE  <- file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_pre.csv"))
+HLA_INT_POST_FILE <- file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_post.csv"))
+HLA_STR_FILE  <- file.path(ENDO_DIR,  glue("{COHORT}_hla_stratified_logfc.csv"))
+COMOR_FILE    <- file.path(ENDO_DIR,  glue("{COHORT}_hla_prems_comorbidity.csv"))
+PRS_RES_FILE  <- file.path(PRS_DIR,   glue("{COHORT}_prs_results.csv"))
 TRAJ_FILE     <- file.path(DIFF_DIR,  "cns_trajectories.csv")
-SEX_STRAT_FILE <- file.path(ENDO_DIR, "ms_sex_stratified_genetic.csv")
-PRS_INT_FILE   <- file.path(ENDO_DIR, "ms_prs_interaction_genome.csv")
+SEX_STRAT_FILE <- file.path(ENDO_DIR, glue("{COHORT}_sex_stratified_genetic.csv"))
+PRS_INT_FILE   <- file.path(ENDO_DIR, glue("{COHORT}_prs_interaction_genome.csv"))
 
 # ---------------------------------------------------------------------------
 # Load shared data
@@ -76,7 +92,13 @@ PRS_INT_FILE   <- file.path(ENDO_DIR, "ms_prs_interaction_genome.csv")
 cat("Loading data...\n")
 
 qc      <- fread(QC_FILE)
+if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+    setnames(qc, STATUS_COL, "ms_status")
 hla     <- fread(HLA_FILE)
+if (HLA_CARRIER != "drb1_1501_carrier" && HLA_CARRIER %in% names(hla))
+    setnames(hla, HLA_CARRIER, "drb1_1501_carrier")
+if (HLA_DOSAGE != "drb1_1501_dosage" && HLA_DOSAGE %in% names(hla))
+    setnames(hla, HLA_DOSAGE, "drb1_1501_dosage")
 hla_dep <- fread(HLA_DEP_FILE)
 hla_dep[, fdr := p.adjust(P.Value, method = "BH")]
 
@@ -124,14 +146,16 @@ if (!file.exists(ENRICH_FILE)) {
         idx  > 230, "HLA-DRB1"
     )]
 
+    RISK_LBL <- glue("Risk (enriched in {DISEASE_CAPS})")
+    PROT_LBL <- glue("Protective (depleted in {DISEASE_CAPS})")
     enr[, sig := fdr < 0.05]
     enr[, direction := fcase(
-        sig & enrichment > 0, "Risk (enriched in MS)",
-        sig & enrichment < 0, "Protective (depleted in MS)",
+        sig & enrichment > 0, RISK_LBL,
+        sig & enrichment < 0, PROT_LBL,
         !sig,                  "NS"
     )]
     enr[, direction := factor(direction,
-        levels = c("Risk (enriched in MS)", "Protective (depleted in MS)", "NS"))]
+        levels = c(RISK_LBL, PROT_LBL, "NS"))]
 
     # Drop LD-redundant alleles (keep_ld == FALSE); NAs are non-sig alleles → keep
     if ("keep_ld" %in% names(enr)) {
@@ -149,16 +173,13 @@ if (!file.exists(ENRICH_FILE)) {
 
     # Only label the two canonical alleles
     enr_plot[, plot_label := fcase(
-        idx == 281L & fdr < 0.05, "DRB1*15:01",
+        idx == 281L & fdr < 0.05, HLA_ALLELE,
         idx == 3L   & fdr < 0.05, "HLA-A*02:01",
         default = ""
     )]
 
-    DOT_COLS <- c(
-        "Risk (enriched in MS)"       = "#CC0066",
-        "Protective (depleted in MS)" = COL_POST_DOWN,
-        "NS"                          = "grey75"
-    )
+    DOT_COLS <- setNames(c("#CC0066", COL_POST_DOWN, "grey75"),
+                         c(RISK_LBL, PROT_LBL, "NS"))
 
     fdr_line <- -log10(0.05)
 
@@ -188,8 +209,8 @@ if (!file.exists(ENRICH_FILE)) {
         ) +
         scale_y_continuous(expand = expansion(mult = c(0.05, 0.15))) +
         labs(
-            title   = "a  HLA allele specificity: MS risk and protection",
-            x       = "MS vs HC carrier rate difference",
+            title   = glue("a  HLA allele specificity: {DISEASE_CAPS} risk and protection"),
+            x       = glue("{DISEASE_CAPS} vs HC carrier rate difference"),
             y       = expression(-log[10]~FDR),
         ) +
         theme_ukb(base_size = 9) +
@@ -270,7 +291,7 @@ pB_main <- ggplot(vol_b, aes(x = logFC, y = neg_log10_p)) +
     ) +
     scale_colour_manual(values = VOL_B_COLS, name = NULL) +
     labs(
-        title = "b  HLA+ vs HLA\u2212 within MS (DRB1*15:01)",
+        title = glue("b  HLA+ vs HLA\u2212 within {DISEASE_CAPS} ({HLA_ALLELE})"),
         x     = expression(log[2]~"FC (HLA+ vs HLA\u2212)"),
         y     = expression(-log[10]~italic(P))
     ) +
@@ -332,7 +353,7 @@ if (!is.null(sex_strat) && "hla_within_ms" %in% sex_strat$analysis) {
     # Save sex comparison as its own panel (larger, standalone)
     pB_ins_full <- pB_ins +
         labs(
-            title    = "c  Within-MS HLA effect: female vs male concordance",
+            title    = glue("c  Within-{DISEASE_CAPS} HLA effect: female vs male concordance"),
             subtitle = "Nominal p<0.05 in female only / male only / both | diagonal = perfect concordance",
             x        = "Female logFC (HLA+ vs HLA\u2212)",
             y        = "Male logFC (HLA+ vs HLA\u2212)"
@@ -365,30 +386,32 @@ top6_c <- hla_dep[P.Value < 0.05][order(-abs(logFC))][seq_len(min(6, .N)), tolow
 
 vio_base <- qc_hla[
     qc_outlier == FALSE &
-        ms_status %in% c("pre_onset", "post_onset", "control") &
+        ms_status %in% c(SV$pre_onset, SV$post_onset, SV$control) &
         !is.na(drb1_1501_carrier)
 ]
+HC_NEG_LBL <- "HC HLA\u2212"
+HC_POS_LBL <- "HC HLA+"
+MS_NEG_LBL <- glue("{DISEASE_CAPS} HLA\u2212")
+MS_POS_LBL <- glue("{DISEASE_CAPS} HLA+")
 vio_base[, group4 := fcase(
-    ms_status == "control" & drb1_1501_carrier == 0, "HC HLA\u2212",
-    ms_status == "control" & drb1_1501_carrier == 1, "HC HLA+",
-    ms_status != "control" & drb1_1501_carrier == 0, "MS HLA\u2212",
-    ms_status != "control" & drb1_1501_carrier == 1, "MS HLA+"
+    ms_status == SV$control & drb1_1501_carrier == 0, HC_NEG_LBL,
+    ms_status == SV$control & drb1_1501_carrier == 1, HC_POS_LBL,
+    ms_status != SV$control & drb1_1501_carrier == 0, MS_NEG_LBL,
+    ms_status != SV$control & drb1_1501_carrier == 1, MS_POS_LBL
 )]
 vio_base[, group4 := factor(group4,
-    levels = c("HC HLA\u2212", "HC HLA+", "MS HLA\u2212", "MS HLA+"))]
+    levels = c(HC_NEG_LBL, HC_POS_LBL, MS_NEG_LBL, MS_POS_LBL))]
 
-VIO_FILLS <- c(
-    "HC HLA\u2212" = "grey72",
-    "HC HLA+"      = "grey45",
-    "MS HLA\u2212" = "#2B4C7E",
-    "MS HLA+"      = "#E6A817"
+VIO_FILLS <- setNames(
+    c("grey72", "grey45", "#2B4C7E", "#E6A817"),
+    c(HC_NEG_LBL, HC_POS_LBL, MS_NEG_LBL, MS_POS_LBL)
 )
 
 # Three biologically meaningful comparisons
 COMPS_C <- list(
-    c("HC HLA\u2212", "MS HLA\u2212"),
-    c("HC HLA+",      "MS HLA+"),
-    c("MS HLA\u2212", "MS HLA+")
+    c(HC_NEG_LBL, MS_NEG_LBL),
+    c(HC_POS_LBL, MS_POS_LBL),
+    c(MS_NEG_LBL, MS_POS_LBL)
 )
 
 avail_prot_c <- intersect(top6_c, names(vio_base))
@@ -515,7 +538,7 @@ pD <- ggplot(strat_d, aes(x = logFC_hlaneg, y = logFC_hlapos,
         name   = NULL
     ) +
     labs(
-        title = "e  MS effect: HLA\u2212 vs HLA+ background",
+        title = glue("e  {DISEASE_CAPS} effect: HLA\u2212 vs HLA+ background"),
         x     = expression(log[2]~"FC (HLA\u2212 background)"),
         y     = expression(log[2]~"FC (HLA+ background)")
     ) +
@@ -583,8 +606,8 @@ tryCatch({
                                guide = guide_legend(override.aes = list(colour = "grey40"))) +
         scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
         labs(title    = "f  GO:BP enrichment \u2014 HLA-stratified DEPs",
-             subtitle = sprintf("Nominal p<0.05 HLA\u00b1 within MS: %d up in HLA+, %d down in HLA+",
-                                length(hla_up), length(hla_down)),
+             subtitle = sprintf("Nominal p<0.05 HLA\u00b1 within %s: %d up in HLA+, %d down in HLA+",
+                                DISEASE_CAPS, length(hla_up), length(hla_down)),
              x = "Fold enrichment", y = NULL) +
         theme_ukb(base_size = 9) +
         theme(axis.text.y    = element_text(size = 7),
@@ -623,7 +646,7 @@ HLA_TRAJ_COLS   <- c("HLA+" = "#E6A817", "HLA\u2212" = "#2B4C7E")
 YTD_LMN_RANGE   <- c(-15, 15)
 
 ms_traj <- qc_hla[
-    ms_status %in% c("pre_onset", "post_onset") &
+    ms_status %in% c(SV$pre_onset, SV$post_onset) &
     qc_outlier == FALSE &
     !is.na(drb1_1501_carrier) &
     !is.na(years_to_diagnosis)
@@ -632,8 +655,8 @@ ms_traj[, ytd_display := -years_to_diagnosis]
 ms_traj <- ms_traj[ytd_display >= YTD_LMN_RANGE[1] & ytd_display <= YTD_LMN_RANGE[2]]
 cat(sprintf("  MS for trajectory: n=%d (pre=%d, post=%d)\n",
     nrow(ms_traj),
-    sum(ms_traj$ms_status == "pre_onset"),
-    sum(ms_traj$ms_status == "post_onset")))
+    sum(ms_traj$ms_status == SV$pre_onset),
+    sum(ms_traj$ms_status == SV$post_onset)))
 
 x_grid_lmn <- seq(YTD_LMN_RANGE[1], YTD_LMN_RANGE[2], length.out = 200)
 
@@ -703,8 +726,8 @@ for (prot in TRAJ_HLA_PROTS) {
         scale_fill_manual(values = HLA_TRAJ_COLS, name = NULL, guide = "none") +
         scale_x_continuous(breaks = seq(-12, 12, by = 4)) +
         labs(
-            title = sprintf("%s  %s: disease-course trajectory by HLA status (DRB1*15:01)", pan_ltr, prot),
-            x     = "Years relative to MS diagnosis",
+            title = sprintf("%s  %s: disease-course trajectory by HLA status (%s)", pan_ltr, prot, HLA_ALLELE),
+            x     = glue("Years relative to {DISEASE_CAPS} diagnosis"),
             y     = paste0(prot, " (NPX)")
         ) +
         theme_ukb(base_size = 9) +
@@ -791,7 +814,7 @@ if ("lilrb4" %in% names(ms_traj)) {
             scale_x_continuous(breaks = seq(-12, 12, by = 4)) +
             labs(
                 title = "h  LILRB4 trajectory by HLA status: female vs male",
-                x     = "Years relative to MS diagnosis",
+                x     = glue("Years relative to {DISEASE_CAPS} diagnosis"),
                 y     = "LILRB4 (NPX)"
             ) +
             theme_ukb(base_size = 9) +
@@ -877,9 +900,11 @@ PRS_TRAJ_PROT <- "il2ra"
 
 if (file.exists(PRS_FILE) && PRS_TRAJ_PROT %in% names(qc)) {
     prs_scores_j <- fread(PRS_FILE, showProgress = FALSE)
+    if (PRS_COL != "prs_score" && PRS_COL %in% names(prs_scores_j))
+        setnames(prs_scores_j, PRS_COL, "prs_score")
     ms_prs_traj  <- merge(
         qc[qc_outlier == FALSE &
-           ms_status %in% c("pre_onset", "post_onset") &
+           ms_status %in% c(SV$pre_onset, SV$post_onset) &
            !is.na(years_to_diagnosis)],
         prs_scores_j[, .(eid, prs_score)],
         by = "eid"
@@ -946,7 +971,7 @@ if (file.exists(PRS_FILE) && PRS_TRAJ_PROT %in% names(qc)) {
                     title    = paste0("j  ", toupper(PRS_TRAJ_PROT),
                                       ": disease-course trajectory by PRS quartile"),
                     subtitle = "Top PRS-proteome hit (panel i, FDR<10\u207b\u00b3\u2079) | Q1=lowest, Q4=highest genetic risk | age + sex adjusted",
-                    x        = "Years relative to MS diagnosis",
+                    x        = glue("Years relative to {DISEASE_CAPS} diagnosis"),
                     y        = paste0(toupper(PRS_TRAJ_PROT), " (NPX)")
                 ) +
                 theme_ukb(base_size = 9) +
@@ -956,7 +981,7 @@ if (file.exists(PRS_FILE) && PRS_TRAJ_PROT %in% names(qc)) {
             save_panel(pJ_new, sprintf("j_%s_prs_trajectory", PRS_TRAJ_PROT), 4.0, 3.5)
         }
     } else {
-        cat("  Insufficient data for", toupper(PRS_TRAJ_PROT), "PRS trajectory\n")
+        cat("  Insufficient data for", toupper(PRS_TRAJ_PROT), PRS_LABEL, "trajectory\n")
     }
 } else {
     cat("  PRS file or", toupper(PRS_TRAJ_PROT), "not available, skipping panel j\n")
@@ -1007,7 +1032,7 @@ pH <- ggplot(comor, aes(y = label, colour = direction_h)) +
     ) +
     scale_colour_manual(values = COMOR_COLS, name = NULL) +
     labs(
-        title = "h  Pre-MS comorbidity enrichment by HLA status",
+        title = glue("h  {PRE_LBL} comorbidity enrichment by HLA status"),
         x     = expression(log[2]~"OR (HLA+ vs HLA\u2212)"),
         y     = NULL
     ) +
@@ -1095,9 +1120,9 @@ if (!is.null(prs_int) && nrow(prs_int) > 0) {
                  size = 1.95, hjust = 1, colour = "grey40") +
         scale_colour_manual(values = PRS_VOL_COLS, name = NULL) +
         labs(
-            title    = "k  PRS\u00d7MS interaction: amplification of proteomic signature",
-            subtitle = "Interaction coefficient ms_case:prs_z | positive = HLA-adjusted PRS amplifies MS signal",
-            x        = expression(beta[PRS%*%MS]~"(interaction, per SD PRS)"),
+            title    = glue("k  PRS\u00d7{DISEASE_CAPS} interaction: amplification of proteomic signature"),
+            subtitle = glue("Interaction coefficient ms_case:prs_z | positive = HLA-adjusted PRS amplifies {DISEASE_CAPS} signal"),
+            x        = bquote(beta[PRS%*%.(DISEASE_CAPS)]~"(interaction, per SD PRS)"),
             y        = expression(-log[10]~italic(P))
         ) +
         theme_ukb(base_size = 9) +
@@ -1169,9 +1194,9 @@ tryCatch({
         scale_size_continuous(name = "Gene count", range = c(2, 6),
                                guide = guide_legend(override.aes = list(colour = "grey40"))) +
         scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
-        labs(title    = "l  GO:BP enrichment \u2014 PRS\u00d7MS interaction proteins",
-             subtitle = sprintf("Nominal p<0.05 PRS\u00d7MS proteins: %d amplified (logFC>0), %d attenuated (logFC<0)",
-                                length(prs_up), length(prs_down)),
+        labs(title    = glue("l  GO:BP enrichment \u2014 PRS\u00d7{DISEASE_CAPS} interaction proteins"),
+             subtitle = sprintf("Nominal p<0.05 PRS\u00d7%s proteins: %d amplified (logFC>0), %d attenuated (logFC<0)",
+                                DISEASE_CAPS, length(prs_up), length(prs_down)),
              x = "Fold enrichment", y = NULL) +
         theme_ukb(base_size = 9) +
         theme(axis.text.y    = element_text(size = 7),
@@ -1185,11 +1210,12 @@ tryCatch({
     cat("  Panel l GO:", conditionMessage(e), "\n")
     pL_ph <- ggplot() +
         annotate("text", x = 0.5, y = 0.5,
-                 label = sprintf("PRS\u00d7MS GO enrichment\n(%d nominal p<0.05 proteins)",
+                 label = sprintf("PRS\u00d7%s GO enrichment\n(%d nominal p<0.05 proteins)",
+                                 DISEASE_CAPS,
                                  if (!is.null(prs_int)) sum(prs_int$P.Value < 0.05) else 0),
                  size = 3.5, hjust = 0.5, colour = "grey40") +
         xlim(0,1) + ylim(0,1) +
-        labs(title = "l  GO:BP enrichment \u2014 PRS\u00d7MS interaction proteins") +
+        labs(title = glue("l  GO:BP enrichment \u2014 PRS\u00d7{DISEASE_CAPS} interaction proteins")) +
         theme_void() + theme(plot.title = element_text(size = 9, face = "plain"))
     save_panel(pL_ph, "l_prs_go", 5.5, 6)
 })
@@ -1212,9 +1238,11 @@ cat("Building panels m, n and supp j (HLA \u00d7 PRS \u00d7 sex integration)...\
 
 if (file.exists(PRS_FILE)) {
     prs_mn <- fread(PRS_FILE, showProgress = FALSE)
+    if (PRS_COL != "prs_score" && PRS_COL %in% names(prs_mn))
+        setnames(prs_mn, PRS_COL, "prs_score")
 
     ms_mn <- merge(
-        qc_hla[ms_status %in% c("pre_onset","post_onset") & qc_outlier == FALSE &
+        qc_hla[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE &
                !is.na(drb1_1501_carrier) & !is.na(lilrb4) & !is.na(il2ra)],
         prs_mn[, .(eid, prs_score)],
         by = "eid"
@@ -1257,7 +1285,7 @@ if (file.exists(PRS_FILE)) {
         scale_fill_manual(values = GENO_FILLS, guide = "none") +
         labs(
             title    = "m  Genetic stratification: HLA \u00d7 PRS \u00d7 sex",
-            subtitle = paste0("MS cases: HLA\u00b1 \u00d7 PRS median split. ",
+            subtitle = paste0(DISEASE_CAPS, " cases: HLA\u00b1 \u00d7 PRS median split. ",
                               "LILRB4 driven by HLA; IL2RA highest in HLA+ \u00d7 PRS-high"),
             x = NULL, y = "NPX"
         ) +
@@ -1290,7 +1318,7 @@ if (file.exists(PRS_FILE)) {
         facet_wrap(~ sex_label, nrow = 1) +
         scale_x_continuous(expand = expansion(mult = c(0.04, 0.12))) +
         labs(
-            title    = "n  LILRB4 vs IL2RA: co-variation within MS",
+            title    = glue("n  LILRB4 vs IL2RA: co-variation within {DISEASE_CAPS}"),
             subtitle = "HLA and PRS protein markers co-vary (shared immune activation) but are independently driven",
             x        = "IL2RA (NPX, PRS-correlated)",
             y        = "LILRB4 (NPX, HLA marker)"
@@ -1384,12 +1412,14 @@ if (exists("strat_d")) {
 cat("Building supp panel i (LILRB4 pre-MS comorbidity)...\n")
 
 FEAT_FILE <- file.path(PROJ_DIR, "results", "endophenotype",
-                        "ms_prems_composite_features.csv")
+                        glue("{COHORT}_prems_composite_features.csv"))
 
 if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
     feat_all <- fread(FEAT_FILE, showProgress = FALSE)
-    # Restrict to pre-MS cases; merge with QC to get LILRB4 NPX
-    feat_pre <- feat_all[ms_status == "pre_onset"]
+    if (STATUS_COL != "ms_status" && STATUS_COL %in% names(feat_all))
+        setnames(feat_all, STATUS_COL, "ms_status")
+    # Restrict to pre-onset cases; merge with QC to get LILRB4 NPX
+    feat_pre <- feat_all[ms_status == SV$pre_onset]
     feat_pre <- merge(feat_pre,
                       qc[qc_outlier == FALSE, .(eid, lilrb4)],
                       by = "eid", all.x = FALSE)
@@ -1397,8 +1427,8 @@ if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
     feat_pre[, lilrb4_high := as.integer(lilrb4 >= median(lilrb4, na.rm = TRUE))]
     n_high_lr <- sum(feat_pre$lilrb4_high == 1)
     n_low_lr  <- sum(feat_pre$lilrb4_high == 0)
-    cat(sprintf("  Pre-MS with LILRB4: n=%d (high=%d, low=%d)\n",
-                nrow(feat_pre), n_high_lr, n_low_lr))
+    cat(sprintf("  %s with LILRB4: n=%d (high=%d, low=%d)\n",
+                PRE_LBL, nrow(feat_pre), n_high_lr, n_low_lr))
 
     COMPOSITE_GROUPS <- c(
         "Migraine", "Optic_neuritis", "Demyelinating_NOS", "Neurological",
@@ -1461,7 +1491,7 @@ if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
 
         fwrite(lilrb4_comor,
                file.path(PROJ_DIR, "results", "endophenotype",
-                         "ms_lilrb4_prems_comorbidity.csv"))
+                         glue("{COHORT}_lilrb4_prems_comorbidity.csv")))
 
         LILRB4_COMOR_COLS <- c(
             "Enriched in LILRB4-high" = "#E6A817",
@@ -1480,10 +1510,10 @@ if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
             ) +
             scale_colour_manual(values = LILRB4_COMOR_COLS, name = NULL) +
             labs(
-                title    = "i  Pre-MS comorbidity enrichment by LILRB4 level",
+                title    = glue("i  {PRE_LBL} comorbidity enrichment by LILRB4 level"),
                 subtitle = sprintf(
-                    "High LILRB4 (top 50%%, n=%d) vs Low (n=%d) within pre-MS cases | age + sex adjusted",
-                    n_high_lr, n_low_lr),
+                    "High LILRB4 (top 50%%, n=%d) vs Low (n=%d) within %s cases | age + sex adjusted",
+                    n_high_lr, n_low_lr, PRE_LBL),
                 x        = expression(log[2]~"OR (LILRB4-high vs LILRB4-low)"),
                 y        = NULL
             ) +
@@ -1525,7 +1555,7 @@ if (file.exists(PRS_FILE) && exists("ms_mn") && exists("prs_mn")) {
 
     # --- HC pool: controls with HLA + PRS + at least one protein ----------------
     hc_pool_o <- merge(
-        qc_hla[ms_status == "control" & qc_outlier == FALSE &
+        qc_hla[ms_status == SV$control & qc_outlier == FALSE &
                !is.na(drb1_1501_carrier) & !is.na(age_at_sampling) & !is.na(sex)],
         prs_mn[, .(eid, prs_score)],
         by = "eid"
@@ -1575,12 +1605,12 @@ if (file.exists(PRS_FILE) && exists("ms_mn") && exists("prs_mn")) {
     hc_matched_o[, disease_grp := "HC"]
 
     ms_o <- copy(ms_mn)
-    ms_o[, disease_grp := "MS"]
+    ms_o[, disease_grp := DISEASE_CAPS]
 
     # --- Stack and melt ---------------------------------------------------------
     shared_o <- c("eid", "geno_grp", "disease_grp", "lilrb4", "il2ra")
     o_stack  <- rbind(ms_o[, ..shared_o], hc_matched_o[, ..shared_o])
-    o_stack[, disease_grp := factor(disease_grp, levels = c("HC", "MS"))]
+    o_stack[, disease_grp := factor(disease_grp, levels = c("HC", DISEASE_CAPS))]
 
     o_long <- melt(o_stack,
                    id.vars      = c("eid", "geno_grp", "disease_grp"),
@@ -1598,7 +1628,7 @@ if (file.exists(PRS_FILE) && exists("ms_mn") && exists("prs_mn")) {
         sapply(GENO_FILLS, function(col) adjustcolor(col, alpha.f = 0.35)),
         paste(names(GENO_FILLS), "HC")
     )
-    MS_FILLS_O  <- setNames(GENO_FILLS, paste(names(GENO_FILLS), "MS"))
+    MS_FILLS_O  <- setNames(GENO_FILLS, paste(names(GENO_FILLS), DISEASE_CAPS))
     ALL_FILLS_O <- c(HC_FILLS_O, MS_FILLS_O)
 
     n_o <- o_long[!is.na(npx) & protein == "lilrb4",
@@ -1616,15 +1646,15 @@ if (file.exists(PRS_FILE) && exists("ms_mn") && exists("prs_mn")) {
                      fill = "white", colour = "grey30",
                      position = position_dodge(width = 0.9)) +
         annotate("text", x = Inf, y = Inf,
-                 label = "Left per group: HC (faded)\nRight per group: MS (solid)",
+                 label = glue("Left per group: HC (faded)\nRight per group: {DISEASE_CAPS} (solid)"),
                  hjust = 1.08, vjust = 1.5, size = 2.0, colour = "grey40",
                  fontface = "italic") +
         facet_grid(prot_label ~ ., scales = "free_y") +
         scale_fill_manual(values = ALL_FILLS_O, guide = "none") +
         labs(
-            title    = "o  Genetic groups: MS cases vs age/sex-matched controls",
+            title    = glue("o  Genetic groups: {DISEASE_CAPS} cases vs age/sex-matched controls"),
             subtitle = paste0(
-                "HC PSM-matched 3:1 (age+sex). Faded = HC baseline; solid = MS. ",
+                "HC PSM-matched 3:1 (age+sex). Faded = HC baseline; solid = ", DISEASE_CAPS, ". ",
                 "Elevation above HC reveals disease-specific genetic amplification."),
             x = NULL, y = "NPX"
         ) +
@@ -1728,7 +1758,7 @@ if (file.exists(PRS_FILE) && exists("ms_mn")) {
             labs(
                 title    = "k  Formal regression: IL2RA & LILRB4 ~ HLA \u00d7 PRS",
                 subtitle = paste0(
-                    "Within-MS cases | protein ~ HLA + PRS-z + HLA:PRS-z + age + sex",
+                    "Within-", DISEASE_CAPS, " cases | protein ~ HLA + PRS-z + HLA:PRS-z + age + sex",
                     " | diamond = interaction term | 95% CI"),
                 x = "\u0394NPX per unit (regression coefficient)",
                 y = NULL
@@ -1772,7 +1802,7 @@ if (file.exists(PRS_FILE) && exists("o_stack") && nrow(o_stack) > 0) {
     # Mean, SE, Wilcoxon p per group × protein
     delta_l <- rbindlist(lapply(levels(o_stack$geno_grp), function(grp) {
         rbindlist(lapply(c("lilrb4", "il2ra"), function(prot) {
-            ms_v <- o_long_l[geno_grp == grp & disease_grp == "MS" & protein == prot &
+            ms_v <- o_long_l[geno_grp == grp & disease_grp == DISEASE_CAPS & protein == prot &
                              !is.na(npx), npx]
             hc_v <- o_long_l[geno_grp == grp & disease_grp == "HC" & protein == prot &
                              !is.na(npx), npx]
@@ -1817,11 +1847,11 @@ if (file.exists(PRS_FILE) && exists("o_stack") && nrow(o_stack) > 0) {
         facet_wrap(~ prot_label, nrow = 1, scales = "free_x") +
         scale_colour_manual(values = DELTA_COLS, name = NULL) +
         labs(
-            title    = "l  MS vs matched HC: protein elevation per genetic group",
+            title    = glue("l  {DISEASE_CAPS} vs matched HC: protein elevation per genetic group"),
             subtitle = paste0(
-                "Mean difference (MS \u2212 HC) \u00b1 95% CI | PSM-matched HC (3:1 age+sex) | ",
+                "Mean difference (", DISEASE_CAPS, " \u2212 HC) \u00b1 95% CI | PSM-matched HC (3:1 age+sex) | ",
                 "Wilcoxon FDR corrected per protein"),
-            x = "\u0394NPX (MS \u2212 HC mean)",
+            x = glue("\u0394NPX ({DISEASE_CAPS} \u2212 HC mean)"),
             y = NULL
         ) +
         theme_ukb(base_size = 9) +
@@ -1845,12 +1875,8 @@ cat("Building supp panel m (cell-type heatmap for HLA DEPs)...\n")
 tryCatch({
     suppressPackageStartupMessages({ library(pheatmap); library(RColorBrewer) })
 
-    WH_FILE_F3 <- file.path(dirname(PROJ_DIR),
-                              "UKB_MS", "results", "networks",
-                              "ms_combined_walchli_hpa_matrix.csv")
-    if (!file.exists(WH_FILE_F3))
-        WH_FILE_F3 <- file.path(PROJ_DIR, "results", "networks",
-                                 "ms_combined_walchli_hpa_matrix.csv")
+    WH_FILE_F3 <- file.path(PROJ_DIR, "results", "networks",
+                             glue("{COHORT}_combined_walchli_hpa_matrix.csv"))
     if (!file.exists(WH_FILE_F3)) stop("Walchli+HPA matrix not found")
 
     wh_f3 <- fread(WH_FILE_F3)
@@ -1904,7 +1930,7 @@ tryCatch({
              annotation_names_col = FALSE, annotation_names_row = FALSE,
              border_color      = NA,
              gaps_row          = if (length(gaps_m)>0) gaps_m else NULL,
-             main = "m  HLA-interaction MS DEPs: Walchli+HPA cell-type expression")
+             main = glue("m  HLA-interaction {DISEASE_CAPS} DEPs: Walchli+HPA cell-type expression"))
     dev.off()
     cat("  Saved: 3_supp/panel_m_hla_celltype_heatmap.pdf\n")
 }, error = function(e) cat("  Supp m skipped:", conditionMessage(e), "\n"))

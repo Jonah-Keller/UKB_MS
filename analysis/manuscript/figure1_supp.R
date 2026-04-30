@@ -18,6 +18,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(scales)
+    library(glue)
 })
 
 # ---------------------------------------------------------------------------
@@ -29,6 +30,13 @@ SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", fi
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
+STATUS_COL   <- cfg$cohort_status_col
+SV           <- cfg$status_values
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "1_supp")
 DATA_DIR <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed")
@@ -90,7 +98,8 @@ make_volcano <- function(df, title_str, n_label = 15, fdr_line = 0.05,
 # ---------------------------------------------------------------------------
 make_ranked_barplot <- function(df, title_str, n_each = 20,
                                 up_col = COL_PRE, down_col = COL_DOWN,
-                                up_label = "Up in MS", down_label = "Down in MS") {
+                                up_label = glue("Up in {DISEASE_CAPS}"),
+                                down_label = glue("Down in {DISEASE_CAPS}")) {
     df <- copy(df)
     if ("adj.P.Val" %in% names(df) && !"fdr" %in% names(df)) df[, fdr := adj.P.Val]
     df[, direction := fifelse(logFC > 0, up_label, down_label)]
@@ -194,26 +203,28 @@ make_overrep_plot <- function(gsea_dt, analysis_name, title_str,
 # ---------------------------------------------------------------------------
 cat("Loading data...\n")
 
-qc       <- fread(file.path(DATA_DIR, "ms_olink_qc.csv"))
-# Cell-type enrichment: primary source is ms_celltype_gsea.csv (new preranked
-# fgsea + specificity markers). ms_celltype_overrep.csv is the legacy Fisher
-# output kept for fallback in pre-refactor runs.
-gsea     <- if (file.exists(file.path(NET_DIR, "ms_celltype_gsea.csv")))
-                fread(file.path(NET_DIR, "ms_celltype_gsea.csv")) else data.table()
-overrep  <- if (file.exists(file.path(NET_DIR, "ms_celltype_overrep.csv")))
-                fread(file.path(NET_DIR, "ms_celltype_overrep.csv")) else data.table()
+qc       <- fread(file.path(DATA_DIR, glue("{COHORT}_olink_qc.csv")))
+if (STATUS_COL != "ms_status" && STATUS_COL %in% names(qc))
+    setnames(qc, STATUS_COL, "ms_status")
+# Cell-type enrichment: primary source is <cohort>_celltype_gsea.csv (new
+# preranked fgsea + specificity markers). <cohort>_celltype_overrep.csv is the
+# legacy Fisher output kept for fallback in pre-refactor runs.
+gsea     <- if (file.exists(file.path(NET_DIR, glue("{COHORT}_celltype_gsea.csv"))))
+                fread(file.path(NET_DIR, glue("{COHORT}_celltype_gsea.csv"))) else data.table()
+overrep  <- if (file.exists(file.path(NET_DIR, glue("{COHORT}_celltype_overrep.csv"))))
+                fread(file.path(NET_DIR, glue("{COHORT}_celltype_overrep.csv"))) else data.table()
 
 # Pre vs post (computed inline in figure1.R → read from saved CSV)
-PREVSPOST_FILE <- file.path(DIFF_DIR, "ms_pre_vs_post.csv")
+PREVSPOST_FILE <- file.path(DIFF_DIR, glue("{COHORT}_pre_vs_post.csv"))
 prevspost_diff <- if (file.exists(PREVSPOST_FILE)) fread(PREVSPOST_FILE) else data.table()
 
 # GO results for all 3 analyses that have them
-go_comb  <- if (file.exists(file.path(NET_DIR, "ms_combined_go_results.csv")))
-                fread(file.path(NET_DIR, "ms_combined_go_results.csv")) else data.table()
-go_pre   <- if (file.exists(file.path(NET_DIR, "ms_pre_go_results.csv")))
-                fread(file.path(NET_DIR, "ms_pre_go_results.csv"))  else data.table()
-go_post  <- if (file.exists(file.path(NET_DIR, "ms_post_go_results.csv")))
-                fread(file.path(NET_DIR, "ms_post_go_results.csv")) else data.table()
+go_comb  <- if (file.exists(file.path(NET_DIR, glue("{COHORT}_combined_go_results.csv"))))
+                fread(file.path(NET_DIR, glue("{COHORT}_combined_go_results.csv"))) else data.table()
+go_pre   <- if (file.exists(file.path(NET_DIR, glue("{COHORT}_pre_go_results.csv"))))
+                fread(file.path(NET_DIR, glue("{COHORT}_pre_go_results.csv")))  else data.table()
+go_post  <- if (file.exists(file.path(NET_DIR, glue("{COHORT}_post_go_results.csv"))))
+                fread(file.path(NET_DIR, glue("{COHORT}_post_go_results.csv"))) else data.table()
 
 # GO for pre vs post — run inline at nominal p < 0.05 (only 3 FDR-sig DEPs)
 go_prevspost <- tryCatch({
@@ -221,7 +232,7 @@ go_prevspost <- tryCatch({
         library(clusterProfiler)
         library(org.Hs.eg.db)
     })
-    pvp <- fread(file.path(DIFF_DIR, "ms_pre_vs_post.csv"))
+    pvp <- fread(file.path(DIFF_DIR, glue("{COHORT}_pre_vs_post.csv")))
     up_genes   <- toupper(pvp[P.Value < 0.05 & logFC > 0, protein])
     down_genes <- toupper(pvp[P.Value < 0.05 & logFC < 0, protein])
     run_go <- function(genes, set_label) {
@@ -251,31 +262,31 @@ cat(sprintf("  Pre-vs-post GO: %d terms (up %d / down %d)\n",
 analyses <- list(
     list(
         name       = "combined",
-        label      = "Combined MS vs HC",
-        diff_file  = "ms_combined_vs_hc.csv",
+        label      = glue("Combined {DISEASE_CAPS} vs HC"),
+        diff_file  = glue("{COHORT}_combined_vs_hc.csv"),
         fdr_thr    = 0.05,
         up_col     = COL_COMB_UP,    # golden yellow
         down_col   = COL_COMB_DOWN,  # blue-violet
-        up_label   = "Up in MS",
-        down_label = "Down in MS",
+        up_label   = glue("Up in {DISEASE_CAPS}"),
+        down_label = glue("Down in {DISEASE_CAPS}"),
         go_data    = "combined"
     ),
     # Pre-onset panels are in Figure 1 (c–h) — omitted here to avoid duplication
     list(
         name       = "post",
         label      = "Post-onset vs HC",
-        diff_file  = "ms_post_vs_hc.csv",
+        diff_file  = glue("{COHORT}_post_vs_hc.csv"),
         fdr_thr    = 0.05,
         up_col     = COL_POST_UP,    # vivid spring green
         down_col   = COL_POST_DOWN,  # vermillion
-        up_label   = "Up in MS",
-        down_label = "Down in MS",
+        up_label   = glue("Up in {DISEASE_CAPS}"),
+        down_label = glue("Down in {DISEASE_CAPS}"),
         go_data    = "post"
     ),
     list(
         name       = "preVsPost",
         label      = "Pre vs post-onset",
-        diff_file  = "ms_pre_vs_post.csv",
+        diff_file  = glue("{COHORT}_pre_vs_post.csv"),
         fdr_thr    = 0.05,
         nominal    = TRUE,           # use P.Value < 0.05, not FDR
         up_col     = COL_PRE,        # hot pink = pre-onset identity
@@ -313,13 +324,13 @@ for (an in analyses) {
     diff <- fread(diff_path)
 
     n_cases <- if (an$name == "combined") {
-        sum(qc$ms_status %in% c("pre_onset", "post_onset"), na.rm = TRUE)
+        sum(qc$ms_status %in% c(SV$pre_onset, SV$post_onset), na.rm = TRUE)
     } else if (an$name == "pre") {
-        sum(qc$ms_status == "pre_onset", na.rm = TRUE)
+        sum(qc$ms_status == SV$pre_onset, na.rm = TRUE)
     } else if (an$name == "post") {
-        sum(qc$ms_status == "post_onset", na.rm = TRUE)
+        sum(qc$ms_status == SV$post_onset, na.rm = TRUE)
     } else {
-        sum(qc$ms_status %in% c("pre_onset", "post_onset"), na.rm = TRUE)
+        sum(qc$ms_status %in% c(SV$pre_onset, SV$post_onset), na.rm = TRUE)
     }
 
     an_tag   <- an$name   # used in descriptive filenames
@@ -383,7 +394,7 @@ for (an in analyses) {
     cat("  V4 HPA heatmap...\n")
     tryCatch({
         suppressPackageStartupMessages(library(pheatmap))
-        hpa_file <- file.path(NET_DIR, sprintf("ms_%s_hpa_celltype_matrix.csv", an$name))
+        hpa_file <- file.path(NET_DIR, sprintf("%s_%s_hpa_celltype_matrix.csv", COHORT, an$name))
         if (!file.exists(hpa_file)) stop(sprintf("%s not found", basename(hpa_file)))
         lbl <- next_panel()
 
@@ -433,7 +444,7 @@ for (an in analyses) {
     cat("  V5 cell-type enrichment...\n")
     tryCatch({
         if (nrow(gsea) == 0 && nrow(overrep) == 0)
-            stop("neither ms_celltype_gsea.csv nor ms_celltype_overrep.csv present")
+            stop(glue("neither {COHORT}_celltype_gsea.csv nor {COHORT}_celltype_overrep.csv present"))
         lbl <- next_panel()
         pV5 <- make_overrep_plot(
             gsea_dt      = gsea,

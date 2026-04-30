@@ -5,12 +5,18 @@
 
 suppressPackageStartupMessages({
     library(data.table)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
 file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+
+cfg          <- load_disease_config()
+COHORT       <- cfg$cohort_short
+DISEASE_CAPS <- cfg$disease_short_caps
 
 ENDO_DIR  <- file.path(PROJ_DIR, "results", "endophenotype")
 GEN_DIR   <- file.path(PROJ_DIR, "data", "ukb", "genetics")
@@ -37,17 +43,17 @@ load_or_null <- function(path, label) {
     }
 }
 
-hla_dep     <- load_or_null(file.path(ENDO_DIR, "ms_hla_dep_results.csv"),        "within-MS HLA DEPs")
-hla_int_all <- load_or_null(file.path(ENDO_DIR, "ms_hla_interaction_all.csv"),    "HLA×MS interaction (all)")
-hla_int_pre <- load_or_null(file.path(ENDO_DIR, "ms_hla_interaction_pre.csv"),    "HLA×MS interaction (pre)")
-hla_int_pst <- load_or_null(file.path(ENDO_DIR, "ms_hla_interaction_post.csv"),   "HLA×MS interaction (post)")
-hla_strat   <- load_or_null(file.path(ENDO_DIR, "ms_hla_stratified_logfc.csv"),   "HLA-stratified MS logFC")
-sex_strat   <- load_or_null(file.path(ENDO_DIR, "ms_sex_stratified_genetic.csv"), "Sex-stratified genetic")
-prs_int     <- load_or_null(file.path(ENDO_DIR, "ms_prs_interaction_genome.csv"), "PRS×MS interaction")
-comor       <- load_or_null(file.path(ENDO_DIR, "ms_hla_prems_comorbidity.csv"),  "Pre-MS comorbidity by HLA")
+hla_dep     <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_dep_results.csv")),        glue("within-{DISEASE_CAPS} HLA DEPs"))
+hla_int_all <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_all.csv")),    glue("HLA×{DISEASE_CAPS} interaction (all)"))
+hla_int_pre <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_pre.csv")),    glue("HLA×{DISEASE_CAPS} interaction (pre)"))
+hla_int_pst <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_interaction_post.csv")),   glue("HLA×{DISEASE_CAPS} interaction (post)"))
+hla_strat   <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_stratified_logfc.csv")),   glue("HLA-stratified {DISEASE_CAPS} logFC"))
+sex_strat   <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_sex_stratified_genetic.csv")), "Sex-stratified genetic")
+prs_int     <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_prs_interaction_genome.csv")), glue("PRS×{DISEASE_CAPS} interaction"))
+comor       <- load_or_null(file.path(ENDO_DIR, glue("{COHORT}_hla_prems_comorbidity.csv")),  glue("pre-{DISEASE_CAPS} comorbidity by HLA"))
 hla_enr     <- load_or_null(file.path(GEN_DIR,  "hla_allele_enrichment.csv"),     "HLA allele enrichment")
 hla_enr_p   <- load_or_null(file.path(GEN_DIR,  "hla_allele_enrichment_pruned.csv"), "HLA allele enrichment (pruned)")
-prs_res     <- load_or_null(file.path(PRS_DIR,   "ms_prs_results.csv"),           "PRS-proteome association")
+prs_res     <- load_or_null(file.path(PRS_DIR,   glue("{COHORT}_prs_results.csv")),           "PRS-proteome association")
 
 # =============================================================================
 # Console summary: story-relevant statistics
@@ -56,7 +62,7 @@ cat("\n=== FIGURE 3 NARRATIVE SUMMARY ===\n\n")
 
 # --- HLA allele landscape ---
 if (!is.null(hla_enr_p)) {
-    cat("HLA ALLELE LANDSCAPE (pruned, LD-independent):\n")
+    cat(glue("HLA ALLELE LANDSCAPE (pruned, LD-independent for {DISEASE_CAPS}):\n\n"))
     cat(sprintf("  Total alleles tested:       %d\n", nrow(hla_enr_p)))
     cat(sprintf("  FDR<0.05:                   %d\n", sum(hla_enr_p$fdr < 0.05, na.rm=TRUE)))
     risk <- hla_enr_p[fdr < 0.05 & enrichment > 0][order(-enrichment)]
@@ -74,7 +80,7 @@ if (!is.null(hla_enr_p)) {
 # --- Within-MS HLA DEPs ---
 if (!is.null(hla_dep)) {
     if (!"fdr" %in% names(hla_dep)) hla_dep[, fdr := p.adjust(P.Value, method="BH")]
-    cat("WITHIN-MS HLA+ vs HLA- DIFFERENTIAL PROTEINS:\n")
+    cat(glue("WITHIN-{DISEASE_CAPS} HLA+ vs HLA- DIFFERENTIAL PROTEINS:\n\n"))
     cat(sprintf("  Total proteins tested:      %d\n", nrow(hla_dep)))
     cat(sprintf("  FDR<0.05:                   %d\n", sum(hla_dep$fdr < 0.05)))
     cat(sprintf("  Nominal p<0.05:             %d\n", sum(hla_dep$P.Value < 0.05)))
@@ -94,7 +100,7 @@ if (!is.null(hla_dep)) {
 
 # --- Sex-stratified within-MS HLA ---
 if (!is.null(sex_strat) && "hla_within_ms" %in% sex_strat$analysis) {
-    cat("SEX-STRATIFIED within-MS HLA DEPs:\n")
+    cat(glue("SEX-STRATIFIED within-{DISEASE_CAPS} HLA DEPs:\n\n"))
     hw <- sex_strat[analysis == "hla_within_ms"]
     hw_f <- hw[sex_group == "Female"]
     hw_m <- hw[sex_group == "Male"]
@@ -117,7 +123,7 @@ if (!is.null(sex_strat) && "hla_within_ms" %in% sex_strat$analysis) {
 # --- HLA×MS interaction (formal) ---
 if (!is.null(hla_int_all)) {
     if (!"fdr" %in% names(hla_int_all)) hla_int_all[, fdr := p.adjust(P.Value, method="BH")]
-    cat("HLA×MS FORMAL INTERACTION (all MS vs HC):\n")
+    cat(glue("HLA×{DISEASE_CAPS} FORMAL INTERACTION (all {DISEASE_CAPS} vs HC):\n\n"))
     cat(sprintf("  FDR<0.05:       %d\n", sum(hla_int_all$fdr < 0.05)))
     cat(sprintf("  Nominal p<0.05: %d\n", sum(hla_int_all$P.Value < 0.05)))
     top_int <- hla_int_all[P.Value < 0.05][order(P.Value)][seq_len(min(8,.N))]
@@ -131,9 +137,9 @@ if (!is.null(hla_int_all)) {
 
 # --- HLA-stratified MS logFC concordance ---
 if (!is.null(hla_strat)) {
-    cat("HLA-STRATIFIED MS-EFFECT CONCORDANCE:\n")
+    cat(glue("HLA-STRATIFIED {DISEASE_CAPS}-EFFECT CONCORDANCE:\n\n"))
     r_val <- cor(hla_strat$logFC_hlaneg, hla_strat$logFC_hlapos, use="complete.obs")
-    cat(sprintf("  Overall r (HLA- vs HLA+ MS effect):  %.3f\n", r_val))
+    cat(sprintf("  Overall r (HLA- vs HLA+ %s effect):  %.3f\n", DISEASE_CAPS, r_val))
     cat(sprintf("  DEPs in HLA- background (FDR<0.05):  %d\n",
         sum(hla_strat$fdr_hlaneg < 0.05, na.rm=TRUE)))
     cat(sprintf("  DEPs in HLA+ background (FDR<0.05):  %d\n",
@@ -151,7 +157,7 @@ if (!is.null(hla_strat)) {
 # --- PRS×MS interaction ---
 if (!is.null(prs_int)) {
     if (!"fdr" %in% names(prs_int)) prs_int[, fdr := p.adjust(P.Value, method="BH")]
-    cat("PRS×MS INTERACTION (genome-wide, all proteins):\n")
+    cat(glue("PRS×{DISEASE_CAPS} INTERACTION (genome-wide, all proteins):\n\n"))
     cat(sprintf("  FDR<0.05:       %d\n", sum(prs_int$fdr < 0.05)))
     cat(sprintf("  Nominal p<0.05: %d\n", sum(prs_int$P.Value < 0.05)))
     top_prs <- prs_int[order(P.Value)][seq_len(min(8,.N))]
@@ -174,7 +180,7 @@ if (!is.null(prs_int)) {
 
 # --- Pre-MS comorbidity by HLA ---
 if (!is.null(comor)) {
-    cat("PRE-MS COMORBIDITY ENRICHMENT BY HLA STATUS:\n")
+    cat(glue("PRE-{DISEASE_CAPS} COMORBIDITY ENRICHMENT BY HLA STATUS:\n\n"))
     cat(sprintf("  Comorbidities tested:  %d\n", nrow(comor)))
     sig_c <- comor[fdr < 0.2]
     cat(sprintf("  FDR<0.20 (suggestive): %d\n", nrow(sig_c)))
@@ -187,7 +193,7 @@ if (!is.null(comor)) {
 
 # --- PRS-proteome association ---
 if (!is.null(prs_res)) {
-    cat("PRS-PROTEOME ASSOCIATION (HLA-adjusted, within MS cases):\n")
+    cat(glue("PRS-PROTEOME ASSOCIATION (HLA-adjusted, within {DISEASE_CAPS} cases):\n\n"))
     cat(sprintf("  Proteins tested:    %d\n", nrow(prs_res)))
     cat(sprintf("  FDR<0.05:           %d\n", sum(prs_res$fdr < 0.05, na.rm=TRUE)))
     cat(sprintf("  Nominal p<0.05:     %d\n", sum(prs_res$pval < 0.05, na.rm=TRUE)))
