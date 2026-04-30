@@ -40,6 +40,7 @@ PROJ_DIR <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "top_n_selector.R"))
 
 cfg          <- load_disease_config()
 COHORT       <- cfg$cohort_short
@@ -272,12 +273,18 @@ cat("Building panels f, g, h (top pre-onset immune DEP trajectories)...\n")
 
 pre  <- fread(PRE_FILE)
 pre[, fdr := p.adjust(P.Value, method = "BH")]
-# Exclude BGN here (shown in efig2a) and ERBB2 (shown in fig2c) so the panels
-# focus on the top immune/inflammatory DEPs: KIR3DL1, OSM, OMG.
-# (protein values in the CSV are lowercase, so match on toupper.)
-top_immune <- pre[fdr < 0.20 & !toupper(protein) %in% c("BGN", "ERBB2")][
-                  order(-abs(logFC)), protein][seq_len(3)]
-cat("  Top pre-onset immune proteins:", paste(top_immune, collapse = ", "), "\n")
+if (!"adj.P.Val" %in% names(pre)) pre[, adj.P.Val := fdr]
+# Top-3 trajectory panels: data-driven, top P-value (FDR-aware) across both
+# directions. Earlier curated exclusions (BGN, ERBB2) are dropped — the
+# programmatic top-N stands on its own; if a protein appears here AND in
+# another panel that's an informative redundancy, not a bug.
+top_immune <- top_n_one_direction(
+    pre, n = 3L,
+    min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L,
+    case_fn = identity   # preserve lowercase Olink convention for column lookup
+)
+cat("  Top pre-onset immune proteins:", paste(top_immune, collapse = ", "),
+    " (ordered by ", attr(top_immune, "ordered_by"), ")\n", sep = "")
 
 ms_all  <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE]
 hc_only <- qc[ms_status == SV$control & qc_outlier == FALSE]
@@ -431,11 +438,21 @@ cat("Building panel j...\n")
 
 comb_j <- copy(comb)
 comb_j[, fdr := p.adjust(P.Value, method = "BH")]
-top30   <- comb_j[fdr < 0.05][order(-abs(logFC))][seq_len(min(30, .N)), protein]
-# Force-include CNS biomarkers highlighted elsewhere in Figure 2 (NEFL, ERBB2)
-# so the temporal heatmap is directly comparable across panels
-force_prots_j <- comb_j[tolower(protein) %in% c("nefl", "erbb2"), unique(protein)]
-top30         <- unique(c(top30, force_prots_j))
+if (!"adj.P.Val" %in% names(comb_j)) comb_j[, adj.P.Val := fdr]
+# Programmatic top-N across both directions for the temporal heatmap.
+# Previously this hard-forced NEFL/ERBB2 into the row set; that's removed.
+# If those CNS biomarkers are still surfaced by adj.P.Val ranking they will
+# appear; if not, the data has spoken and the heatmap reflects the cohort.
+n_heat <- cfg$top_n_heatmap %||% 30L
+top_heat <- top_n_by_direction(
+    comb_j, n_each = max(1L, as.integer(n_heat / 2L)),
+    min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L,
+    case_fn = identity
+)
+top30 <- top_heat$all
+cat("  Heatmap rows:", length(top30), "(",
+    attr(top_heat, "n_up"), "up,", attr(top_heat, "n_down"), "down,",
+    "ordered by", paste(attr(top_heat, "ordered_by"), collapse = "/"), ")\n")
 
 ms_j <- qc[ms_status %in% c(SV$pre_onset, SV$post_onset) & qc_outlier == FALSE]
 ms_j[, time_bin := cut(years_to_diagnosis,
@@ -1049,16 +1066,9 @@ tryCatch({
     else 0
     temp_labels     <- temp[sig_any == TRUE & abs(gap_5yr) >= gap_thresh & abs(logFC_ms) <= 1.2]
     temp_labels_fdr <- temp[fdr_sig == TRUE]    # FDR hits labelled separately, always shown
-    # Force ERBB2 into the prominent (bold) label set — highlighted CNS marker
-    # (nominal p<0.05 in ms-term but misses FDR threshold; worth showing here)
-    erbb2_row <- temp[tolower(protein) == "erbb2"]
-    if (nrow(erbb2_row) > 0) {
-        temp_labels_fdr <- unique(rbind(temp_labels_fdr, erbb2_row, fill = TRUE),
-                                  by = "protein")
-        # Remove ERBB2 from the lighter label set if it's also there,
-        # to avoid double-labeling
-        temp_labels <- temp_labels[tolower(protein) != "erbb2"]
-    }
+    # Programmatic policy: FDR hits get bold labels; nominal-significant hits
+    # ranked by |gap_5yr| fill the lighter label layer. No protein is force-
+    # injected by name; the data ranking is the only criterion.
     temp_labels[, label     := toupper(protein)]
     temp_labels_fdr[, label := toupper(protein)]
 

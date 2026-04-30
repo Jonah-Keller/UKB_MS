@@ -52,6 +52,7 @@ source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "limma_utils.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "top_n_selector.R"))
 
 cfg          <- load_disease_config()
 COHORT       <- cfg$cohort_short
@@ -333,18 +334,22 @@ save_panel(pB, "b_umap_cohort", 7, 3.2)
 # ---------------------------------------------------------------------------
 # Panel c — Pre-onset volcano (MAIN: promoted from panel j)
 # ---------------------------------------------------------------------------
+# Highlight set is data-driven: top N up + top N down by adj.P.Val (FDR-aware
+# fallback to nominal P when FDR-significant subset is too small). The
+# make_volcano helper unions this with Bonferroni-passing proteins, then
+# fills remaining label slots from FDR<fdr_line ranked by P.
 cat("Building panel c...\n")
-# Proteins named in the Results prose — guaranteed to be labeled regardless
-# of |logFC| rank or ggrepel crowding. Keep in sync with manuscript.Rmd.
-PANEL_C_HIGHLIGHT <- c("NEFL", "ERBB2",
-                        "OSM", "TGFA", "MMP9",
-                        "PTPRC", "BGN", "OMG")
+panel_c_top <- top_n_by_direction(
+    pre_diff,
+    n_each          = cfg$top_n_volcano %||% 10L,
+    min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L
+)
 pC <- make_volcano(
     pre_diff,
     glue("c  Pre-onset {DISEASE_CAPS} vs HC"),
     fdr_line  = 0.20,
     up_label  = glue("Up in {DISEASE_CAPS}"), down_label = glue("Down in {DISEASE_CAPS}"),
-    highlight = PANEL_C_HIGHLIGHT
+    highlight = toupper(panel_c_top$all)
 )
 save_panel(pC, "c_volcano_pre", 3.5, 4)
 

@@ -155,22 +155,17 @@ CAT_SZ <- c("Female-specific"=1.6,"Both concordant"=2.2,"Both discordant"=2.2,
 # ---------------------------------------------------------------------------
 cat("Building panel a (F vs M logFC scatter)...\n")
 
-# Known MS biomarkers to always label if FDR-significant in either sex
-MS_MARKERS <- c("nefl","gfap","mog","omg","lilrb4","chga","tnfrsf13b","ache")
-
-# Label strategy:
-#   1. All sex-discordant (both FDR<0.05, opposite direction)
+# Programmatic label strategy (no by-name marker injection):
+#   1. All sex-discordant proteins (both FDR<0.05, opposite direction)
 #   2. Top 5 female-specific by |logFC_f|
 #   3. Top 5 male-specific by |logFC_m|
-#   4. Known biomarkers if FDR<0.05 in either sex
 disc_prot    <- wide[dep_cat == "Both discordant", protein]
 f_top5       <- wide[dep_cat == "Female-specific"][order(-abs(logFC_f))][
     seq_len(min(5,.N)), protein]
 m_top5       <- wide[dep_cat == "Male-specific"][order(-abs(logFC_m))][
     seq_len(min(5,.N)), protein]
-marker_prot  <- wide[(fdr_f < 0.05 | fdr_m < 0.05) & tolower(protein) %in% MS_MARKERS, protein]
 
-lab_prots <- unique(c(disc_prot, f_top5, m_top5, marker_prot))
+lab_prots <- unique(c(disc_prot, f_top5, m_top5))
 lab_a <- wide[protein %in% lab_prots, .(protein = toupper(protein), logFC_f, logFC_m, dep_cat)]
 cat(sprintf("  Labelling %d proteins in scatter\n", nrow(lab_a)))
 
@@ -280,15 +275,12 @@ tryCatch({
         else NA
     }
 
-    # Label strategy: known markers + top sex-specific proteins by |pre_logFC|
-    MS_MARKERS_C <- c("nefl","gfap","mog","omg","lilrb4","chga","tnfrsf13b","ache")
-    mark_c <- pre_wide[(pre_fdr_f < 0.05 | pre_fdr_m < 0.05) &
-                        tolower(protein) %in% MS_MARKERS_C, protein]
+    # Label strategy: programmatic top-5 sex-specific by |pre_logFC|
     f_top_c <- pre_wide[pre_fdr_f < 0.05][order(-abs(pre_logFC_f))][
                    seq_len(min(5, .N)), protein]
     m_top_c <- pre_wide[pre_fdr_m < 0.05][order(-abs(pre_logFC_m))][
                    seq_len(min(5, .N)), protein]
-    lab_c   <- unique(c(mark_c, f_top_c, m_top_c))
+    lab_c   <- unique(c(f_top_c, m_top_c))
     lab_c_dt <- pre_wide[protein %in% lab_c,
                           .(protein = toupper(protein), pre_logFC_f, pre_logFC_m, dep_cat)]
 
@@ -1087,7 +1079,6 @@ tryCatch({
         n_m    <- sum(d$fdr_m < 0.05, na.rm = TRUE)
 
         lab_prot <- unique(c(
-            d[(fdr_f < 0.05 | fdr_m < 0.05) & tolower(protein) %in% MS_MARKERS, protein],
             d[fdr_f < 0.05][order(-abs(logFC_f))][seq_len(min(4,.N)), protein],
             d[fdr_m < 0.05][order(-abs(logFC_m))][seq_len(min(4,.N)), protein]
         ))

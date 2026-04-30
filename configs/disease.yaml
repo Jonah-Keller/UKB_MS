@@ -59,42 +59,32 @@ prs_pgs_ids:          ["PGS000809", "PGS004699"]
 prs_label:            "MS PRS"
 prs_combined_col:     "prs_score"
 
-# ── Trajectory biomarkers ──────────────────────────────────────────────────
-# Read by analysis/04_differential/03_cns_trajectories.R
+# ── Programmatic top-N selection ───────────────────────────────────────────
+# Used by analysis/helpers/top_n_selector.R from inside figure scripts.
+# Each figure picks its own protein labels from the corresponding upstream
+# CSV by adj.P.Val ranking (FDR-aware) with nominal P fallback when the
+# FDR-significant subset is too small. No protein is highlighted by name.
+top_n_volcano:    20      # top-N up + top-N down for volcano label layer
+top_n_heatmap:    30      # rows on temporal / cell-type heatmaps (split up/down)
+top_n_trajectory: 3       # per-protein trajectory panels in fig 2 + fig 3
+min_sig_for_fdr:  5       # threshold below which top-N falls back to nominal P
+
+# ── CNS biology reference (documentation only — not display-gating) ────────
+# These are the canonical neuroaxonal / glial injury markers across CNS
+# disease. Used by analysis/04_differential/03_cns_trajectories.R as a
+# tunable list of which proteins to fit per-protein RCS trajectories on.
+# Other figure scripts do NOT read this — they pick proteins by data ranking.
 cns_injury_markers:   ["nefl", "mog", "gfap"]
-top_presymptomatic_deps:
-  - "spag8"
-  - "cdin1"
-  - "lctl"
-  - "dock10"
-  - "vwa1"
-  - "insm2"
-  - "kcnd2"
-  - "igsf11"
-  - "kif26b"
-  - "ccdc40"
-  - "nefl"
-  - "mog"
-  - "gfap"
-  - "nrgn"
-  - "il3"
-  - "aif1"
-  - "sirt6"
 
 # Proteins shown in the per-protein CNS trajectory panels (Fig. 2 / Fig. 3).
-# Read by analysis/04_differential/03_cns_trajectories.R
+# This is the ONE place a curated list still drives display, because the
+# trajectory panels show specific named proteins by intent (NEFL is the
+# universal axonal-injury readout). Replication cohorts can swap in their
+# own canonical biomarker panel here.
 trajectory_proteins:  ["NEFL", "MOG", "GFAP", "ERBB2"]
 
-# Proteins always labelled on volcano plots regardless of effect-size cutoff.
-# Read by analysis/04_differential/01_limma_ms_vs_hc.R
-volcano_highlight_proteins:
-  - "nefl"
-  - "mog"
-  - "gfap"
-  - "il3"
-  - "aif1"
-  - "sirt6"
-  - "dock10"
-  - "kcnd2"
-  - "spag8"
-  - "cdin1"
+# DEPRECATED — left as documentation of the previous MS-curated lists.
+# These no longer influence figure rendering; volcano labels and heatmap
+# rows are entirely data-driven via top_n_selector.R.
+# top_presymptomatic_deps:    [...]   # see git history for the MS list
+# volcano_highlight_proteins: [...]   # see git history for the MS list

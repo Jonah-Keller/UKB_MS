@@ -29,6 +29,7 @@ PROJ_DIR <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "top_n_selector.R"))
 
 cfg          <- load_disease_config()
 COHORT       <- cfg$cohort_short
@@ -41,8 +42,8 @@ PRS_COL      <- cfg$prs_combined_col
 HLA_ALLELE   <- cfg$hla_allele
 HLA_LBL      <- paste0("HLA-", HLA_ALLELE)
 PRS_LABEL    <- cfg$prs_label
-PRE_LBL      <- glue("pre-{DISEASE_CAPS}")
-POST_LBL     <- glue("post-{DISEASE_CAPS}")
+PRE_LBL      <- as.character(glue("pre-{DISEASE_CAPS}"))
+POST_LBL     <- as.character(glue("post-{DISEASE_CAPS}"))
 
 FIG_DIR  <- file.path(PROJ_DIR, "results", "figures", "3")
 SUPP_DIR <- file.path(PROJ_DIR, "results", "figures", "3_supp")
@@ -106,6 +107,30 @@ cat("  QC rows:", nrow(qc), "\n")
 cat("  HLA rows:", nrow(hla), "\n")
 cat("  HLA DEP rows:", nrow(hla_dep), "\n")
 
+# ---------------------------------------------------------------------------
+# Programmatic marker selection
+# ---------------------------------------------------------------------------
+# HLA_MARKER and PRS_MARKER are the data-driven top-1 protein from each
+# stratification analysis.  All downstream panels reference them by the
+# sentinel column names `lilrb4` (HLA marker) and `il2ra` (PRS marker), so
+# the body of this script reads cleanly across cohorts; the actual protein
+# is whatever ranked first in the corresponding stratification CSV for the
+# active cohort.  PRS_MARKER is resolved later (after prs_res is loaded).
+HLA_MARKER <- {
+    sel <- top_n_one_direction(hla_dep, n = 1L,
+                                min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L,
+                                case_fn = identity)
+    if (length(sel) == 0L) "lilrb4" else sel[1]
+}
+HLA_MARKER_DISP <- toupper(HLA_MARKER)
+cat("  HLA marker (data-driven):", HLA_MARKER_DISP,
+    "(ordered by", attr(HLA_MARKER, "ordered_by") %||% "n/a", ")\n")
+# Rename in qc so downstream can use the sentinel `lilrb4` column name.
+if (HLA_MARKER != "lilrb4" && HLA_MARKER %in% names(qc)) {
+    if ("lilrb4" %in% names(qc)) qc[, lilrb4 := NULL]
+    setnames(qc, HLA_MARKER, "lilrb4")
+}
+
 sex_strat <- if (file.exists(SEX_STRAT_FILE)) fread(SEX_STRAT_FILE) else NULL
 prs_int   <- if (file.exists(PRS_INT_FILE))  fread(PRS_INT_FILE)  else NULL
 cat("  Sex-stratified rows:", if (!is.null(sex_strat)) nrow(sex_strat) else 0, "\n")
@@ -146,8 +171,8 @@ if (!file.exists(ENRICH_FILE)) {
         idx  > 230, "HLA-DRB1"
     )]
 
-    RISK_LBL <- glue("Risk (enriched in {DISEASE_CAPS})")
-    PROT_LBL <- glue("Protective (depleted in {DISEASE_CAPS})")
+    RISK_LBL <- as.character(glue("Risk (enriched in {DISEASE_CAPS})"))
+    PROT_LBL <- as.character(glue("Protective (depleted in {DISEASE_CAPS})"))
     enr[, sig := fdr < 0.05]
     enr[, direction := fcase(
         sig & enrichment > 0, RISK_LBL,
@@ -315,7 +340,7 @@ if (!is.null(sex_strat) && "hla_within_ms" %in% sex_strat$analysis) {
     )]
     hw_wide[, sig_cat := factor(sig_cat,
         levels = c("Both", "Female only", "Male only", "NS"))]
-    hw_wide[, lbl := fifelse(protein == "lilrb4", "LILRB4", NA_character_)]
+    hw_wide[, lbl := fifelse(protein == "lilrb4", HLA_MARKER_DISP, NA_character_)]
 
     INS_COLS <- c("Both"="#E6A817","Female only"="#CC0066","Male only"="#2B4C7E","NS"="grey82")
 
@@ -391,8 +416,8 @@ vio_base <- qc_hla[
 ]
 HC_NEG_LBL <- "HC HLA\u2212"
 HC_POS_LBL <- "HC HLA+"
-MS_NEG_LBL <- glue("{DISEASE_CAPS} HLA\u2212")
-MS_POS_LBL <- glue("{DISEASE_CAPS} HLA+")
+MS_NEG_LBL <- as.character(glue("{DISEASE_CAPS} HLA\u2212"))
+MS_POS_LBL <- as.character(glue("{DISEASE_CAPS} HLA+"))
 vio_base[, group4 := fcase(
     ms_status == SV$control & drb1_1501_carrier == 0, HC_NEG_LBL,
     ms_status == SV$control & drb1_1501_carrier == 1, HC_POS_LBL,
@@ -639,9 +664,26 @@ tryCatch({
 # ---------------------------------------------------------------------------
 cat("Building panels l, m, n (HLA-stratified disease-course trajectories)...\n")
 
-TRAJ_HLA_PROTS  <- c("LILRB4", "CASP4", "CCL19")
-TRAJ_HLA_LABELS <- c("LILRB4" = "g", "CASP4" = "f", "CCL19" = "g")   # g in 3_supp != g in main
-TRAJ_HLA_MAIN   <- c("LILRB4" = TRUE,  "CASP4" = FALSE, "CCL19" = FALSE)
+# Programmatic: top-3 HLA-stratified DEPs by adj.P.Val (FDR-aware fallback to
+# nominal P). The first protein gets the main-figure trajectory panel; the
+# remaining two go to Extended Data Figure 3 supp.
+hla_top <- top_n_one_direction(
+    hla_dep, n = 3L,
+    min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L,
+    case_fn = toupper
+)
+TRAJ_HLA_PROTS  <- as.character(hla_top)
+# First protein → main figure panel "g"; remainder → ED supp panels f, g (or
+# whatever letters the layout assigns).  Keep panel-letter mapping defensive
+# in case fewer than 3 hits surface.
+.traj_letters <- c("g", "f", "g")
+TRAJ_HLA_LABELS <- setNames(.traj_letters[seq_along(TRAJ_HLA_PROTS)],
+                             TRAJ_HLA_PROTS)
+TRAJ_HLA_MAIN   <- setNames(c(TRUE, rep(FALSE, length(TRAJ_HLA_PROTS) - 1L)),
+                             TRAJ_HLA_PROTS)
+cat("  HLA trajectory panels (data-driven, ordered by ",
+    attr(hla_top, "ordered_by"), "): ",
+    paste(TRAJ_HLA_PROTS, collapse = ", "), "\n", sep = "")
 HLA_TRAJ_COLS   <- c("HLA+" = "#E6A817", "HLA\u2212" = "#2B4C7E")
 YTD_LMN_RANGE   <- c(-15, 15)
 
@@ -813,14 +855,14 @@ if ("lilrb4" %in% names(ms_traj)) {
             scale_fill_manual(values = HLA_TRAJ_COLS, name = NULL, guide = "none") +
             scale_x_continuous(breaks = seq(-12, 12, by = 4)) +
             labs(
-                title = "h  LILRB4 trajectory by HLA status: female vs male",
+                title = glue("h  {HLA_MARKER_DISP} trajectory by HLA status: female vs male"),
                 x     = glue("Years relative to {DISEASE_CAPS} diagnosis"),
-                y     = "LILRB4 (NPX)"
+                y     = glue("{HLA_MARKER_DISP} (NPX)")
             ) +
             theme_ukb(base_size = 9) +
             theme(legend.position = "bottom")
 
-        save_panel(pHh, "h_lilrb4_sex_hla_trajectory", 6.0, 3.5)
+        save_panel(pHh, glue("h_{tolower(HLA_MARKER_DISP)}_sex_hla_trajectory"), 6.0, 3.5)
     } else {
         cat("  Insufficient data for sex-stratified LILRB4 trajectory\n")
     }
@@ -896,7 +938,40 @@ save_panel(pG, "i_prs_proteome", 3.5, 3.5)
 # ---------------------------------------------------------------------------
 cat("Building panel j (IL2RA trajectory by PRS quartile)...\n")
 
-PRS_TRAJ_PROT <- "il2ra"
+# Programmatic: top-1 PRS-correlated protein. Renamed to sentinel `il2ra`
+# in qc so downstream panels reference the correct cohort-specific protein
+# without further edits.
+PRS_MARKER <- {
+    # prs_res uses lowercase `pval` column; harmonise with the helper expectation
+    prs_res_h <- copy(prs_res)
+    if ("pval" %in% names(prs_res_h) && !"P.Value" %in% names(prs_res_h))
+        prs_res_h[, P.Value := pval]
+    if ("fdr"  %in% names(prs_res_h) && !"adj.P.Val" %in% names(prs_res_h))
+        prs_res_h[, adj.P.Val := fdr]
+    sel <- top_n_one_direction(prs_res_h, n = 1L,
+                                min_sig_for_fdr = cfg$min_sig_for_fdr %||% 5L,
+                                case_fn = identity)
+    if (length(sel) == 0L) "il2ra" else sel[1]
+}
+PRS_MARKER_DISP <- toupper(PRS_MARKER)
+cat("  PRS marker (data-driven):", PRS_MARKER_DISP,
+    "(ordered by", attr(PRS_MARKER, "ordered_by") %||% "n/a", ")\n")
+if (PRS_MARKER != "il2ra" && PRS_MARKER %in% names(qc)) {
+    if ("il2ra" %in% names(qc)) qc[, il2ra := NULL]
+    setnames(qc, PRS_MARKER, "il2ra")
+}
+# qc_hla was built before PRS_MARKER was resolved; mirror the rename there
+if (exists("qc_hla") && PRS_MARKER != "il2ra" && PRS_MARKER %in% names(qc_hla)) {
+    if ("il2ra" %in% names(qc_hla)) qc_hla[, il2ra := NULL]
+    setnames(qc_hla, PRS_MARKER, "il2ra")
+}
+PRS_TRAJ_PROT <- "il2ra"   # sentinel column name (see PRS_MARKER above)
+
+# Display labels — programmatic counterpart to the previously hardcoded
+# c("LILRB4 (HLA marker)", "IL2RA (PRS marker)") factor levels.
+HLA_MKR_LABEL <- paste0(HLA_MARKER_DISP, " (HLA marker)")
+PRS_MKR_LABEL <- paste0(PRS_MARKER_DISP, " (PRS marker)")
+MKR_LEVELS    <- c(HLA_MKR_LABEL, PRS_MKR_LABEL)
 
 if (file.exists(PRS_FILE) && PRS_TRAJ_PROT %in% names(qc)) {
     prs_scores_j <- fread(PRS_FILE, showProgress = FALSE)
@@ -1270,10 +1345,10 @@ if (file.exists(PRS_FILE)) {
                    measure.vars = c("lilrb4","il2ra"),
                    variable.name = "protein", value.name = "npx")
     m_long[, prot_label := fifelse(protein == "lilrb4",
-                                   "LILRB4 (HLA marker)",
-                                   "IL2RA (PRS marker)")]
+                                   HLA_MKR_LABEL,
+                                   PRS_MKR_LABEL)]
     m_long[, prot_label := factor(prot_label,
-                                   levels = c("LILRB4 (HLA marker)", "IL2RA (PRS marker)"))]
+                                   levels = MKR_LEVELS)]
     m_long[, fill_col := geno_grp]
 
     pM <- ggplot(m_long[!is.na(npx)],
@@ -1285,8 +1360,8 @@ if (file.exists(PRS_FILE)) {
         scale_fill_manual(values = GENO_FILLS, guide = "none") +
         labs(
             title    = "m  Genetic stratification: HLA \u00d7 PRS \u00d7 sex",
-            subtitle = paste0(DISEASE_CAPS, " cases: HLA\u00b1 \u00d7 PRS median split. ",
-                              "LILRB4 driven by HLA; IL2RA highest in HLA+ \u00d7 PRS-high"),
+            subtitle = glue("{DISEASE_CAPS} cases: HLA\u00b1 \u00d7 PRS median split. ",
+                              "{HLA_MARKER_DISP} driven by HLA; {PRS_MARKER_DISP} highest in HLA+ \u00d7 PRS-high"),
             x = NULL, y = "NPX"
         ) +
         theme_ukb(base_size = 9) +
@@ -1318,16 +1393,18 @@ if (file.exists(PRS_FILE)) {
         facet_wrap(~ sex_label, nrow = 1) +
         scale_x_continuous(expand = expansion(mult = c(0.04, 0.12))) +
         labs(
-            title    = glue("n  LILRB4 vs IL2RA: co-variation within {DISEASE_CAPS}"),
+            title    = glue("n  {HLA_MARKER_DISP} vs {PRS_MARKER_DISP}: co-variation within {DISEASE_CAPS}"),
             subtitle = "HLA and PRS protein markers co-vary (shared immune activation) but are independently driven",
-            x        = "IL2RA (NPX, PRS-correlated)",
-            y        = "LILRB4 (NPX, HLA marker)"
+            x        = glue("{PRS_MARKER_DISP} (NPX, PRS-correlated)"),
+            y        = glue("{HLA_MARKER_DISP} (NPX, HLA marker)")
         ) +
         theme_ukb(base_size = 9) +
         theme(legend.position = "bottom",
               plot.subtitle   = element_text(size = 7, colour = "grey40"))
 
-    save_panel(pN_main, "n_lilrb4_il2ra_scatter", 5.5, 3.8)
+    save_panel(pN_main,
+               glue("n_{tolower(HLA_MARKER_DISP)}_{tolower(PRS_MARKER_DISP)}_scatter"),
+               5.5, 3.8)
 
 } else {
     cat("  PRS file not found; skipping panels m and n\n")
@@ -1478,10 +1555,11 @@ if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
         lilrb4_comor[, log2OR_lo := log2(OR_lo)]
         lilrb4_comor[, log2OR_hi := log2(OR_hi)]
         lilrb4_comor[, direction := fifelse(OR >= 1,
-                                            "Enriched in LILRB4-high",
-                                            "Depleted in LILRB4-high")]
+                                            glue("Enriched in {HLA_MARKER_DISP}-high"),
+                                            glue("Depleted in {HLA_MARKER_DISP}-high"))]
         lilrb4_comor[, direction := factor(direction,
-            levels = c("Enriched in LILRB4-high", "Depleted in LILRB4-high"))]
+            levels = c(glue("Enriched in {HLA_MARKER_DISP}-high"),
+                       glue("Depleted in {HLA_MARKER_DISP}-high")))]
         lilrb4_comor[, sig_star := fcase(
             fdr < 0.001, "***", fdr < 0.01, "**", fdr < 0.05, "*", fdr < 0.2, "~", default = ""
         )]
@@ -1491,12 +1569,12 @@ if (file.exists(FEAT_FILE) && "lilrb4" %in% names(qc)) {
 
         fwrite(lilrb4_comor,
                file.path(PROJ_DIR, "results", "endophenotype",
-                         glue("{COHORT}_lilrb4_prems_comorbidity.csv")))
+                         glue("{COHORT}_{tolower(HLA_MARKER_DISP)}_prems_comorbidity.csv")))
 
-        LILRB4_COMOR_COLS <- c(
-            "Enriched in LILRB4-high" = "#E6A817",
-            "Depleted in LILRB4-high" = "#2B4C7E"
-        )
+        LILRB4_COMOR_COLS <- setNames(
+            c("#E6A817", "#2B4C7E"),
+            c(glue("Enriched in {HLA_MARKER_DISP}-high"),
+              glue("Depleted in {HLA_MARKER_DISP}-high")))
 
         pI_supp <- ggplot(lilrb4_comor, aes(y = label, colour = direction)) +
             geom_vline(xintercept = 0, linetype = "dashed",
@@ -1617,9 +1695,9 @@ if (file.exists(PRS_FILE) && exists("ms_mn") && exists("prs_mn")) {
                    measure.vars = c("lilrb4", "il2ra"),
                    variable.name = "protein", value.name = "npx")
     o_long[, prot_label := fifelse(protein == "lilrb4",
-                                   "LILRB4 (HLA marker)", "IL2RA (PRS marker)")]
+                                   HLA_MKR_LABEL, PRS_MKR_LABEL)]
     o_long[, prot_label := factor(prot_label,
-                                   levels = c("LILRB4 (HLA marker)", "IL2RA (PRS marker)"))]
+                                   levels = MKR_LEVELS)]
     # group = HC or MS within each geno_grp → drives position_dodge split
     o_long[, fill_key := paste(as.character(geno_grp), as.character(disease_grp))]
 
@@ -1738,7 +1816,8 @@ if (file.exists(PRS_FILE) && exists("ms_mn")) {
             row.names = FALSE
         )
 
-        PROT_COLS_K <- c("IL2RA" = "#CC0066", "LILRB4" = "#E6A817")
+        PROT_COLS_K <- setNames(c("#CC0066", "#E6A817"),
+                                 c(PRS_MARKER_DISP, HLA_MARKER_DISP))
 
         pSK <- ggplot(reg_rows,
                       aes(y = term_label, x = estimate,
@@ -1795,9 +1874,9 @@ if (file.exists(PRS_FILE) && exists("o_stack") && nrow(o_stack) > 0) {
                      measure.vars = c("lilrb4", "il2ra"),
                      variable.name = "protein", value.name = "npx")
     o_long_l[, prot_label := fifelse(protein == "lilrb4",
-                                     "LILRB4 (HLA marker)", "IL2RA (PRS marker)")]
+                                     HLA_MKR_LABEL, PRS_MKR_LABEL)]
     o_long_l[, prot_label := factor(prot_label,
-                                     levels = c("LILRB4 (HLA marker)", "IL2RA (PRS marker)"))]
+                                     levels = MKR_LEVELS)]
 
     # Mean, SE, Wilcoxon p per group × protein
     delta_l <- rbindlist(lapply(levels(o_stack$geno_grp), function(grp) {
@@ -1824,7 +1903,7 @@ if (file.exists(PRS_FILE) && exists("o_stack") && nrow(o_stack) > 0) {
         default = ""
     )]
     delta_l[, prot_label  := factor(prot_label,
-                                     levels = c("LILRB4 (HLA marker)", "IL2RA (PRS marker)"))]
+                                     levels = MKR_LEVELS)]
     delta_l[, geno_grp    := factor(geno_grp, levels = rev(GRP_LEVELS))]
     delta_l[, sig_cat := fcase(
         fdr < 0.05,  "FDR<0.05",
