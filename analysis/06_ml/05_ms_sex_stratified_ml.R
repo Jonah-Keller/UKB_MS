@@ -1,17 +1,19 @@
 #!/usr/bin/env Rscript
 # 05_ms_sex_stratified_ml.R
-# Sex-stratified MS classifier: 6 glmnet models (female/male × combined/pre-onset/post-onset)
+# Sex-stratified disease classifier: 6 glmnet models (female/male × combined/pre-onset/post-onset)
 #
 # Approach:
 #   - Per-sex PSM (no sex_num — already stratified by sex)
 #   - glmnet elastic net, 5-fold × 3 repeats CV, ROC metric
 #   - Linear SHAP for combined models: mean |SHAP| = |coef| × sd(feature)
 #
+# Cohort, status column, and filename prefixes are read from configs/disease.yaml.
+#
 # Output: results/ml/
-#   ms_sex_ml_roc_data.csv        (fpr/tpr/auc for all 6 models)
-#   ms_sex_ml_shap.csv            (protein, female_shap, male_shap — combined models)
-#   ms_sex_ml_roc_6curves.pdf
-#   ms_sex_ml_shap_paired.pdf
+#   {cohort_short}_sex_ml_roc_data.csv        (fpr/tpr/auc for all 6 models)
+#   {cohort_short}_sex_ml_shap.csv            (protein, female_shap, male_shap — combined models)
+#   {cohort_short}_sex_ml_roc_6curves.pdf
+#   {cohort_short}_sex_ml_shap_paired.pdf
 
 suppressPackageStartupMessages({
     library(data.table)
@@ -21,6 +23,7 @@ suppressPackageStartupMessages({
     library(ggrepel)
     library(MatchIt)
     library(glmnet)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -28,8 +31,19 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg_disease <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT     <- cfg_disease$cohort_short
+DISEASE    <- cfg_disease$disease_short_caps
+STATUS_COL <- cfg_disease$cohort_status_col
+PRE_VAL    <- cfg_disease$status_values$pre_onset
+POST_VAL   <- cfg_disease$status_values$post_onset
+CTRL_VAL   <- cfg_disease$status_values$control
+POS_LBL    <- DISEASE
+NEG_LBL    <- "Control"
 
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
+QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed",
+                         glue("{COHORT}_olink_qc.csv"))
 SEX_DIR     <- file.path(PROJ_DIR, "results", "sex_stratified")
 CADASIL_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
 OUT_DIR     <- file.path(PROJ_DIR, "results", "ml")
@@ -45,17 +59,17 @@ set.seed(42)
 # 6 model configurations
 CONFIGS <- list(
     female_combined  = list(sex=0L, sex_lbl="Female", stage="Combined",   stage_tag="combined",
-                            statuses=c("pre_onset","post_onset")),
+                            statuses=c(PRE_VAL, POST_VAL)),
     female_preonset  = list(sex=0L, sex_lbl="Female", stage="Pre-onset",  stage_tag="preonset",
-                            statuses="pre_onset"),
+                            statuses=PRE_VAL),
     female_postonset = list(sex=0L, sex_lbl="Female", stage="Post-onset", stage_tag="postonset",
-                            statuses="post_onset"),
+                            statuses=POST_VAL),
     male_combined    = list(sex=1L, sex_lbl="Male",   stage="Combined",   stage_tag="combined",
-                            statuses=c("pre_onset","post_onset")),
+                            statuses=c(PRE_VAL, POST_VAL)),
     male_preonset    = list(sex=1L, sex_lbl="Male",   stage="Pre-onset",  stage_tag="preonset",
-                            statuses="pre_onset"),
+                            statuses=PRE_VAL),
     male_postonset   = list(sex=1L, sex_lbl="Male",   stage="Post-onset", stage_tag="postonset",
-                            statuses="post_onset")
+                            statuses=POST_VAL)
 )
 
 # Visual encoding: sex = colour family, stage = linetype
@@ -102,7 +116,7 @@ covs <- load_covariates(CADASIL_DIR)
 dt   <- merge(dt, covs, by = "eid", all.x = TRUE)
 dt[, sex_num := as.integer(factor(sex)) - 1L]
 
-META_COLS <- c("eid","ms_status","age_at_sampling","age_at_diagnosis","years_to_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling","age_at_diagnosis","years_to_diagnosis",
                "sex","olink_instance","qc_outlier","UMAP1","UMAP2","mean_npx",
                "bmi","ever_smoker","diabetes","alcohol_freq","sex_num")
 protein_cols <- setdiff(names(dt), META_COLS)
@@ -120,12 +134,15 @@ run_config <- function(cfg) {
     cat(sprintf("\n=== %s %s ===\n", cfg$sex_lbl, cfg$stage))
 
     dep_file <- file.path(SEX_DIR,
-        fifelse(cfg$sex == 0L, "ms_female_vs_hc_all.csv", "ms_male_vs_hc_all.csv"))
+        fifelse(cfg$sex == 0L,
+                glue("{COHORT}_female_vs_hc_all.csv"),
+                glue("{COHORT}_male_vs_hc_all.csv")))
     deps     <- fread(dep_file)
     features <- deps[order(adj.P.Val)][seq_len(min(N_FEATURES, .N)), tolower(protein)]
 
-    dt_sx <- dt_filt[sex == cfg$sex & ms_status %in% c(cfg$statuses, "control")]
-    dt_sx[, is_case := as.integer(ms_status %in% cfg$statuses)]
+    dt_sx <- dt_filt[sex == cfg$sex &
+                     get(STATUS_COL) %in% c(cfg$statuses, CTRL_VAL)]
+    dt_sx[, is_case := as.integer(get(STATUS_COL) %in% cfg$statuses)]
     dt_c  <- dt_sx[complete.cases(as.data.frame(dt_sx[, c("is_case", ..PSM_VARS)]))]
 
     n_case <- sum(dt_c$is_case)
@@ -147,12 +164,13 @@ run_config <- function(cfg) {
                 sum(dt_ml$is_case), sum(!dt_ml$is_case)))
 
     avail <- intersect(features, names(dt_ml))
-    dt_ml[, outcome := factor(fifelse(is_case == 1L, "MS", "Control"),
-                               levels = c("MS", "Control"))]
+    dt_ml[, outcome := factor(fifelse(is_case == 1L, POS_LBL, NEG_LBL),
+                               levels = c(POS_LBL, NEG_LBL))]
     ml_df <- as.data.frame(dt_ml[, c("outcome", avail), with = FALSE])
     ml_df <- ml_df[complete.cases(ml_df), ]
-    cat(sprintf("  Complete cases: %d  (MS=%d, Control=%d)\n",
-                nrow(ml_df), sum(ml_df$outcome=="MS"), sum(ml_df$outcome=="Control")))
+    cat(sprintf("  Complete cases: %d  (%s=%d, %s=%d)\n",
+                nrow(ml_df), POS_LBL, sum(ml_df$outcome == POS_LBL),
+                NEG_LBL, sum(ml_df$outcome == NEG_LBL)))
 
     train_idx <- createDataPartition(ml_df$outcome, p = TRAIN_PROP, list = FALSE)
     train_df  <- ml_df[ train_idx, ]
@@ -185,11 +203,11 @@ run_config <- function(cfg) {
 
     # Test-set ROC
     probs <- tryCatch(
-        predict(model, newdata = test_df, type = "prob")[, "MS"],
+        predict(model, newdata = test_df, type = "prob")[, POS_LBL],
         error = function(e) NULL
     )
     if (is.null(probs)) return(NULL)
-    roc_obj  <- roc(test_df$outcome, probs, levels = c("Control","MS"),
+    roc_obj  <- roc(test_df$outcome, probs, levels = c(NEG_LBL, POS_LBL),
                     direction = "<", quiet = TRUE)
     test_auc <- as.numeric(auc(roc_obj))
     cat(sprintf("  Test AUC: %.3f\n", test_auc))
@@ -231,8 +249,9 @@ cat(sprintf("\n%d / 6 models trained successfully\n", length(results)))
 
 # ── 3. Save ROC data ───────────────────────────────────────────────────────────
 roc_all <- rbindlist(lapply(results, `[[`, "roc_dt"), fill = TRUE)
-fwrite(roc_all, file.path(OUT_DIR, "ms_sex_ml_roc_data.csv"))
-cat("  Saved: ms_sex_ml_roc_data.csv\n")
+roc_csv <- glue("{COHORT}_sex_ml_roc_data.csv")
+fwrite(roc_all, file.path(OUT_DIR, roc_csv))
+cat(sprintf("  Saved: %s\n", roc_csv))
 
 # AUC summary
 auc_summary <- unique(roc_all[, .(curve_key, auc)])[order(curve_key)]
@@ -252,9 +271,10 @@ if (length(shap_list) > 0) {
     if (!"male_shap"   %in% names(shap_wide)) shap_wide[, male_shap   := 0]
     shap_wide[, max_shap := pmax(female_shap, male_shap)]
     shap_wide <- shap_wide[order(-max_shap)]
+    shap_csv <- glue("{COHORT}_sex_ml_shap.csv")
     fwrite(shap_wide[, .(protein, female_shap, male_shap)],
-           file.path(OUT_DIR, "ms_sex_ml_shap.csv"))
-    cat("  Saved: ms_sex_ml_shap.csv\n")
+           file.path(OUT_DIR, shap_csv))
+    cat(sprintf("  Saved: %s\n", shap_csv))
 }
 
 # ── 5. 6-curve ROC plot ────────────────────────────────────────────────────────
@@ -301,7 +321,7 @@ p_roc6 <- ggplot(roc_all, aes(x = fpr, y = tpr,
     guides(colour   = guide_legend(keywidth = 1.6, keyheight = 0.75, ncol = 1),
            linetype = guide_legend(keywidth = 1.6, keyheight = 0.75, ncol = 1)) +
     labs(
-        title    = "j  Sex-stratified MS classifier ROC curves",
+        title    = sprintf("j  Sex-stratified %s classifier ROC curves", DISEASE),
         subtitle = "glmnet elastic net | held-out test set | solid=combined, dashed=post-onset, dotted=pre-onset",
         x = "1 \u2013 Specificity (FPR)",
         y = "Sensitivity (TPR)"
@@ -314,19 +334,20 @@ p_roc6 <- ggplot(roc_all, aes(x = fpr, y = tpr,
           legend.background = element_rect(fill = "white", colour = NA),
           plot.subtitle    = element_text(size = 6.5, colour = "grey40"))
 
-ggsave(file.path(OUT_DIR, "ms_sex_ml_roc_6curves.pdf"),
+roc6_pdf <- glue("{COHORT}_sex_ml_roc_6curves.pdf")
+ggsave(file.path(OUT_DIR, roc6_pdf),
        p_roc6, width = 5.5, height = 5.5, device = cairo_pdf)
-cat("  Saved: ms_sex_ml_roc_6curves.pdf\n")
+cat(sprintf("  Saved: %s\n", roc6_pdf))
 
 # ── 6. SHAP paired bar chart ───────────────────────────────────────────────────
 cat("\nPlotting SHAP paired bar chart...\n")
-shap_file <- file.path(OUT_DIR, "ms_sex_ml_shap.csv")
+shap_file <- file.path(OUT_DIR, glue("{COHORT}_sex_ml_shap.csv"))
 if (file.exists(shap_file)) {
     shap <- fread(shap_file)
 
     # Load dep_cat annotation
-    fa_all <- fread(file.path(SEX_DIR, "ms_female_vs_hc_all.csv"))
-    ma_all <- fread(file.path(SEX_DIR, "ms_male_vs_hc_all.csv"))
+    fa_all <- fread(file.path(SEX_DIR, glue("{COHORT}_female_vs_hc_all.csv")))
+    ma_all <- fread(file.path(SEX_DIR, glue("{COHORT}_male_vs_hc_all.csv")))
     wide_ann <- merge(
         fa_all[, .(protein, logFC_f=logFC, fdr_f=adj.P.Val)],
         ma_all[, .(protein, logFC_m=logFC, fdr_m=adj.P.Val)],
@@ -359,7 +380,7 @@ if (file.exists(shap_file)) {
         scale_fill_manual(values=SEX_FILL, name=NULL) +
         scale_x_continuous(expand=expansion(mult=c(0,0.06))) +
         labs(
-            title    = "e  Sex-stratified MS classifier: SHAP feature importance",
+            title    = sprintf("e  Sex-stratified %s classifier: SHAP feature importance", DISEASE),
             subtitle = "Linear SHAP = |coef| \u00d7 sd(feature) | combined models only | top 35",
             x = "Mean |SHAP| (log-odds scale)", y = NULL
         ) +
@@ -368,9 +389,10 @@ if (file.exists(shap_file)) {
               legend.position = "top",
               plot.subtitle   = element_text(size=7, colour="grey40"))
 
-    ggsave(file.path(OUT_DIR, "ms_sex_ml_shap_paired.pdf"),
+    shap_pdf <- glue("{COHORT}_sex_ml_shap_paired.pdf")
+    ggsave(file.path(OUT_DIR, shap_pdf),
            p_shap, width=5.5, height=8, device=cairo_pdf)
-    cat("  Saved: ms_sex_ml_shap_paired.pdf\n")
+    cat(sprintf("  Saved: %s\n", shap_pdf))
 }
 
 cat("\n05_ms_sex_stratified_ml.R complete.\n")

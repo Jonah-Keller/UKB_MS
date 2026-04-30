@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # 07_walchli_hpa_integrated_heatmap.R
-# Integrated cell-type expression heatmap for MS DEPs combining:
+# Integrated cell-type expression heatmap for disease DEPs combining:
 #   - Walchli normal temporal-lobe brain atlas (vascular + CNS cell types)
 #     Source: pre-computed AggregateExpression CSV from CADASIL project
 #             (originally extracted from walchli_object.h5Seurat on Minerva HPC)
@@ -27,15 +27,18 @@
 #   The object is at: /sc/arion/projects/.../walchli_object.h5Seurat (~14 GB RAM req).
 #   Output will be a small CSV to replace data/reference/walchli_avg_expr_by_celltype.csv.
 #
+# Cohort prefix is read from configs/disease.yaml.
+#
 # Outputs (per analysis):
-#   results/networks/ms_{analysis}_walchli_hpa_matrix.csv
-#   results/networks/ms_{analysis}_walchli_hpa_heatmap.pdf
-#   results/networks/ms_{analysis}_walchli_hpa_top40.pdf
+#   results/networks/{cohort_short}_{analysis}_walchli_hpa_matrix.csv
+#   results/networks/{cohort_short}_{analysis}_walchli_hpa_heatmap.pdf
+#   results/networks/{cohort_short}_{analysis}_walchli_hpa_top40.pdf
 
 suppressPackageStartupMessages({
     library(data.table)
     library(pheatmap)
     library(RColorBrewer)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -43,6 +46,12 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT  <- cfg$cohort_short
+DISEASE <- cfg$disease_short_caps
+UP_LBL   <- glue("Up in {DISEASE}")
+DOWN_LBL <- glue("Down in {DISEASE}")
 
 DIFF_DIR    <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR     <- file.path(PROJ_DIR, "results", "networks")
@@ -142,17 +151,17 @@ minmax <- function(x) {
 # 4 Analyses
 # ---------------------------------------------------------------------------
 analyses <- list(
-    list(name = "combined", label = "Combined MS vs HC",
-         file = "ms_combined_vs_hc.csv", fdr_thr = 0.05,
-         up_col = "Up in MS",       dn_col = "Down in MS"),
+    list(name = "combined", label = sprintf("Combined %s vs HC", DISEASE),
+         file = glue("{COHORT}_combined_vs_hc.csv"), fdr_thr = 0.05,
+         up_col = UP_LBL, dn_col = DOWN_LBL),
     list(name = "pre",      label = "Pre-onset vs HC",
-         file = "ms_pre_vs_hc.csv",      fdr_thr = 0.20,
-         up_col = "Up in MS",       dn_col = "Down in MS"),
+         file = glue("{COHORT}_pre_vs_hc.csv"),      fdr_thr = 0.20,
+         up_col = UP_LBL, dn_col = DOWN_LBL),
     list(name = "post",     label = "Post-onset vs HC",
-         file = "ms_post_vs_hc.csv",     fdr_thr = 0.05,
-         up_col = "Up in MS",       dn_col = "Down in MS"),
+         file = glue("{COHORT}_post_vs_hc.csv"),     fdr_thr = 0.05,
+         up_col = UP_LBL, dn_col = DOWN_LBL),
     list(name = "preVsPost", label = "Pre vs post-onset",
-         file = "ms_pre_vs_post.csv",    fdr_thr = 0.05,
+         file = glue("{COHORT}_pre_vs_post.csv"),    fdr_thr = 0.05,
          up_col = "Higher pre-onset", dn_col = "Higher post-onset")
 )
 
@@ -252,8 +261,9 @@ for (an in analyses) {
     dir_map <- deps_sig[, .(gene = toupper(protein), logFC, direction)]
     out_dt  <- merge(out_dt, dir_map, by = "gene", all.x = TRUE)
     out_dt  <- out_dt[order(-logFC)]
-    fwrite(out_dt, file.path(OUT_DIR, sprintf("ms_%s_walchli_hpa_matrix.csv", an$name)))
-    cat(sprintf("  Saved ms_%s_walchli_hpa_matrix.csv\n", an$name))
+    csv_name <- glue("{COHORT}_{an$name}_walchli_hpa_matrix.csv")
+    fwrite(out_dt, file.path(OUT_DIR, csv_name))
+    cat(sprintf("  Saved %s\n", csv_name))
 
     # ── Heatmap helpers ───────────────────────────────────────────────────────
     heatmap_cols <- colorRampPalette(c("white", "#CC0066"))(100)
@@ -298,7 +308,8 @@ for (an in analyses) {
     show_gene_labels <- ncol(mat_t) <= 60
 
     # Full heatmap
-    pdf_out <- file.path(OUT_DIR, sprintf("ms_%s_walchli_hpa_heatmap.pdf", an$name))
+    pdf_name <- glue("{COHORT}_{an$name}_walchli_hpa_heatmap.pdf")
+    pdf_out  <- file.path(OUT_DIR, pdf_name)
     pdf(pdf_out,
         width  = max(9, ncol(mat_t) * 0.12 + 4),
         height = 6.5, onefile = FALSE)
@@ -323,7 +334,7 @@ for (an in analyses) {
                        an$label, ncol(mat_t))
     )
     dev.off()
-    cat(sprintf("  Saved ms_%s_walchli_hpa_heatmap.pdf\n", an$name))
+    cat(sprintf("  Saved %s\n", pdf_name))
 
     # Top-40 heatmap (for main figure panel)
     top40 <- rownames(expr_plot)[rownames(expr_plot) %in%
@@ -340,7 +351,8 @@ for (an in analyses) {
         )
         ann_top_row <- ann_row_df[rownames(mat_top), , drop = FALSE]
 
-        pdf_top <- file.path(OUT_DIR, sprintf("ms_%s_walchli_hpa_top40.pdf", an$name))
+        pdf_top_name <- glue("{COHORT}_{an$name}_walchli_hpa_top40.pdf")
+        pdf_top      <- file.path(OUT_DIR, pdf_top_name)
         pdf(pdf_top, width = 10, height = 6, onefile = FALSE)
         pheatmap(mat_top,
             color                = heatmap_cols,
@@ -363,7 +375,7 @@ for (an in analyses) {
                            an$label, length(top40))
         )
         dev.off()
-        cat(sprintf("  Saved ms_%s_walchli_hpa_top40.pdf\n", an$name))
+        cat(sprintf("  Saved %s\n", pdf_top_name))
     }
 }
 

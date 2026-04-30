@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # 06_celltype_overrepresentation.R
-# Cell-type marker enrichment analysis for MS DEPs — refactored pipeline.
+# Cell-type marker enrichment analysis for disease DEPs — refactored pipeline.
 #
 # Previous pipeline: Fisher's exact on binary up/down DEP lists vs. HPA
 # nTPM>=10 marker sets. This failed because (a) marker sets covered 35-50%
@@ -16,25 +16,25 @@
 #   Legacy   : for side-by-side reproducibility the old Fisher test is run
 #              with the old nTPM>=10 markers and emitted as a separate CSV.
 #
-# Analyses (unchanged):
-#   combined  — ms_combined_vs_hc.csv
-#   pre       — ms_pre_vs_hc.csv
-#   post      — ms_post_vs_hc.csv
-#   preVsPost — ms_pre_vs_post.csv
+# Cohort prefix is read from configs/disease.yaml. Analyses (unchanged):
+#   combined  — {cohort_short}_combined_vs_hc.csv
+#   pre       — {cohort_short}_pre_vs_hc.csv
+#   post      — {cohort_short}_post_vs_hc.csv
+#   preVsPost — {cohort_short}_pre_vs_post.csv
 #
 # Outputs (results/networks/):
-#   ms_celltype_gsea.csv              NEW primary file; columns:
+#   {cohort_short}_celltype_gsea.csv              NEW primary file; columns:
 #                                     cell_type, analysis, analysis_label,
 #                                     size, NES, ES, pval, padj, leading_edge
-#   ms_celltype_camerapr.csv          NEW secondary (inter-gene corr confirmatory)
-#   ms_celltype_markers_summary.csv   NEW marker-set sizes for reporting
-#   ms_celltype_overrep.csv           LEGACY Fisher results (old nTPM>=10 markers)
-#                                     kept for reproducibility of pre-refactor figures
-#   ms_celltype_gsea_plot.pdf         NEW summary dot plot
+#   {cohort_short}_celltype_camerapr.csv          NEW secondary (inter-gene corr confirmatory)
+#   {cohort_short}_celltype_markers_summary.csv   NEW marker-set sizes for reporting
+#   {cohort_short}_celltype_overrep.csv           LEGACY Fisher results
+#   {cohort_short}_celltype_gsea_plot.pdf         NEW summary dot plot
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -43,6 +43,10 @@ SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", fi
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT  <- cfg$cohort_short
+DISEASE <- cfg$disease_short_caps
 
 DIFF_DIR    <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR     <- file.path(PROJ_DIR, "results", "networks")
@@ -86,17 +90,22 @@ size_dt <- data.table::rbindlist(list(
                 cell_type = names(marker_sets_legacy),
                 n_markers = vapply(marker_sets_legacy, length, integer(1L)))
 ), use.names = TRUE, fill = TRUE)
-fwrite(size_dt, file.path(OUT_DIR, "ms_celltype_markers_summary.csv"))
-cat(sprintf("  Saved ms_celltype_markers_summary.csv (%d rows)\n", nrow(size_dt)))
+markers_csv <- glue("{COHORT}_celltype_markers_summary.csv")
+fwrite(size_dt, file.path(OUT_DIR, markers_csv))
+cat(sprintf("  Saved %s (%d rows)\n", markers_csv, nrow(size_dt)))
 
 # ---------------------------------------------------------------------------
 # 2. Analyses to run
 # ---------------------------------------------------------------------------
 analyses <- list(
-    list(name = "combined",  label = "Combined MS vs HC",   file = "ms_combined_vs_hc.csv", fdr_thr = 0.05),
-    list(name = "pre",       label = "Pre-onset vs HC",      file = "ms_pre_vs_hc.csv",      fdr_thr = 0.20),
-    list(name = "post",      label = "Post-onset vs HC",     file = "ms_post_vs_hc.csv",     fdr_thr = 0.05),
-    list(name = "preVsPost", label = "Pre vs post-onset",    file = "ms_pre_vs_post.csv",    fdr_thr = 0.05)
+    list(name = "combined",  label = sprintf("Combined %s vs HC", DISEASE),
+         file = glue("{COHORT}_combined_vs_hc.csv"), fdr_thr = 0.05),
+    list(name = "pre",       label = "Pre-onset vs HC",
+         file = glue("{COHORT}_pre_vs_hc.csv"),      fdr_thr = 0.20),
+    list(name = "post",      label = "Post-onset vs HC",
+         file = glue("{COHORT}_post_vs_hc.csv"),     fdr_thr = 0.05),
+    list(name = "preVsPost", label = "Pre vs post-onset",
+         file = glue("{COHORT}_pre_vs_post.csv"),    fdr_thr = 0.05)
 )
 
 # ---------------------------------------------------------------------------
@@ -182,14 +191,16 @@ gsea_dt <- rbindlist(gsea_rows, use.names = TRUE, fill = TRUE)
 gsea_dt[, padj := p.adjust(pval, method = "BH"), by = analysis]
 setcolorder(gsea_dt, c("analysis", "analysis_label", "cell_type",
                         "size", "NES", "ES", "pval", "padj", "leading_edge"))
-fwrite(gsea_dt, file.path(OUT_DIR, "ms_celltype_gsea.csv"))
-cat(sprintf("\nSaved ms_celltype_gsea.csv (%d rows)\n", nrow(gsea_dt)))
+gsea_csv <- glue("{COHORT}_celltype_gsea.csv")
+fwrite(gsea_dt, file.path(OUT_DIR, gsea_csv))
+cat(sprintf("\nSaved %s (%d rows)\n", gsea_csv, nrow(gsea_dt)))
 
 if (length(camera_rows) > 0L) {
     camera_dt <- rbindlist(camera_rows, use.names = TRUE, fill = TRUE)
     camera_dt[, padj := p.adjust(pval, method = "BH"), by = analysis]
-    fwrite(camera_dt, file.path(OUT_DIR, "ms_celltype_camerapr.csv"))
-    cat(sprintf("Saved ms_celltype_camerapr.csv (%d rows)\n", nrow(camera_dt)))
+    camera_csv <- glue("{COHORT}_celltype_camerapr.csv")
+    fwrite(camera_dt, file.path(OUT_DIR, camera_csv))
+    cat(sprintf("Saved %s (%d rows)\n", camera_csv, nrow(camera_dt)))
 }
 
 if (length(legacy_rows) > 0L) {
@@ -197,9 +208,10 @@ if (length(legacy_rows) > 0L) {
     legacy_dt[, p_adj := p.adjust(p_twosided, method = "BH"),
               by = .(analysis, direction)]
     legacy_dt[, log2_OR := log2(pmax(odds_ratio, 0.01))]
-    fwrite(legacy_dt, file.path(OUT_DIR, "ms_celltype_overrep.csv"))
-    cat(sprintf("Saved ms_celltype_overrep.csv (LEGACY Fisher, %d rows)\n",
-                nrow(legacy_dt)))
+    legacy_csv <- glue("{COHORT}_celltype_overrep.csv")
+    fwrite(legacy_dt, file.path(OUT_DIR, legacy_csv))
+    cat(sprintf("Saved %s (LEGACY Fisher, %d rows)\n",
+                legacy_csv, nrow(legacy_dt)))
 }
 
 # ---------------------------------------------------------------------------
@@ -222,16 +234,17 @@ p <- make_celltype_gsea_plot(
     contrast_col    = "analysis",
     contrast_order  = an_order,
     contrast_labels = an_labels,
-    title_str       = "MS cell-type enrichment \u2014 MS vs HC (preranked fgsea)",
-    subtitle_str    = paste0(
-        "Preranked fgsea on limma moderated-t | ",
-        "NES>0: markers higher in MS vs HC | NES<0: lower | * FDR<0.05"
+    title_str       = sprintf("%s cell-type enrichment vs HC (preranked fgsea)", DISEASE),
+    subtitle_str    = sprintf(
+        "Preranked fgsea on limma moderated-t | NES>0: markers higher in %s vs HC | NES<0: lower | * FDR<0.05",
+        DISEASE
     )
 )
 if (!is.null(p)) {
-    ggsave(file.path(OUT_DIR, "ms_celltype_gsea_plot.pdf"),
+    plot_pdf <- glue("{COHORT}_celltype_gsea_plot.pdf")
+    ggsave(file.path(OUT_DIR, plot_pdf),
            p, width = 8.5, height = 6.5, device = cairo_pdf)
-    cat("  Saved ms_celltype_gsea_plot.pdf\n")
+    cat(sprintf("  Saved %s\n", plot_pdf))
 }
 
 cat("\nDone.\n")

@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # 05_hpa_celltype_heatmap.R
-# Cell-type expression mapping for MS DEPs using HPA single-cell RNA data.
+# Cell-type expression mapping for disease DEPs using HPA single-cell RNA data.
 # Replicates the CADASIL "Walchli atlas" approach but with the publicly
 # available HPA v23 single-cell RNA consensus dataset (81 cell types).
 #
@@ -9,23 +9,26 @@
 #
 # Approach:
 #   1. Load DEPs for each analysis (with appropriate FDR threshold)
-#   2. Filter HPA data to 14 MS-relevant CNS + immune cell types
+#   2. Filter HPA data to disease-relevant CNS + immune cell types
 #   3. Pivot to gene × cell-type nTPM matrix
 #   4. Min-max normalize per gene (0 = min expression, 1 = max)
 #   5. Mask low-expression entries (nTPM < 1 → NA/grey)
 #   6. Hierarchical clustering on both axes
 #   7. Save matrix as CSV + PDF heatmap (full + top-40 versions)
 #
+# Cohort prefix is read from configs/disease.yaml.
+#
 # Output (per analysis):
-#   results/networks/ms_{analysis}_hpa_celltype_matrix.csv
-#   results/networks/ms_{analysis}_hpa_celltype_heatmap.pdf
-#   results/networks/ms_{analysis}_hpa_celltype_top40.pdf
+#   results/networks/{cohort_short}_{analysis}_hpa_celltype_matrix.csv
+#   results/networks/{cohort_short}_{analysis}_hpa_celltype_heatmap.pdf
+#   results/networks/{cohort_short}_{analysis}_hpa_celltype_top40.pdf
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
     library(pheatmap)
     library(RColorBrewer)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -33,6 +36,12 @@ file_arg   <- grep("^--file=", args, value = TRUE)
 SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config(file.path(PROJ_DIR, "configs", "disease.yaml"))
+COHORT  <- cfg$cohort_short
+DISEASE <- cfg$disease_short_caps
+UP_LBL   <- glue("Up in {DISEASE}")
+DOWN_LBL <- glue("Down in {DISEASE}")
 
 DIFF_DIR <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR  <- file.path(PROJ_DIR, "results", "networks")
@@ -43,9 +52,9 @@ if (!file.exists(HPA_FILE))
     stop("HPA file missing. Download: https://v23.proteinatlas.org/download/rna_single_cell_type.tsv.zip")
 
 # ---------------------------------------------------------------------------
-# MS-relevant cell types (CNS glia + neurons + peripheral immune)
+# Disease-relevant cell types (CNS glia + neurons + peripheral immune)
 # ---------------------------------------------------------------------------
-MS_CELL_TYPES <- c(
+CELL_TYPES <- c(
     "Microglial cells",
     "Astrocytes",
     "Oligodendrocytes",
@@ -73,11 +82,11 @@ cat(sprintf("  HPA: %d rows, %d cell types, %d genes\n",
             nrow(hpa), length(unique(hpa$cell_type)),
             length(unique(hpa$gene_name))))
 
-missing_ct <- setdiff(MS_CELL_TYPES, unique(hpa$cell_type))
+missing_ct <- setdiff(CELL_TYPES, unique(hpa$cell_type))
 if (length(missing_ct) > 0)
     cat("  Note: not found in HPA:", paste(missing_ct, collapse = ", "), "\n")
-MS_CELL_TYPES <- intersect(MS_CELL_TYPES, unique(hpa$cell_type))
-cat(sprintf("  Using %d cell types\n", length(MS_CELL_TYPES)))
+CELL_TYPES <- intersect(CELL_TYPES, unique(hpa$cell_type))
+cat(sprintf("  Using %d cell types\n", length(CELL_TYPES)))
 
 # ---------------------------------------------------------------------------
 # 4 Analyses to run
@@ -85,32 +94,32 @@ cat(sprintf("  Using %d cell types\n", length(MS_CELL_TYPES)))
 analyses <- list(
     list(
         name    = "combined",
-        label   = "Combined MS vs HC",
-        file    = "ms_combined_vs_hc.csv",
+        label   = sprintf("Combined %s vs HC", DISEASE),
+        file    = glue("{COHORT}_combined_vs_hc.csv"),
         fdr_thr = 0.05,
-        up_col  = "Up in MS",
-        dn_col  = "Down in MS"
+        up_col  = UP_LBL,
+        dn_col  = DOWN_LBL
     ),
     list(
         name    = "pre",
         label   = "Pre-onset vs HC",
-        file    = "ms_pre_vs_hc.csv",
+        file    = glue("{COHORT}_pre_vs_hc.csv"),
         fdr_thr = 0.20,   # relaxed threshold for low-power pre-onset window
-        up_col  = "Up in MS",
-        dn_col  = "Down in MS"
+        up_col  = UP_LBL,
+        dn_col  = DOWN_LBL
     ),
     list(
         name    = "post",
         label   = "Post-onset vs HC",
-        file    = "ms_post_vs_hc.csv",
+        file    = glue("{COHORT}_post_vs_hc.csv"),
         fdr_thr = 0.05,
-        up_col  = "Up in MS",
-        dn_col  = "Down in MS"
+        up_col  = UP_LBL,
+        dn_col  = DOWN_LBL
     ),
     list(
         name    = "preVsPost",
         label   = "Pre vs post-onset",
-        file    = "ms_pre_vs_post.csv",
+        file    = glue("{COHORT}_pre_vs_post.csv"),
         fdr_thr = 0.05,
         up_col  = "Higher pre-onset",
         dn_col  = "Higher post-onset"
@@ -156,7 +165,7 @@ for (an in analyses) {
     }
 
     # Filter HPA to this gene set
-    hpa_filt <- hpa[cell_type %in% MS_CELL_TYPES & toupper(gene_name) %in% dep_genes]
+    hpa_filt <- hpa[cell_type %in% CELL_TYPES & toupper(gene_name) %in% dep_genes]
     cat(sprintf("  HPA filtered: %d gene-cell_type pairs\n", nrow(hpa_filt)))
 
     if (nrow(hpa_filt) == 0) {
@@ -172,10 +181,10 @@ for (an in analyses) {
     rownames(expr_mat) <- toupper(gene_col)
 
     # Ensure all cell types present
-    missing_cols <- setdiff(MS_CELL_TYPES, colnames(expr_mat))
+    missing_cols <- setdiff(CELL_TYPES, colnames(expr_mat))
     for (mc in missing_cols)
         expr_mat <- cbind(expr_mat, setNames(rep(0, nrow(expr_mat)), mc))
-    expr_mat <- expr_mat[, MS_CELL_TYPES]
+    expr_mat <- expr_mat[, CELL_TYPES]
 
     cat(sprintf("  Expression matrix: %d genes × %d cell types\n",
                 nrow(expr_mat), ncol(expr_mat)))
@@ -206,9 +215,10 @@ for (an in analyses) {
     out_dt  <- merge(out_dt, dir_map, by = "gene", all.x = TRUE)
     out_dt  <- out_dt[order(-logFC)]
 
-    csv_out <- file.path(OUT_DIR, sprintf("ms_%s_hpa_celltype_matrix.csv", an$name))
+    csv_name <- glue("{COHORT}_{an$name}_hpa_celltype_matrix.csv")
+    csv_out  <- file.path(OUT_DIR, csv_name)
     fwrite(out_dt, csv_out)
-    cat(sprintf("  Saved %s_hpa_celltype_matrix.csv (%d genes)\n", an$name, nrow(out_dt)))
+    cat(sprintf("  Saved %s (%d genes)\n", csv_name, nrow(out_dt)))
 
     # ---------------------------------------------------------------------------
     # Heatmap colours: white → project pink (#CC0066)
@@ -244,7 +254,8 @@ for (an in analyses) {
         mat_t  <- t(expr_for_clust)
         show_labels <- ncol(mat_t) <= 60
 
-        pdf_out <- file.path(OUT_DIR, sprintf("ms_%s_hpa_celltype_heatmap.pdf", an$name))
+        pdf_name <- glue("{COHORT}_{an$name}_hpa_celltype_heatmap.pdf")
+        pdf_out  <- file.path(OUT_DIR, pdf_name)
         pdf(pdf_out,
             width  = max(8, ncol(mat_t) * 0.12 + 3),
             height = 5.5, onefile = FALSE)
@@ -265,7 +276,7 @@ for (an in analyses) {
                            an$label, ncol(mat_t), nrow(mat_t))
         )
         dev.off()
-        cat(sprintf("  Saved ms_%s_hpa_celltype_heatmap.pdf\n", an$name))
+        cat(sprintf("  Saved %s\n", pdf_name))
     }
 
     # ---------------------------------------------------------------------------
@@ -284,7 +295,8 @@ for (an in analyses) {
             row.names = top40
         )
 
-        pdf_top <- file.path(OUT_DIR, sprintf("ms_%s_hpa_celltype_top40.pdf", an$name))
+        pdf_top_name <- glue("{COHORT}_{an$name}_hpa_celltype_top40.pdf")
+        pdf_top      <- file.path(OUT_DIR, pdf_top_name)
         pdf(pdf_top, width = 10, height = 5.5, onefile = FALSE)
         pheatmap(mat_top40,
             color                = heatmap_cols,
@@ -303,13 +315,13 @@ for (an in analyses) {
                            an$label, length(top40))
         )
         dev.off()
-        cat(sprintf("  Saved ms_%s_hpa_celltype_top40.pdf\n", an$name))
+        cat(sprintf("  Saved %s\n", pdf_top_name))
     }
 }
 
 # Also keep the legacy combined filename for backward compatibility with figure1.R
-legacy_src <- file.path(OUT_DIR, "ms_combined_hpa_celltype_matrix.csv")
-legacy_dst <- file.path(OUT_DIR, "ms_hpa_celltype_matrix.csv")
+legacy_src <- file.path(OUT_DIR, glue("{COHORT}_combined_hpa_celltype_matrix.csv"))
+legacy_dst <- file.path(OUT_DIR, glue("{COHORT}_hpa_celltype_matrix.csv"))
 if (file.exists(legacy_src) && !file.exists(legacy_dst))
     file.copy(legacy_src, legacy_dst)
 
