@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
-# 01_sex_stratified_ms_deps.R
-# Sex-stratified differential proteomics: MS vs HC separately by sex
+# 01_sex_stratified_disease_deps.R
+# Sex-stratified differential proteomics: cases vs HC separately by sex
 #
-# Rationale: MS has a 3:1 female:male ratio; sex-dimorphic proteomic
-# signatures may explain heterogeneous disease course (Abdelhak extension).
+# Rationale: sex-dimorphic proteomic signatures may explain heterogeneous
+# disease course.
 #
 # Approach:
 #   - Run limma on female-only and male-only PSM-matched cohorts
@@ -11,12 +11,7 @@
 #   - Compare DEP lists: shared, female-specific, male-specific
 #   - Interaction test: identify proteins with sex-by-status interaction
 #
-# Output: results/sex_stratified/
-#   ms_female_vs_hc.csv
-#   ms_male_vs_hc.csv
-#   ms_sex_dep_overlap.pdf
-#   ms_sex_logfc_scatter.pdf
-#   ms_sex_interaction.csv
+# Output: results/sex_stratified/<cohort>_*.{csv,pdf}
 
 suppressPackageStartupMessages({
     library(limma)
@@ -25,23 +20,30 @@ suppressPackageStartupMessages({
     library(ggrepel)
     library(MatchIt)
     library(patchwork)
+    library(glue)
+    library(here)
 })
 
-args      <- commandArgs(trailingOnly = FALSE)
-file_arg  <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
-source(file.path(PROJ_DIR, "analysis", "helpers", "limma_utils.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "limma_utils.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-CADASIL_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
-OUT_DIR     <- file.path(PROJ_DIR, "results", "sex_stratified")
+STATUS_COL <- cfg$cohort_status_col
+PRE        <- cfg$status_values$pre_onset
+POST       <- cfg$status_values$post_onset
+CTRL       <- cfg$status_values$control
+
+QC_FILE     <- here::here("data", "ukb", "olink", "processed",
+                          glue::glue("{cfg$cohort_short}_olink_qc.csv"))
+CADASIL_DIR <- file.path(dirname(here::here()),
+                         "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
+OUT_DIR     <- here::here("results", "sex_stratified")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-FDR_THR    <- 0.05
-PSM_RATIO  <- 10
-PSM_CAL    <- 0.2
+FDR_THR     <- 0.05
+PSM_RATIO   <- 10
+PSM_CAL     <- 0.2
 LOGFC_LABEL <- 0.25
 set.seed(42)
 
@@ -64,13 +66,13 @@ load_covariates <- function(cadasil_dir) {
 }
 
 # ── 1. Load & filter ──────────────────────────────────────────────────────────
-cat("Loading QC'd MS Olink data...\n")
+cat(sprintf("Loading QC'd %s Olink data...\n", cfg$disease_short_caps))
 dt <- fread(QC_FILE, showProgress=FALSE)
 covs <- load_covariates(CADASIL_DIR)
 dt   <- merge(dt, covs, by="eid", all.x=TRUE)
 dt[, sex_num := as.integer(factor(sex)) - 1L]
 
-META_COLS <- c("eid","ms_status","age_at_sampling","age_at_diagnosis","years_to_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling","age_at_diagnosis","years_to_diagnosis",
                "sex","olink_instance","qc_outlier","UMAP1","UMAP2","mean_npx",
                "bmi","ever_smoker","diabetes","alcohol_freq","sex_num",
                "PC1","PC2")
@@ -93,11 +95,11 @@ cat(sprintf("  Sex: Female(0)=%d, Male(1)=%d\n",
 run_sex_limma <- function(dt_sex, sex_label) {
     cat(sprintf("\n--- %s ---\n", sex_label))
     cat(sprintf("  N: %d cases, %d controls\n",
-                sum(dt_sex$ms_status != "control"),
-                sum(dt_sex$ms_status == "control")))
+                sum(dt_sex[[STATUS_COL]] != CTRL),
+                sum(dt_sex[[STATUS_COL]] == CTRL)))
 
     PSM_VARS <- c("age_at_sampling","bmi","ever_smoker","diabetes","alcohol_freq")
-    dt_sex[, is_case := as.integer(ms_status != "control")]
+    dt_sex[, is_case := as.integer(get(STATUS_COL) != CTRL)]
     dt_c <- dt_sex[complete.cases(as.data.frame(dt_sex[, c("is_case", ..PSM_VARS)]))]
 
     cat(sprintf("  PSM input: %d cases, %d controls\n",
@@ -114,17 +116,17 @@ run_sex_limma <- function(dt_sex, sex_label) {
                 sum(dt_m$is_case), sum(!dt_m$is_case)))
 
     # Limma
-    dt_m[, ms_status_f := factor(fifelse(ms_status=="control","control","ms"),
-                                  levels=c("control","ms"))]
-    meta <- as.data.frame(dt_m[, .(eid, ms_status_f, mean_npx, age_at_sampling, PC1, PC2)])
+    dt_m[, status_f := factor(fifelse(get(STATUS_COL)==CTRL, "control", "case"),
+                              levels=c("control","case"))]
+    meta <- as.data.frame(dt_m[, .(eid, status_f, mean_npx, age_at_sampling, PC1, PC2)])
     prot_mat <- t(as.matrix(dt_m[, ..protein_cols]))
     colnames(prot_mat) <- dt_m$eid
 
-    design <- model.matrix(~0 + ms_status_f + mean_npx + age_at_sampling + PC1 + PC2, meta)
-    colnames(design) <- gsub("ms_status_f","",colnames(design))
+    design <- model.matrix(~0 + status_f + mean_npx + age_at_sampling + PC1 + PC2, meta)
+    colnames(design) <- gsub("status_f","",colnames(design))
 
-    fit <- lmFit(prot_mat, design)
-    cm  <- makeContrasts(ms - control, levels=design)
+    fit  <- lmFit(prot_mat, design)
+    cm   <- makeContrasts(case - control, levels=design)
     fit2 <- eBayes(contrasts.fit(fit, cm))
     res  <- topTable_safe(fit2, coef=1)
     res[, sex := sex_label]
@@ -139,14 +141,16 @@ dt_male   <- dt_filt[sex == 1]   # 1 = Male in UKB
 res_female <- run_sex_limma(dt_female, "Female")
 res_male   <- run_sex_limma(dt_male,   "Male")
 
+cohort <- cfg$cohort_short
+
 # Save FDR-significant results
-fwrite(res_female[adj.P.Val < FDR_THR], file.path(OUT_DIR, "ms_female_vs_hc.csv"))
-fwrite(res_male[adj.P.Val   < FDR_THR], file.path(OUT_DIR, "ms_male_vs_hc.csv"))
+fwrite(res_female[adj.P.Val < FDR_THR], file.path(OUT_DIR, glue::glue("{cohort}_female_vs_hc.csv")))
+fwrite(res_male[adj.P.Val   < FDR_THR], file.path(OUT_DIR, glue::glue("{cohort}_male_vs_hc.csv")))
 # Save full results (all proteins) for volcano plots
-fwrite(res_female, file.path(OUT_DIR, "ms_female_vs_hc_all.csv"))
-fwrite(res_male,   file.path(OUT_DIR, "ms_male_vs_hc_all.csv"))
-cat(sprintf("\n  Saved: ms_female_vs_hc.csv (%d DEPs)\n", sum(res_female$adj.P.Val < FDR_THR)))
-cat(sprintf("  Saved: ms_male_vs_hc.csv (%d DEPs)\n",   sum(res_male$adj.P.Val < FDR_THR)))
+fwrite(res_female, file.path(OUT_DIR, glue::glue("{cohort}_female_vs_hc_all.csv")))
+fwrite(res_male,   file.path(OUT_DIR, glue::glue("{cohort}_male_vs_hc_all.csv")))
+cat(sprintf("\n  Saved: %s_female_vs_hc.csv (%d DEPs)\n", cohort, sum(res_female$adj.P.Val < FDR_THR)))
+cat(sprintf("  Saved: %s_male_vs_hc.csv (%d DEPs)\n",   cohort, sum(res_male$adj.P.Val < FDR_THR)))
 
 # ── 3. Overlap & scatter ───────────────────────────────────────────────────────
 cat("\nComparing sex-specific DEP lists...\n")
@@ -192,14 +196,14 @@ p_scatter <- ggplot(scatter, aes(x=female_logFC, y=male_logFC,
     scale_colour_manual(values=SEX_COLS, name=NULL,
                         guide=guide_legend(override.aes=list(size=2.2, alpha=1))) +
     scale_size_manual(values=SEX_SIZE, guide="none") +
-    labs(x="Female logFC (MS vs HC)",
-         y="Male logFC (MS vs HC)",
-         title="Sex-stratified MS DEPs: logFC comparison") +
+    labs(x=glue::glue("Female logFC ({cfg$disease_short_caps} vs HC)"),
+         y=glue::glue("Male logFC ({cfg$disease_short_caps} vs HC)"),
+         title=glue::glue("Sex-stratified {cfg$disease_short_caps} DEPs: logFC comparison")) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_sex_logfc_scatter.pdf"),
+ggsave(file.path(OUT_DIR, glue::glue("{cohort}_sex_logfc_scatter.pdf")),
        p_scatter, width=5.5, height=5, device=cairo_pdf)
-cat("  Saved: ms_sex_logfc_scatter.pdf\n")
+cat(sprintf("  Saved: %s_sex_logfc_scatter.pdf\n", cohort))
 
 # DEP count bars
 count_dt <- rbind(
@@ -213,37 +217,38 @@ p_counts <- ggplot(count_dt, aes(x=group, y=n, fill=group)) +
     scale_fill_manual(values=c("Female only"="#56B4E9","Male only"="#2B4C7E","Shared"="#CC0066"),
                       guide="none") +
     labs(x=NULL, y="Number of DEPs (FDR<0.05)",
-         title="Sex-stratified MS DEP overlap") +
+         title=glue::glue("Sex-stratified {cfg$disease_short_caps} DEP overlap")) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_sex_dep_overlap.pdf"),
+ggsave(file.path(OUT_DIR, glue::glue("{cohort}_sex_dep_overlap.pdf")),
        p_counts, width=4, height=3.5, device=cairo_pdf)
-cat("  Saved: ms_sex_dep_overlap.pdf\n")
+cat(sprintf("  Saved: %s_sex_dep_overlap.pdf\n", cohort))
 
 # ── 4. Sex-by-status interaction (full cohort) ────────────────────────────────
 cat("\nRunning sex-by-status interaction model...\n")
 dt_int <- dt_filt[complete.cases(
     as.data.frame(dt_filt[, .(age_at_sampling, sex, PC1, PC2, mean_npx)])
 )]
-dt_int[, is_ms := as.integer(ms_status != "control")]
+dt_int[, is_case := as.integer(get(STATUS_COL) != CTRL)]
 dt_int[, sex_f := factor(sex, levels=c(1,0), labels=c("Male","Female"))]
 
-meta_int <- as.data.frame(dt_int[, .(is_ms, sex_f, mean_npx, age_at_sampling, PC1, PC2)])
+meta_int <- as.data.frame(dt_int[, .(is_case, sex_f, mean_npx, age_at_sampling, PC1, PC2)])
 prot_mat_int <- t(as.matrix(dt_int[, ..protein_cols]))
 colnames(prot_mat_int) <- dt_int$eid
 
-design_int <- model.matrix(~is_ms * sex_f + mean_npx + age_at_sampling + PC1 + PC2, meta_int)
+design_int <- model.matrix(~is_case * sex_f + mean_npx + age_at_sampling + PC1 + PC2, meta_int)
 fit_int  <- lmFit(prot_mat_int, design_int)
 fit_int2 <- eBayes(fit_int)
 
-# Interaction coefficient = is_ms:sex_fFemale
-int_res <- topTable_safe(fit_int2, coef="is_ms:sex_fFemale")
+# Interaction coefficient = is_case:sex_fFemale
+int_res <- topTable_safe(fit_int2, coef="is_case:sex_fFemale")
 n_int <- sum(int_res$adj.P.Val < FDR_THR, na.rm=TRUE)
-cat(sprintf("  Sex-by-MS interaction DEPs at FDR<0.05: %d\n", n_int))
+cat(sprintf("  Sex-by-%s interaction DEPs at FDR<0.05: %d\n",
+            cfg$disease_short_caps, n_int))
 print(int_res[1:min(10,.N), .(protein, logFC=round(logFC,3), adj.P.Val=round(adj.P.Val,4))])
 
-fwrite(int_res, file.path(OUT_DIR, "ms_sex_interaction.csv"))
-cat("  Saved: ms_sex_interaction.csv\n")
+fwrite(int_res, file.path(OUT_DIR, glue::glue("{cohort}_sex_interaction.csv")))
+cat(sprintf("  Saved: %s_sex_interaction.csv\n", cohort))
 
 # ── 5. Stage-stratified sex analysis (pre-onset & post-onset separately) ──────
 # Answers: is sex dimorphism already present before diagnosis?
@@ -255,13 +260,13 @@ run_stage_sex <- function(dt_stage, stage_label) {
     for (sx in c(0L, 1L)) {
         sx_lbl <- if (sx == 0L) "Female" else "Male"
         dt_sx <- dt_stage[sex == sx]
-        n_case <- sum(dt_sx$ms_status != "control")
+        n_case <- sum(dt_sx[[STATUS_COL]] != CTRL)
         if (n_case < 20) {
             cat(sprintf("  %s: only %d cases, skipping\n", sx_lbl, n_case))
             next
         }
         cat(sprintf("  %s: %d cases, %d controls\n", sx_lbl, n_case,
-                    sum(dt_sx$ms_status == "control")))
+                    sum(dt_sx[[STATUS_COL]] == CTRL)))
         res <- run_sex_limma(dt_sx, sprintf("%s %s", stage_label, sx_lbl))
         results[[sx_lbl]] <- res
     }
@@ -269,8 +274,8 @@ run_stage_sex <- function(dt_stage, stage_label) {
 }
 
 # Pre-onset: stage cases + all controls
-dt_pre  <- dt_filt[ms_status %in% c("pre_onset",  "control")]
-dt_post <- dt_filt[ms_status %in% c("post_onset", "control")]
+dt_pre  <- dt_filt[get(STATUS_COL) %in% c(PRE,  CTRL)]
+dt_post <- dt_filt[get(STATUS_COL) %in% c(POST, CTRL)]
 
 res_pre  <- run_stage_sex(dt_pre,  "Pre-onset")
 res_post <- run_stage_sex(dt_post, "Post-onset")
@@ -278,15 +283,15 @@ res_post <- run_stage_sex(dt_post, "Post-onset")
 for (sx_lbl in names(res_pre)) {
     tag <- tolower(sx_lbl)
     fwrite(res_pre[[sx_lbl]],
-           file.path(OUT_DIR, sprintf("ms_pre_%s_vs_hc_all.csv",  tag)))
-    cat(sprintf("  Saved: ms_pre_%s_vs_hc_all.csv (%d DEPs)\n", tag,
+           file.path(OUT_DIR, glue::glue("{cohort}_pre_{tag}_vs_hc_all.csv")))
+    cat(sprintf("  Saved: %s_pre_%s_vs_hc_all.csv (%d DEPs)\n", cohort, tag,
                 sum(res_pre[[sx_lbl]]$adj.P.Val < FDR_THR, na.rm=TRUE)))
 }
 for (sx_lbl in names(res_post)) {
     tag <- tolower(sx_lbl)
     fwrite(res_post[[sx_lbl]],
-           file.path(OUT_DIR, sprintf("ms_post_%s_vs_hc_all.csv", tag)))
-    cat(sprintf("  Saved: ms_post_%s_vs_hc_all.csv (%d DEPs)\n", tag,
+           file.path(OUT_DIR, glue::glue("{cohort}_post_{tag}_vs_hc_all.csv")))
+    cat(sprintf("  Saved: %s_post_%s_vs_hc_all.csv (%d DEPs)\n", cohort, tag,
                 sum(res_post[[sx_lbl]]$adj.P.Val < FDR_THR, na.rm=TRUE)))
 }
 

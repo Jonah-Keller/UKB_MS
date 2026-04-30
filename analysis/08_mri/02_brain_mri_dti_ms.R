@@ -1,44 +1,49 @@
 #!/usr/bin/env Rscript
-# 02_brain_mri_dti_ms.R
-# DTI white matter FA analysis in MS — UKB-unique extension
+# 02_brain_mri_dti_disease.R
+# DTI white matter FA analysis in disease cohort — UKB-unique extension
 #
 # Approach:
-#   1. Load DTI FA data (27 tracts, n=5619 UKB participants)
-#   2. MS vs HC comparison for each FA tract (Mann-Whitney U + FDR correction)
-#   3. Spearman correlation: MS DEPs (NEFL, GFAP, MOG + all 173) vs FA tracts
-#   4. Mediation-style analysis: does NEFL mediate MS → lower FA?
+#   1. Load DTI FA data (27 tracts)
+#   2. Case vs HC comparison for each FA tract (Mann-Whitney U + FDR correction)
+#   3. Spearman correlation: DEPs vs FA tracts
+#   4. Mediation-style analysis: does NEFL mediate disease → lower FA?
 #
 # Input:
 #   data/ukb/brain_mri/dti/dti_tract_protein_data.tsv   (DTI FA, labelled)
 #   data/ukb/brain_mri/dti/dti_tract_covariates.tsv     (age, sex at scan)
-#   data/ukb/olink/processed/ms_olink_qc.csv
-#   results/differential/ms_combined_vs_hc.csv
+#   data/ukb/olink/processed/<cohort>_olink_qc.csv
+#   results/differential/<cohort>_combined_vs_hc.csv
 #
-# Output: results/mri/
-#   ms_dti_fa_comparison.pdf
-#   ms_dti_protein_heatmap.pdf
-#   ms_dti_nefl_scatter.pdf
-#   ms_dti_results.csv
+# Output: results/mri/<cohort>_dti_*.{csv,pdf}
 
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
     library(ggrepel)
     library(patchwork)
+    library(glue)
+    library(here)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-CADASIL_DIR <- file.path(dirname(PROJ_DIR), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
-DTI_FILE    <- file.path(CADASIL_DIR, "brain_mri", "dti", "dti_tract_protein_data.tsv")
+STATUS_COL <- cfg$cohort_status_col
+PRE        <- cfg$status_values$pre_onset
+POST       <- cfg$status_values$post_onset
+CTRL       <- cfg$status_values$control
+CASE_VALS  <- c(PRE, POST)
+
+CADASIL_DIR  <- file.path(dirname(here::here()),
+                          "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
+DTI_FILE     <- file.path(CADASIL_DIR, "brain_mri", "dti", "dti_tract_protein_data.tsv")
 DTI_COV_FILE <- file.path(CADASIL_DIR, "brain_mri", "dti", "dti_tract_covariates.tsv")
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-DIFF_FILE   <- file.path(PROJ_DIR, "results", "differential", "ms_combined_vs_hc.csv")
-OUT_DIR     <- file.path(PROJ_DIR, "results", "mri")
+QC_FILE      <- here::here("data", "ukb", "olink", "processed",
+                           glue::glue("{cfg$cohort_short}_olink_qc.csv"))
+DIFF_FILE    <- here::here("results", "differential",
+                           glue::glue("{cfg$cohort_short}_combined_vs_hc.csv"))
+OUT_DIR      <- here::here("results", "mri")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 FDR_THR <- 0.05
@@ -85,49 +90,50 @@ tract_labels <- c(
     fa_uncinate_fasciculus_right            = "Uncinate fasciculus (R)"
 )
 
-# ── 2. Load MS cohort ─────────────────────────────────────────────────────────
-cat("Loading MS cohort...\n")
-ms_qc <- fread(QC_FILE, showProgress = FALSE)
-ms_qc <- ms_qc[qc_outlier == FALSE & !is.na(age_at_sampling) &
-                !is.na(sex) & !is.na(UMAP1)]
+# ── 2. Load disease cohort ────────────────────────────────────────────────────
+cat(sprintf("Loading %s cohort...\n", cfg$disease_short_caps))
+case_qc <- fread(QC_FILE, showProgress = FALSE)
+case_qc <- case_qc[qc_outlier == FALSE & !is.na(age_at_sampling) &
+                   !is.na(sex) & !is.na(UMAP1)]
 
-# Merge DTI + covariates + MS status
-ms_dti <- merge(ms_qc, dti, by = "eid", all.x = FALSE)  # inner join: only those with DTI
+# Merge DTI + covariates + disease status
+case_dti <- merge(case_qc, dti, by = "eid", all.x = FALSE)  # inner join: only those with DTI
 # Add scan age/sex
-dti_meta <- dti_cov[, .(eid, age_at_scan, sex_scan)]
-ms_dti   <- merge(ms_dti, dti_meta, by = "eid", all.x = TRUE)
+dti_meta  <- dti_cov[, .(eid, age_at_scan, sex_scan)]
+case_dti  <- merge(case_dti, dti_meta, by = "eid", all.x = TRUE)
 
-cat(sprintf("  MS cases with DTI: %d\n", sum(ms_dti$ms_status %in% c("pre_onset","post_onset"))))
-cat(sprintf("  Controls with DTI: %d\n", sum(ms_dti$ms_status == "control")))
+cat(sprintf("  %s cases with DTI: %d\n", cfg$disease_short_caps,
+            sum(case_dti[[STATUS_COL]] %in% CASE_VALS)))
+cat(sprintf("  Controls with DTI: %d\n", sum(case_dti[[STATUS_COL]] == CTRL)))
 cat(sprintf("  Status breakdown:\n"))
-print(table(ms_dti$ms_status))
+print(table(case_dti[[STATUS_COL]]))
 
-ms_dti[, is_ms := as.integer(ms_status %in% c("pre_onset","post_onset"))]
+case_dti[, is_case := as.integer(get(STATUS_COL) %in% CASE_VALS)]
 
-# ── 3. MS vs HC: DTI FA comparison ────────────────────────────────────────────
-cat("\nMS vs HC DTI FA comparison (Mann-Whitney U)...\n")
+# ── 3. Case vs HC: DTI FA comparison ──────────────────────────────────────────
+cat(sprintf("\n%s vs HC DTI FA comparison (Mann-Whitney U)...\n", cfg$disease_short_caps))
 fa_test_list <- lapply(fa_cols, function(fc) {
-    sub_dt <- ms_dti[!is.na(get(fc)) & ms_status %in% c("pre_onset","post_onset","control")]
-    if (nrow(sub_dt[ms_status != "control"]) < 5) return(NULL)
-    wt <- wilcox.test(get(fc) ~ is_ms, data = sub_dt, exact = FALSE)
-    ms_mean   <- mean(sub_dt[is_ms == 1, get(fc)], na.rm=TRUE)
-    ctrl_mean <- mean(sub_dt[is_ms == 0, get(fc)], na.rm=TRUE)
+    sub_dt <- case_dti[!is.na(get(fc)) & get(STATUS_COL) %in% c(CASE_VALS, CTRL)]
+    if (nrow(sub_dt[get(STATUS_COL) != CTRL]) < 5) return(NULL)
+    wt <- wilcox.test(get(fc) ~ is_case, data = sub_dt, exact = FALSE)
+    case_mean <- mean(sub_dt[is_case == 1, get(fc)], na.rm=TRUE)
+    ctrl_mean <- mean(sub_dt[is_case == 0, get(fc)], na.rm=TRUE)
     data.table(
-        tract    = fc,
-        label    = tract_labels[fc],
-        ms_n     = sum(!is.na(sub_dt[is_ms==1, get(fc)])),
-        ctrl_n   = sum(!is.na(sub_dt[is_ms==0, get(fc)])),
-        ms_mean  = ms_mean,
+        tract     = fc,
+        label     = tract_labels[fc],
+        case_n    = sum(!is.na(sub_dt[is_case==1, get(fc)])),
+        ctrl_n    = sum(!is.na(sub_dt[is_case==0, get(fc)])),
+        case_mean = case_mean,
         ctrl_mean = ctrl_mean,
-        delta_fa = ms_mean - ctrl_mean,
-        pval     = wt$p.value
+        delta_fa  = case_mean - ctrl_mean,
+        pval      = wt$p.value
     )
 })
 fa_test <- rbindlist(Filter(Negate(is.null), fa_test_list))
 fa_test[, fdr := p.adjust(pval, method = "BH")]
 fa_test[, sig_label := fcase(fdr < 0.01, "**", fdr < 0.05, "*", pval < 0.05, "+", default = "")]
 fa_test <- fa_test[order(pval)]
-fwrite(fa_test, file.path(OUT_DIR, "ms_dti_results.csv"))
+fwrite(fa_test, file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_dti_results.csv")))
 cat(sprintf("  FDR<0.05: %d tracts; p<0.05: %d tracts\n",
             sum(fa_test$fdr < 0.05, na.rm=TRUE),
             sum(fa_test$pval < 0.05, na.rm=TRUE)))
@@ -149,33 +155,35 @@ p_fa_loll <- ggplot(fa_test, aes(x = delta_fa, y = label_f, colour = fill_col)) 
               size = 3.5, vjust = 0.75) +
     geom_vline(xintercept = 0, linewidth = 0.3, colour = "grey40") +
     scale_colour_manual(values = fill_vals,
-                        labels = c(sig_down="MS<HC (FDR<0.05)",
-                                   sig_up="MS>HC (FDR<0.05)", ns="n.s."),
+                        labels = c(sig_down=glue::glue("{cfg$disease_short_caps}<HC (FDR<0.05)"),
+                                   sig_up=glue::glue("{cfg$disease_short_caps}>HC (FDR<0.05)"),
+                                   ns="n.s."),
                         name = NULL) +
     scale_size_continuous(name = expression(-log[10](p)), range = c(1.5, 5)) +
-    labs(x = "Δ FA (MS − HC)", y = NULL,
-         title = "White matter FA: MS vs healthy controls",
-         subtitle = sprintf("MS n=%d, HC n=%d | Mann-Whitney U + BH FDR",
-                            max(fa_test$ms_n), max(fa_test$ctrl_n))) +
+    labs(x = glue::glue("Δ FA ({cfg$disease_short_caps} − HC)"), y = NULL,
+         title = glue::glue("White matter FA: {cfg$disease_short_caps} vs healthy controls"),
+         subtitle = sprintf("%s n=%d, HC n=%d | Mann-Whitney U + BH FDR",
+                            cfg$disease_short_caps,
+                            max(fa_test$case_n), max(fa_test$ctrl_n))) +
     theme_ukb() +
     theme(axis.text.y = element_text(size = 7), legend.position = "bottom")
 
-ggsave(file.path(OUT_DIR, "ms_dti_fa_comparison.pdf"),
+ggsave(file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_dti_fa_comparison.pdf")),
        p_fa_loll, width = 6.5, height = 6, device = cairo_pdf)
-cat("  Saved: ms_dti_fa_comparison.pdf\n")
+cat(sprintf("  Saved: %s_dti_fa_comparison.pdf\n", cfg$cohort_short))
 
-# ── 4. Protein–DTI correlation (MS cases only) ────────────────────────────────
-cat("\nProtein–DTI correlations (MS cases)...\n")
+# ── 4. Protein–DTI correlation (cases only) ───────────────────────────────────
+cat(sprintf("\nProtein–DTI correlations (%s cases)...\n", cfg$disease_short_caps))
 deps <- fread(DIFF_FILE)
 dep_prots <- tolower(deps[adj.P.Val < FDR_THR, protein])
-avail_prots <- intersect(dep_prots, names(ms_dti))
+avail_prots <- intersect(dep_prots, names(case_dti))
 
-ms_only <- ms_dti[ms_status %in% c("pre_onset","post_onset")]
-cat(sprintf("  MS cases for correlation: %d\n", nrow(ms_only)))
+case_only <- case_dti[get(STATUS_COL) %in% CASE_VALS]
+cat(sprintf("  %s cases for correlation: %d\n", cfg$disease_short_caps, nrow(case_only)))
 
 corr_list <- list()
 for (fc in fa_cols) {
-    sub <- ms_only[!is.na(get(fc))]
+    sub <- case_only[!is.na(get(fc))]
     if (nrow(sub) < 20) next
     for (prot in avail_prots) {
         if (!prot %in% names(sub)) next
@@ -198,7 +206,7 @@ if (length(corr_list) > 0) {
     corr_dt <- corr_dt[order(pval)]
     cat(sprintf("  %d protein–tract pairs; FDR<0.05: %d\n",
                 nrow(corr_dt), sum(corr_dt$fdr < 0.05)))
-    fwrite(corr_dt, file.path(OUT_DIR, "ms_dti_protein_correlations.csv"))
+    fwrite(corr_dt, file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_dti_protein_correlations.csv")))
 
     # Top 10 most significant protein–tract pairs
     top_corr <- corr_dt[1:min(10, .N)]
@@ -223,43 +231,43 @@ if (length(corr_list) > 0) {
                              midpoint = 0, name = "Spearman ρ",
                              limits = c(-0.4, 0.4), oob = scales::squish) +
         labs(x = "Protein", y = NULL,
-             title = "Protein–DTI FA correlations (MS cases)",
+             title = glue::glue("Protein–DTI FA correlations ({cfg$disease_short_caps} cases)"),
              caption = "* FDR<0.05") +
         theme_ukb() +
         theme(axis.text.y = element_text(size = 7),
               axis.text.x = element_text(angle = 45, hjust = 1),
               legend.position = "right")
 
-    ggsave(file.path(OUT_DIR, "ms_dti_protein_heatmap.pdf"),
+    ggsave(file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_dti_protein_heatmap.pdf")),
            p_heat, width = max(4, length(key_prots) * 0.8 + 3), height = 7,
            device = cairo_pdf)
-    cat("  Saved: ms_dti_protein_heatmap.pdf\n")
+    cat(sprintf("  Saved: %s_dti_protein_heatmap.pdf\n", cfg$cohort_short))
 }
 
 # ── 5. NEFL vs key tracts — scatter panels ────────────────────────────────────
 cat("\nNEFL vs DTI FA scatter panels...\n")
-nefl_col <- intersect(c("nefl","nfl"), names(ms_dti))[1]
+nefl_col <- intersect(c("nefl","nfl"), names(case_dti))[1]
 
 if (!is.na(nefl_col)) {
-    # Top 4 tracts most correlated with NEFL in MS cases
+    # Top 4 tracts most correlated with NEFL in cases
     top_tracts <- if (exists("corr_dt") && nrow(corr_dt) > 0) {
         corr_dt[protein == nefl_col][order(pval)][1:min(4,.N), tract]
     } else {
         fa_cols[1:4]
     }
 
+    col_by_status <- setNames(c("#E6A817", "#CC0066"), CASE_VALS)
+
     scatter_plots <- lapply(top_tracts, function(fc) {
-        sub <- ms_dti[ms_status %in% c("pre_onset","post_onset") &
-                      !is.na(get(fc)) & !is.na(get(nefl_col))]
+        sub <- case_dti[get(STATUS_COL) %in% CASE_VALS &
+                        !is.na(get(fc)) & !is.na(get(nefl_col))]
         if (nrow(sub) < 10) return(NULL)
         rho  <- cor(sub[[nefl_col]], sub[[fc]], method = "spearman")
         pval <- cor.test(sub[[nefl_col]], sub[[fc]], method = "spearman", exact = FALSE)$p.value
         lab  <- ifelse(fc %in% names(tract_labels), tract_labels[fc], fc)
 
-        col_by_status <- c(pre_onset = "#E6A817", post_onset = "#CC0066")
-
         ggplot(sub, aes(x = get(nefl_col), y = get(fc),
-                        colour = ms_status)) +
+                        colour = get(STATUS_COL))) +
             geom_point(alpha = 0.6, size = 1.5) +
             geom_smooth(method = "lm", se = TRUE, colour = "#2B4C7E",
                         linewidth = 0.7, fill = "#2B4C7E", alpha = 0.1) +
@@ -276,10 +284,10 @@ if (!is.na(nefl_col)) {
     scatter_plots <- Filter(Negate(is.null), scatter_plots)
     if (length(scatter_plots) > 0) {
         p_nefl_scatter <- wrap_plots(scatter_plots, ncol = 2)
-        ggsave(file.path(OUT_DIR, "ms_dti_nefl_scatter.pdf"),
+        ggsave(file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_dti_nefl_scatter.pdf")),
                p_nefl_scatter, width = 7, height = max(3, ceiling(length(scatter_plots)/2)*3),
                device = cairo_pdf)
-        cat("  Saved: ms_dti_nefl_scatter.pdf\n")
+        cat(sprintf("  Saved: %s_dti_nefl_scatter.pdf\n", cfg$cohort_short))
     }
 }
 

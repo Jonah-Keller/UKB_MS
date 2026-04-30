@@ -1,11 +1,11 @@
 #!/usr/bin/env Rscript
 # 05_cluster_mri_association.R
-# Test whether pre-onset MS clusters differ in brain MRI metrics.
+# Test whether pre-onset disease clusters differ in brain MRI metrics.
 #
 # Design note: MRI was acquired at UKB instance 2 (~2014-2020); Olink blood draw
 # at instance 0 (~2006-2010). By MRI time many "pre-onset" patients (defined at
 # blood draw) will have been diagnosed — so results are exploratory / hypothesis
-# generating only. n=15 pre-onset patients have MRI data (C1=11, C2=4).
+# generating only.
 #
 # Tests:
 #   1. WMH volume: Wilcoxon rank-sum C1 vs C2
@@ -24,24 +24,28 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(patchwork)
     library(ggrepel)
+    library(glue)
+    library(here)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-CLUSTER_FILE <- file.path(PROJ_DIR, "results", "clustering", "ms_cluster_assignments.csv")
-DTI_FILE     <- file.path(dirname(PROJ_DIR),
-                           "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
-                           "data", "ukb", "brain_mri", "dti", "dti_tract_protein_data.tsv")
-OUT_DIR <- file.path(PROJ_DIR, "results", "mri")
+STATUS_COL <- cfg$cohort_status_col
+PRE        <- cfg$status_values$pre_onset
+
+CLUSTER_FILE <- here::here("results", "clustering",
+                           glue::glue("{cfg$cohort_short}_cluster_assignments.csv"))
+DTI_FILE     <- file.path(dirname(here::here()),
+                          "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
+                          "data", "ukb", "brain_mri", "dti", "dti_tract_protein_data.tsv")
+OUT_DIR      <- here::here("results", "mri")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
 # ── 1. Load ───────────────────────────────────────────────────────────────────
 cat("Loading data...\n")
-clusters <- fread(CLUSTER_FILE)[ms_status == "pre_onset"]
+clusters <- fread(CLUSTER_FILE)[get(STATUS_COL) == PRE]
 dti      <- fread(DTI_FILE)
 
 dt <- merge(clusters[, .(eid, cluster)], dti, by = "eid")
@@ -122,7 +126,8 @@ p_heatmap <- ggplot(fa_long, aes(cluster_f, tract, fill = fa_z)) +
         x     = "Pre-onset cluster",
         y     = NULL,
         title = "DTI fractional anisotropy by pre-onset cluster",
-        subtitle = sprintf("n = %d pre-onset MS patients with MRI data", nrow(dt))
+        subtitle = sprintf("n = %d pre-onset %s patients with MRI data",
+                           nrow(dt), cfg$disease_short_caps)
     ) +
     theme_ukb(base_size = 9) +
     theme(axis.text.y = element_text(size = 7))
