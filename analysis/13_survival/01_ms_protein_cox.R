@@ -26,6 +26,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(patchwork)
+    library(glue)
 })
 
 args       <- commandArgs(trailingOnly = FALSE)
@@ -34,9 +35,19 @@ SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", fi
 PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
 source(file.path(PROJ_DIR, "analysis", "helpers", "limma_utils.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
 
-QC_FILE   <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-DIFF_FILE <- file.path(PROJ_DIR, "results", "differential", "ms_combined_vs_hc.csv")
+STATUS_COL  <- cfg$cohort_status_col
+STATUS_PRE  <- cfg$status_values$pre_onset
+STATUS_CTRL <- cfg$status_values$control
+COHORT      <- cfg$cohort_short
+DISEASE     <- cfg$disease_short_caps
+
+QC_FILE   <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed",
+                       glue("{COHORT}_olink_qc.csv"))
+DIFF_FILE <- file.path(PROJ_DIR, "results", "differential",
+                       glue("{COHORT}_combined_vs_hc.csv"))
 OUT_DIR   <- file.path(PROJ_DIR, "results", "survival")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -50,7 +61,7 @@ ms_qc <- ms_qc[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex)]
 
 # Compute control-only PC1/PC2 on the filtered cohort (matches 04_differential)
 cat("Computing control-only PC1/PC2...\n")
-META_COLS <- c("eid","ms_status","age_at_sampling","age_at_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
                "years_to_diagnosis","sex","olink_instance","qc_outlier",
                "UMAP1","UMAP2","mean_npx")
 protein_cols <- setdiff(names(ms_qc), META_COLS)
@@ -58,10 +69,10 @@ pc_dt <- compute_control_pcs(ms_qc, protein_cols)
 ms_qc <- merge(ms_qc, pc_dt, by = "eid", all.x = TRUE)
 
 # Restrict to pre-onset cases + controls only
-surv_dt <- ms_qc[ms_status %in% c("pre_onset","control")]
-surv_dt[, event    := as.integer(ms_status == "pre_onset")]
+surv_dt <- ms_qc[get(STATUS_COL) %in% c(STATUS_PRE, STATUS_CTRL)]
+surv_dt[, event    := as.integer(get(STATUS_COL) == STATUS_PRE)]
 surv_dt[, surv_time := fcase(
-    ms_status == "pre_onset", as.numeric(years_to_diagnosis),
+    get(STATUS_COL) == STATUS_PRE, as.numeric(years_to_diagnosis),
     default = as.numeric(MAX_FOLLOW_UP)
 )]
 surv_dt[, sex_num := as.integer(sex)]   # UKB: 0=Female, 1=Male
@@ -109,10 +120,10 @@ cox_list <- lapply(avail_prots, run_cox, dt = surv_dt)
 cox_dt   <- rbindlist(Filter(Negate(is.null), cox_list))
 cox_dt[, fdr := p.adjust(pval, method = "BH")]
 cox_dt   <- cox_dt[order(pval)]
-fwrite(cox_dt, file.path(OUT_DIR, "ms_protein_cox_results.csv"))
+fwrite(cox_dt, file.path(OUT_DIR, glue("{COHORT}_protein_cox_results.csv")))
 cat(sprintf("  FDR<0.05: %d proteins\n", sum(cox_dt$fdr < 0.05)))
 cat(sprintf("  FDR<0.20: %d proteins\n", sum(cox_dt$fdr < 0.20)))
-cat("\nTop 15 proteins by HR (MS risk per 1 SD higher NPX):\n")
+cat(sprintf("\nTop 15 proteins by HR (%s risk per 1 SD higher NPX):\n", DISEASE))
 print(cox_dt[1:min(15,.N), .(protein=toupper(protein), HR=round(HR,3),
                               HR_lo=round(HR_lo,3), HR_hi=round(HR_hi,3),
                               pval=signif(pval,3), fdr=signif(fdr,3))])
@@ -120,9 +131,11 @@ print(cox_dt[1:min(15,.N), .(protein=toupper(protein), HR=round(HR,3),
 # ── 4. Forest plot — top 30 proteins ─────────────────────────────────────────
 sig_df <- cox_dt[1:min(30, .N)]
 sig_df[, prot_f := factor(toupper(protein), levels = rev(toupper(protein)))]
-sig_df[, direction := fifelse(HR > 1, "Higher → more MS risk", "Lower → less MS risk")]
+DIR_HIGH  <- glue("Higher → more {DISEASE} risk")
+DIR_LOW   <- glue("Lower → less {DISEASE} risk")
+sig_df[, direction := fifelse(HR > 1, DIR_HIGH, DIR_LOW)]
 
-DIR_COLS <- c("Higher → more MS risk" = "#CC0066", "Lower → less MS risk" = "#56B4E9")
+DIR_COLS <- setNames(c("#CC0066", "#56B4E9"), c(DIR_HIGH, DIR_LOW))
 
 p_forest <- ggplot(sig_df, aes(x = HR, y = prot_f, colour = direction)) +
     geom_vline(xintercept = 1, linewidth = 0.4, colour = "grey40") +
@@ -132,16 +145,17 @@ p_forest <- ggplot(sig_df, aes(x = HR, y = prot_f, colour = direction)) +
     scale_x_log10() +
     labs(x = "Hazard ratio (per 1 SD, log scale)",
          y = NULL,
-         title = "Per-protein Cox HR for MS incidence",
+         title = glue("Per-protein Cox HR for {DISEASE} incidence"),
          subtitle = sprintf("Pre-onset cases n=%d vs controls n=%d | top 30 by p-value",
                             sum(surv_dt$event), sum(!surv_dt$event)),
          caption = "Adjusted for age, sex, PC1, PC2") +
     theme_ukb() +
     theme(axis.text.y = element_text(size = 7), legend.position = "bottom")
 
-ggsave(file.path(OUT_DIR, "ms_protein_cox_forest.pdf"), p_forest,
+FOREST_PDF <- glue("{COHORT}_protein_cox_forest.pdf")
+ggsave(file.path(OUT_DIR, FOREST_PDF), p_forest,
        width = 6.5, height = 8, device = cairo_pdf)
-cat("  Saved: ms_protein_cox_forest.pdf\n")
+cat(sprintf("  Saved: %s\n", FOREST_PDF))
 
 # ── 5. Rolling HR — time bins ─────────────────────────────────────────────────
 cat("\nRunning rolling HR by time-to-diagnosis bin...\n")
@@ -194,7 +208,7 @@ if (length(roll_list) > 0) {
         scale_fill_gradient2(low = "#56B4E9", mid = "grey95", high = "#CC0066",
                              midpoint = 0, name = "log₂ HR",
                              limits = c(-0.8, 0.8), oob = scales::squish) +
-        labs(x = "Years before MS diagnosis (pre-onset cases)",
+        labs(x = glue("Years before {DISEASE} diagnosis (pre-onset cases)"),
              y = NULL,
              title = "Rolling hazard ratio by time window",
              subtitle = "HR per 1 SD protein (log₂ scale); labelled if p<0.05",
@@ -204,9 +218,10 @@ if (length(roll_list) > 0) {
               axis.text.x = element_text(angle = 30, hjust = 1),
               legend.position = "right")
 
-    ggsave(file.path(OUT_DIR, "ms_protein_cox_rolling.pdf"), p_roll,
+    ROLLING_PDF <- glue("{COHORT}_protein_cox_rolling.pdf")
+    ggsave(file.path(OUT_DIR, ROLLING_PDF), p_roll,
            width = 6.5, height = 7, device = cairo_pdf)
-    cat("  Saved: ms_protein_cox_rolling.pdf\n")
+    cat(sprintf("  Saved: %s\n", ROLLING_PDF))
 
     # Also: line plot for NEFL specifically
     nefl_roll <- roll_dt[protein == "nefl"]
@@ -216,17 +231,18 @@ if (length(roll_list) > 0) {
             geom_line(colour = "#CC0066", linewidth = 0.8) +
             geom_point(colour = "#CC0066", size = 2.5) +
             geom_hline(yintercept = 1, linetype = "dashed", colour = "grey40", linewidth = 0.4) +
-            labs(x = "Years before MS diagnosis",
+            labs(x = glue("Years before {DISEASE} diagnosis"),
                  y = "Hazard ratio (95% CI)",
-                 title = "NEFL: rolling HR for MS incidence") +
+                 title = glue("NEFL: rolling HR for {DISEASE} incidence")) +
             theme_ukb()
-        ggsave(file.path(OUT_DIR, "ms_nefl_rolling_hr.pdf"), p_nefl,
+        NEFL_PDF <- glue("{COHORT}_nefl_rolling_hr.pdf")
+        ggsave(file.path(OUT_DIR, NEFL_PDF), p_nefl,
                width = 5, height = 3.5, device = cairo_pdf)
-        cat("  Saved: ms_nefl_rolling_hr.pdf\n")
+        cat(sprintf("  Saved: %s\n", NEFL_PDF))
     }
 
     fwrite(roll_dt[, .(protein=toupper(protein), time_bin, HR, HR_lo, HR_hi, pval, n_bin_cases)],
-           file.path(OUT_DIR, "ms_protein_cox_rolling.csv"))
+           file.path(OUT_DIR, glue("{COHORT}_protein_cox_rolling.csv")))
 }
 
 cat("\n01_ms_protein_cox.R complete.\n")
