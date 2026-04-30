@@ -76,9 +76,12 @@ qc[, sex_num := as.integer(sex == "Female")]
 dt <- qc[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex) &
          get(status_col) %in% c(pre_state, ctrl_state)]
 dt <- merge(dt, clust[, .(eid, cluster)], by = "eid", all.x = TRUE)
+.unique_clusters <- sort(unique(dt$cluster[!is.na(dt$cluster) &
+                                            dt[[status_col]] == pre_state]))
+.cluster_labels  <- paste0("C", .unique_clusters)
 dt[get(status_col) == pre_state, cluster_f := factor(
     ifelse(is.na(cluster), "None", paste0("C", cluster)),
-    levels = c("None", "C0", "C1", "C2")
+    levels = c("None", .cluster_labels)
 )]
 
 n_pre <- dt[get(status_col) == pre_state, .N, by = cluster_f]
@@ -253,13 +256,13 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
 ctrl_dt     <- dt[get(status_col) == ctrl_state]
 all_results <- list()
 
-for (cl in c("C0","C1","C2")) {
+for (cl in .cluster_labels) {
     pre_eids_cl <- dt[get(status_col) == pre_state & cluster_f == cl, eid]
     all_results[[cl]] <- fit_cluster_model(cl, pre_eids_cl, ctrl_dt)
 }
 
 # ── 5. AUC summary (cluster-specific + Figure 1 pooled baseline) ─────────────
-auc_dt <- rbindlist(lapply(c("C0","C1","C2"), function(nm) {
+auc_dt <- rbindlist(lapply(.cluster_labels, function(nm) {
     r <- all_results[[nm]]
     if (is.null(r)) data.table(cluster = nm, n_cases = NA_integer_,
                                auc = NA_real_, auc_lo = NA_real_, auc_hi = NA_real_)
@@ -283,7 +286,10 @@ cat("\nAUC summary:\n"); print(auc_dt)
 cat("\nBuilding AUC forest plot (panel v)...\n")
 
 plot_dt <- auc_dt[!is.na(auc)]
-plot_dt[, cluster := factor(cluster, levels = rev(c("All pre-onset","C0","C1","C2")))]
+plot_dt[, cluster := factor(cluster,
+                             levels = rev(c("All pre-onset", .cluster_labels)))]
+.forest_palette <- c(cluster_palette(length(.cluster_labels)),
+                     "All pre-onset" = "#1A1A1A")
 
 p_v <- ggplot(plot_dt, aes(y = cluster, x = auc, colour = cluster)) +
     geom_vline(xintercept = 0.5, linetype = "dashed",
@@ -291,7 +297,7 @@ p_v <- ggplot(plot_dt, aes(y = cluster, x = auc, colour = cluster)) +
     geom_errorbar(aes(xmin = auc_lo, xmax = auc_hi),
                   orientation = "y", width = 0.22, linewidth = 0.55, na.rm = TRUE) +
     geom_point(size = 3.2) +
-    scale_colour_manual(values = CLUST_COLS, guide = "none") +
+    scale_colour_manual(values = .forest_palette, guide = "none") +
     scale_x_continuous(limits = c(0.3, 1.0), breaks = seq(0.3, 1.0, 0.1),
                        expand = expansion(mult = c(0.02, 0.02))) +
     labs(y        = NULL,
@@ -316,7 +322,7 @@ if (length(roc_results) >= 1) {
                    fpr = 1 - r$roc$specificities,
                    tpr = r$roc$sensitivities)
     }))
-    roc_dt[, cluster := factor(cluster, levels = c("C0","C1","C2"))]
+    roc_dt[, cluster := factor(cluster, levels = .cluster_labels)]
     auc_labels <- setNames(
         vapply(names(roc_results), function(nm)
             sprintf("%s  AUC=%.2f", nm, roc_results[[nm]]$auc),

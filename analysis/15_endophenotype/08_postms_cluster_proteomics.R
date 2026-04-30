@@ -73,9 +73,11 @@ if ("years_to_diagnosis_clust" %in% names(post_only)) {
 # years_since_diagnosis: positive = time elapsed since Dx
 post_only[, years_since_diagnosis := -years_to_diagnosis]
 
+.unique_clusters <- sort(unique(post_only$cluster[!is.na(post_only$cluster)]))
+.cluster_labels  <- paste0("C", .unique_clusters)
 post_only[, cluster_f := factor(
     ifelse(is.na(cluster), "None", paste0("C", cluster)),
-    levels = c("None", "C0", "C1", "C2")
+    levels = c("None", .cluster_labels)
 )]
 
 n_by_group <- post_only[, .N, by = cluster_f]
@@ -106,20 +108,28 @@ fwrite(rbindlist(all_dep), file.path(OUT_DIR, "postms_deps_all_contrasts.csv"))
 # ── 4. Volcano panels (a, b, c) ───────────────────────────────────────────────
 cat("\nBuilding volcano panels...\n")
 
-volcano_specs <- list(
-    list(cname = "C0_vs_None", label = "a", title = glue("C0 vs {NONE_LABEL}  · spine / connective tissue  (post-onset)")),
-    list(cname = "C1_vs_None", label = "b", title = glue("C1 vs {NONE_LABEL}  · cranial nerve / demyelinating  (post-onset)")),
-    list(cname = "C2_vs_None", label = "c", title = glue("C2 vs {NONE_LABEL}  · neurological sx + EBV  (post-onset)"))
-)
+.volcano_palette <- cluster_palette(length(.cluster_labels))
+volcano_specs <- lapply(seq_along(.cluster_labels), function(i) {
+    cname <- paste0(.cluster_labels[i], "_vs_None")
+    list(cname = cname,
+         label = letters[i],   # a, b, c, d, ...
+         title = glue("{.cluster_labels[i]} vs {NONE_LABEL}  (post-onset)"),
+         color = .volcano_palette[[.cluster_labels[i]]])
+})
 
 for (spec in volcano_specs) {
+    if (is.null(all_dep[[spec$cname]])) {
+        cat(sprintf("  Skipping panel_%s.pdf: no DEPs for %s\n",
+                    spec$label, spec$cname))
+        next
+    }
     p   <- make_volcano_plot(all_dep[[spec$cname]], spec$title, spec$label,
-                             clust_col       = CLUST_COLS[sub("_vs_None", "", spec$cname)],
+                             clust_col       = spec$color,
                              bonf            = bonf,
                              subtitle_suffix = glue("post-onset {cfg$disease_short_caps} only"))
     out <- file.path(FIG_DIR, sprintf("panel_%s.pdf", spec$label))
     ggsave(out, p, width = 3.5, height = 3.8, device = cairo_pdf)
-    cat(sprintf("  panel_%s.pdf\n", spec$label))
+    cat(sprintf("  panel_%s.pdf  (%s)\n", spec$label, spec$cname))
 }
 
 cat("\n08_postms_cluster_proteomics.R complete.\n")

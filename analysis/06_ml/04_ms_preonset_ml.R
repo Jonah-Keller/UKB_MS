@@ -259,12 +259,27 @@ model_list <- Filter(Negate(is.null), list(glmnet = glmnet_model))
 cat(sprintf("\n%d models trained.\n", length(model_list)))
 
 # ── 7. Model comparison ────────────────────────────────────────────────────────
-resamp     <- resamples(model_list)
-resamp_dt  <- as.data.table(resamp$values, keep.rownames = "Resample")
-resamp_long <- melt(resamp_dt, id.vars = "Resample",
-                    variable.name = "model_metric", value.name = "value")
-resamp_long[, value := as.numeric(value)]
-resamp_long[, c("model","metric") := tstrsplit(model_metric, "~", fixed=TRUE)]
+# resamples() requires >=2 models.  When only one model is trained we
+# build the resample-comparison table manually from its CV folds so the
+# downstream plotting + RDS save still produce valid output.
+if (length(model_list) >= 2L) {
+    resamp     <- resamples(model_list)
+    resamp_dt  <- as.data.table(resamp$values, keep.rownames = "Resample")
+    resamp_long <- melt(resamp_dt, id.vars = "Resample",
+                        variable.name = "model_metric", value.name = "value")
+    resamp_long[, value := as.numeric(value)]
+    resamp_long[, c("model","metric") := tstrsplit(model_metric, "~", fixed=TRUE)]
+} else if (length(model_list) == 1L) {
+    .nm  <- names(model_list)[1]
+    .mod <- model_list[[1]]
+    resamp_long <- as.data.table(.mod$resample)
+    resamp_long <- melt(resamp_long, id.vars = "Resample",
+                        variable.name = "metric", value.name = "value")
+    resamp_long[, value := as.numeric(value)]
+    resamp_long[, model := .nm]
+} else {
+    stop("No models trained; cannot build comparison plot.")
+}
 resamp_long <- resamp_long[metric == "ROC"]
 
 p_compare <- ggplot(resamp_long, aes(x = reorder(model, -value, median), y = value)) +

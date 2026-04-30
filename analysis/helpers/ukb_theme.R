@@ -34,9 +34,22 @@ COL_CNS    <- "#27AE60"   # CNS glia + neurons (HPA)
 COL_IMMUNE <- "#2980B9"   # peripheral immune (HPA)
 
 # ── Endophenotype cluster colours (Figure 5 / 5S / GMM) ─────────────────────
-# Canonical C0/C1/C2 palette used across all cluster analyses.
-# Scripts needing a "None" or "All pre-onset" entry extend with c(CLUST_COLS, ...).
+# Canonical C0/C1/C2 anchor colours; cluster_palette(n) extends to any k.
+# Scripts needing a "None" or "All pre-onset" entry extend with c(p, "None"=...).
 CLUST_COLS <- c("C0" = "#E6A817", "C1" = "#CC0066", "C2" = "#2B4C7E")
+
+# Generate a CLUST_COLS-style named palette for k clusters.  Anchors the
+# first three on the canonical UKB_MS palette (so existing MS figures are
+# byte-identical) and extends with a categorical Okabe-Ito sequence.
+cluster_palette <- function(n) {
+    extra <- c("#117733", "#88CCEE", "#882255", "#999933", "#44AA99",
+               "#AA4499", "#332288", "#DDCC77")
+    full  <- c(unname(CLUST_COLS), extra)
+    if (n > length(full)) {
+        full <- c(full, scales::hue_pal()(n - length(full)))
+    }
+    setNames(full[seq_len(n)], paste0("C", seq_len(n) - 1L))
+}
 
 # ── Legacy / auxiliary ────────────────────────────────────────────────────────
 UKB_PALETTE    <- c("#1A1A1A", "#E6A817", "#56B4E9", "#CC0066")

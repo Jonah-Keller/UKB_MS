@@ -51,9 +51,40 @@ dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
 set.seed(42)
-G_TARGET      <- 3L          # align with k-means C0/C1/C2
-G_RANGE       <- 2:5         # BIC sweep range
-if (!(G_TARGET %in% G_RANGE)) stop("G_TARGET must be in G_RANGE")
+
+# Graceful skip when the multimodal feature matrix is missing.  The
+# producer lives in analysis/_archive/01_ms_multimodal_endophenotype.R;
+# this stage runs only when that intermediate has been written for the
+# active cohort.
+if (!file.exists(FEAT_FILE)) {
+    cat(sprintf("GMM co-presentation stage skipped: %s not found.\n",
+                basename(FEAT_FILE)))
+    cat("  Build it via analysis/_archive/01_ms_multimodal_endophenotype.R\n")
+    cat("  (multimodal feature matrix combining ProtPC1-10 + ICD binary codes).\n")
+    quit(save = "no", status = 0)
+}
+if (!file.exists(CLUST_FILE)) {
+    cat(sprintf("GMM co-presentation stage skipped: %s not found.\n",
+                basename(CLUST_FILE)))
+    quit(save = "no", status = 0)
+}
+
+# G_TARGET = number of GMM components to align to.  Discovered from the
+# cluster assignments file so this stage scales with the cohort's k-means
+# solution (k=3 for MS, k=5 for ALS, etc.).  G_RANGE is the BIC sweep
+# range — defaults span 2..max(5, G_TARGET+1).
+.clust_preview <- data.table::fread(CLUST_FILE,
+                                     select = "cluster", showProgress = FALSE)
+G_TARGET      <- length(unique(stats::na.omit(.clust_preview$cluster)))
+if (G_TARGET < 2L) {
+    cat(sprintf("GMM stage skipped: only %d cluster(s) in %s.\n",
+                G_TARGET, basename(CLUST_FILE)))
+    quit(save = "no", status = 0)
+}
+G_RANGE       <- seq(2L, max(5L, G_TARGET + 1L))
+cat(sprintf("  GMM G_TARGET = %d (data-driven from %s)\n",
+            G_TARGET, basename(CLUST_FILE)))
+cat(sprintf("  BIC sweep G_RANGE = %d..%d\n", min(G_RANGE), max(G_RANGE)))
 CO_PRES_THRESH <- 0.90       # max posterior < threshold → co-presenter (GMM is highly confident; use 0.90)
 CLUST_COLS["Co-presenter"]    <- "#7B2FBE"
 CLUST_COLS["None/unassigned"] <- "grey65"

@@ -19,6 +19,7 @@
 # capture technical/batch variance without disease-signal contamination and
 # avoid collinearity with the outcome variable in downstream DE/Cox models.
 compute_control_pcs <- function(dt_filt, protein_cols, control_value = "control",
+                                 status_col = "ms_status",
                                  n_pc = 2L, use_irlba = TRUE) {
     if (!requireNamespace("data.table", quietly = TRUE)) stop("data.table not available")
     prot_mat <- t(as.matrix(dt_filt[, ..protein_cols]))
@@ -28,7 +29,7 @@ compute_control_pcs <- function(dt_filt, protein_cols, control_value = "control"
         nas <- is.na(prot_mat[i, ])
         if (any(nas)) prot_mat[i, nas] <- row_means[i]
     }
-    ctrl_eids <- as.character(dt_filt[ms_status == control_value, eid])
+    ctrl_eids <- as.character(dt_filt[get(status_col) == control_value, eid])
     ctrl_x    <- t(prot_mat[, ctrl_eids])                 # samples × proteins
     ctrl_ctr  <- colMeans(ctrl_x)
     ctrl_xc   <- sweep(ctrl_x, 2L, ctrl_ctr, "-")         # HC-centred
@@ -136,10 +137,13 @@ make_volcano_plot <- function(
 }
 
 # ── run_cluster_psm_limma() ───────────────────────────────────────────────────
-# PSM (1:psm_ratio NN) + limma for C0/C1/C2 vs None within an MS cohort.
+# PSM (1:psm_ratio NN) + limma for any number k of clusters vs None within
+# a cohort.  Cluster set is discovered from levels of cluster_f (excluding
+# "None"); contrasts generated are <Cluster>_vs_None for each cluster plus
+# all unordered pairwise <Ci>_vs_<Cj> contrasts.  Replaces an earlier
+# k=3-hardcoded version that broke for cohorts with k != 3 (e.g. ALS at k=5).
 # time_var: column name of the temporal covariate ("years_to_diagnosis" for
-# pre-onset, "years_since_diagnosis" for post-onset). The same column is used
-# in both the PSM formula and the limma design matrix.
+# pre-onset, "years_since_diagnosis" for post-onset).
 #
 # Returns: list(all_dep, bonf, psm_data)
 #   all_dep  — named list of data.tables (one per contrast) from topTable_safe
@@ -158,8 +162,14 @@ run_cluster_psm_limma <- function(
     if (!"sex_num" %in% names(ms_data))
         ms_data[, sex_num := as.integer(sex == "Female")]
 
+    if (!is.factor(ms_data$cluster_f))
+        stop("run_cluster_psm_limma: cluster_f must be a factor with 'None' + cluster levels")
+    cluster_levels <- setdiff(levels(ms_data$cluster_f), "None")
+    if (length(cluster_levels) == 0L)
+        stop("run_cluster_psm_limma: cluster_f has no non-'None' levels")
+
     psm_ids <- list()
-    for (cl in c("C0", "C1", "C2")) {
+    for (cl in cluster_levels) {
         sub_all  <- ms_data[cluster_f %in% c(cl, "None")]
         sub_all  <- sub_all[!is.na(get(time_var))]
         psm_df   <- data.frame(
@@ -206,11 +216,24 @@ run_cluster_psm_limma <- function(
     )
     colnames(design) <- gsub("cluster_f", "", colnames(design))
 
-    cmat <- limma::makeContrasts(
-        C0_vs_None = C0 - None, C1_vs_None = C1 - None, C2_vs_None = C2 - None,
-        C1_vs_C0   = C1 - C0,  C2_vs_C0   = C2 - C0,  C2_vs_C1   = C2 - C1,
-        levels     = design
-    )
+    # Build contrasts dynamically from the discovered cluster levels.
+    # Each Ck vs None plus all unordered pairwise (Ci vs Cj for i<j).
+    contrast_specs <- list()
+    for (cl in cluster_levels) {
+        contrast_specs[[paste0(cl, "_vs_None")]] <-
+            sprintf("%s - None", cl)
+    }
+    if (length(cluster_levels) >= 2L) {
+        pairs <- utils::combn(cluster_levels, 2L)
+        for (k in seq_len(ncol(pairs))) {
+            ci <- pairs[1L, k]; cj <- pairs[2L, k]
+            contrast_specs[[paste0(cj, "_vs_", ci)]] <-
+                sprintf("%s - %s", cj, ci)
+        }
+    }
+    cmat <- do.call(limma::makeContrasts,
+                    c(contrast_specs, list(levels = design)))
+
     fit2 <- limma::eBayes(
         limma::contrasts.fit(limma::lmFit(mat, design), cmat),
         trend = TRUE, robust = TRUE

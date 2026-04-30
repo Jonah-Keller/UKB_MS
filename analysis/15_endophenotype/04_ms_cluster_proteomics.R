@@ -72,10 +72,18 @@ if ("years_to_diagnosis_clust" %in% names(case_only)) {
     case_only[, years_to_diagnosis_clust := NULL]
 }
 
+# Cluster count is data-driven: discover unique non-NA cluster IDs and
+# build the factor levels from there.  Replaces the previous hardcoded
+# k=3 (C0, C1, C2) which broke for cohorts with k!=3 (e.g. ALS at k=5).
+.unique_clusters <- sort(unique(case_only$cluster[!is.na(case_only$cluster)]))
+.cluster_labels  <- paste0("C", .unique_clusters)
 case_only[, cluster_f := factor(
     ifelse(is.na(cluster), "None", paste0("C", cluster)),
-    levels = c("None", "C0", "C1", "C2")
+    levels = c("None", .cluster_labels)
 )]
+cat(sprintf("  Discovered %d clusters: %s\n",
+            length(.cluster_labels),
+            paste(.cluster_labels, collapse = ", ")))
 
 n_by_group <- case_only[, .N, by = cluster_f]
 cat(glue("  {cfg$disease_short_caps} cohort by cluster:\n")); print(n_by_group)
@@ -106,19 +114,32 @@ fwrite(rbindlist(all_dep), file.path(OUT_DIR, "cluster_deps_all_contrasts.csv"))
 # ── 4. Volcano panels (g, h, i) ───────────────────────────────────────────────
 cat("\nBuilding volcano panels...\n")
 
-volcano_specs <- list(
-    list(cname = "C0_vs_None", label = "g", title = glue("C0 vs {NONE_LABEL}  ·  spine / connective tissue")),
-    list(cname = "C1_vs_None", label = "h", title = glue("C1 vs {NONE_LABEL}  ·  cranial nerve / demyelinating")),
-    list(cname = "C2_vs_None", label = "i", title = glue("C2 vs {NONE_LABEL}  ·  neurological sx + EBV"))
-)
+# Volcano panels generated dynamically per discovered cluster.  Earlier
+# version hardcoded MS-specific titles ("spine / connective tissue", etc.)
+# for k=3; replaced with generic "Cluster N vs None" titles that work for
+# any k.  Panel letters g..z assigned in cluster order; deterministic and
+# data-driven.
+.volcano_palette <- cluster_palette(length(.cluster_labels))
+volcano_specs <- lapply(seq_along(.cluster_labels), function(i) {
+    cname <- paste0(.cluster_labels[i], "_vs_None")
+    list(cname = cname,
+         label = letters[6 + i],   # g, h, i, j, ...
+         title = glue("{.cluster_labels[i]} vs {NONE_LABEL}"),
+         color = .volcano_palette[[.cluster_labels[i]]])
+})
 
 for (spec in volcano_specs) {
+    if (is.null(all_dep[[spec$cname]])) {
+        cat(sprintf("  Skipping panel_%s.pdf: no DEPs for %s\n",
+                    spec$label, spec$cname))
+        next
+    }
     p   <- make_volcano_plot(all_dep[[spec$cname]], spec$title, spec$label,
-                             clust_col = CLUST_COLS[sub("_vs_None", "", spec$cname)],
+                             clust_col = spec$color,
                              bonf      = bonf)
     out <- file.path(FIG_DIR, sprintf("panel_%s.pdf", spec$label))
     ggsave(out, p, width = 3.5, height = 3.8, device = cairo_pdf)
-    cat(sprintf("  panel_%s.pdf\n", spec$label))
+    cat(sprintf("  panel_%s.pdf  (%s)\n", spec$label, spec$cname))
 }
 
 cat("\n04_ms_cluster_proteomics.R complete.\n")

@@ -62,7 +62,22 @@ FDR_THR  <- 0.05
 N_MATCH  <- 3   # HC per case in matched cohort
 
 # ── 1. Load cohort ────────────────────────────────────────────────────────────
+# Genetic stratification needs both HLA and PRS data; skip cleanly if either
+# is absent (matching the pattern in 07_hla_subgroup and 10_prs/01_ms_prs).
 cat("Loading data...\n")
+if (!file.exists(QC_FILE))  stop("QC file not found: ", QC_FILE)
+if (!file.exists(HLA_FILE)) {
+    cat(sprintf("Genetic-stratification stage skipped: %s not found.\n",
+                basename(HLA_FILE)))
+    cat("  See EXTRACT_TODO.md (HLA section) to enable.\n")
+    quit(save = "no", status = 0)
+}
+if (!file.exists(PRS_FILE)) {
+    cat(sprintf("Genetic-stratification stage skipped: %s not found.\n",
+                basename(PRS_FILE)))
+    cat("  Populate cfg$prs_pgs_ids and run 10_prs/00_merge_prs_scores.R first.\n")
+    quit(save = "no", status = 0)
+}
 qc  <- fread(QC_FILE,  showProgress=FALSE)
 hla <- fread(HLA_FILE, showProgress=FALSE)
 prs <- fread(PRS_FILE, showProgress=FALSE)

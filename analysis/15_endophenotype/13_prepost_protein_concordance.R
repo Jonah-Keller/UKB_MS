@@ -44,9 +44,24 @@ N_LABEL <- 8L
 all_deps  <- fread(ALL_DEP_FILE)
 post_deps <- fread(POST_DEP_FILE)
 
-contrasts <- c("C0_vs_None", "C1_vs_None", "C2_vs_None")
-panel_labels <- c("C0_vs_None" = "l", "C1_vs_None" = "m", "C2_vs_None" = "n")
-cluster_names <- c("C0_vs_None" = "C0", "C1_vs_None" = "C1", "C2_vs_None" = "C2")
+# Cluster set discovered from the all-cohort cluster DEPs file rather than
+# hardcoded to k=3.  Each Ck_vs_None contrast that has DEPs gets a panel
+# letter starting at "l" (l, m, n, o, ...).
+.all_dep_file <- here::here("results", "endophenotype", "cluster_proteomics",
+                             "cluster_deps_all_contrasts.csv")
+if (!file.exists(.all_dep_file)) {
+    cat(sprintf("Concordance stage skipped: %s not found.\n",
+                basename(.all_dep_file)))
+    cat("  Run analysis/15_endophenotype/04_ms_cluster_proteomics.R first.\n")
+    quit(save = "no", status = 0)
+}
+.all_contrasts <- unique(data.table::fread(.all_dep_file,
+                                            select = "contrast")$contrast)
+contrasts      <- grep("_vs_None$", .all_contrasts, value = TRUE)
+.cluster_ids   <- sub("_vs_None$", "", contrasts)
+panel_labels   <- setNames(letters[12 + seq_along(contrasts) - 1L], contrasts)  # l..
+cluster_names  <- setNames(.cluster_ids, contrasts)
+.concord_palette <- cluster_palette(length(.cluster_ids))
 
 stats_list <- list()
 
@@ -68,7 +83,7 @@ for (cname in contrasts) {
     )
     cat(sprintf("  %s: n=%d  r=%.3f  rho=%.3f\n", cname, nrow(m), r, rho))
 
-    sig_all_label <- glue("FDR<0.05 (all {cfg$disease_short_caps})")
+    sig_all_label <- as.character(glue("FDR<0.05 (all {cfg$disease_short_caps})"))
     m[, sig := fcase(
         fdr_all  < 0.05 & fdr_post < 0.05, "FDR<0.05 (both)",
         fdr_all  < 0.05,                   sig_all_label,
@@ -81,7 +96,7 @@ for (cname in contrasts) {
 
     sig_cols <- setNames(
         c("#7B2FBE",
-          unname(CLUST_COLS[cluster_names[cname]]),
+          unname(.concord_palette[cluster_names[cname]]),
           "#E6740A",
           "grey60",
           "grey88"),
