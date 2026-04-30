@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# 01_hla_interaction_limma.R  —  HLA×MS interaction: limma 2×2 model
+# 01_hla_interaction_limma.R  —  HLA x disease interaction: limma 2x2 model
 # =============================================================================
-# Tests whether DRB1*15:01 carrier status amplifies or attenuates the MS
-# protein signal.  Uses a 4-group no-intercept parameterisation so the
+# Tests whether the HLA risk-allele carrier status amplifies or attenuates the
+# disease protein signal.  Uses a 4-group no-intercept parameterisation so the
 # interaction term can be extracted cleanly via makeContrasts.
 #
 # Three cohorts:
@@ -15,23 +15,27 @@
 #   ~ 0 + group4 + ytd + age_at_sampling + sex_f + PC1 + PC2
 # PC1/PC2 are control-derived (prcomp on HC, all samples projected in).
 #
-# Interaction contrast (HLA×MS):
-#   (MS_HLA1 - HC_HLA1) - (MS_HLA0 - HC_HLA0)
+# Interaction contrast (HLA x case):
+#   (CASE_HLA1 - HC_HLA1) - (CASE_HLA0 - HC_HLA0)
 #
-# Input:
-#   data/ukb/olink/processed/ms_olink_qc.csv
-#   data/ukb/genetics/hla_imputed.csv
-#
-# Output:
-#   results/endophenotype/ms_hla_interaction_all.csv
-#   results/endophenotype/ms_hla_interaction_pre.csv
-#   results/endophenotype/ms_hla_interaction_post.csv
+# Disease-, HLA-, and status-column constants come from configs/disease.yaml.
 # =============================================================================
 
 suppressPackageStartupMessages({
     library(limma)
     library(data.table)
+    library(glue)
+    library(here)
 })
+
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
+
+HLA_CARRIER_COL <- cfg$hla_carrier_col
+STATUS_COL      <- cfg$cohort_status_col
+PRE_ONSET       <- cfg$status_values$pre_onset
+POST_ONSET      <- cfg$status_values$post_onset
+CONTROL         <- cfg$status_values$control
 
 # --- Paths ---
 .args      <- commandArgs(trailingOnly = FALSE)
@@ -39,7 +43,8 @@ suppressPackageStartupMessages({
 SCRIPT_DIR <- if (length(.file_arg) > 0) dirname(normalizePath(sub("^--file=", "", .file_arg))) else getwd()
 REPO_ROOT  <- normalizePath(file.path(SCRIPT_DIR, "..", ".."), mustWork = FALSE)
 
-QC_FILE  <- file.path(REPO_ROOT, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
+QC_FILE  <- file.path(REPO_ROOT, "data", "ukb", "olink", "processed",
+                      glue("{cfg$cohort_short}_olink_qc.csv"))
 HLA_FILE <- file.path(REPO_ROOT, "data", "ukb", "genetics", "hla_imputed.csv")
 OUT_DIR  <- file.path(REPO_ROOT, "results", "endophenotype")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
@@ -62,14 +67,15 @@ message(sprintf("  HLA: %d rows", nrow(hla)))
 # Merge on eid
 hla[, eid := as.integer(eid)]
 dt[,  eid := as.integer(eid)]
-dt <- merge(dt, hla[, .(eid, drb1_1501_carrier)], by = "eid", all.x = TRUE)
+dt <- merge(dt, hla[, .SD, .SDcols = c("eid", HLA_CARRIER_COL)],
+            by = "eid", all.x = TRUE)
 
 # Meta columns
-META_COLS <- c("eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
                "years_to_diagnosis", "sex", "olink_instance",
                "qc_outlier", "UMAP1", "UMAP2", "mean_npx",
                "bmi", "ever_smoker", "diabetes", "alcohol_freq", "sex_num",
-               "drb1_1501_carrier", "PC1", "PC2")
+               HLA_CARRIER_COL, "PC1", "PC2")
 protein_cols <- setdiff(names(dt), META_COLS)
 message(sprintf("  %d proteins", length(protein_cols)))
 
@@ -80,12 +86,12 @@ dt_filt <- dt[
     qc_outlier == FALSE &
     !is.na(age_at_sampling) &
     !is.na(sex) &
-    !is.na(drb1_1501_carrier)
+    !is.na(get(HLA_CARRIER_COL))
 ]
 message(sprintf("  After filter: %d participants", nrow(dt_filt)))
+status_tab <- table(dt_filt[[STATUS_COL]])
 message(sprintf("  Status: %s",
-    paste(names(table(dt_filt$ms_status)), table(dt_filt$ms_status),
-          sep = "=", collapse = "  ")))
+    paste(names(status_tab), status_tab, sep = "=", collapse = "  ")))
 
 # =============================================================================
 # 3. Protein matrix: proteins (rows) x samples (cols), mean-impute per protein
@@ -100,8 +106,8 @@ for (i in seq_len(nrow(prot_mat))) {
 }
 
 message("Computing control-only PC1/PC2 (truncated SVD via irlba)...")
-ctrl_eids_hla <- as.character(dt_filt[ms_status == "control", eid])
-ctrl_x_hla    <- t(prot_mat[, ctrl_eids_hla])         # samples × proteins
+ctrl_eids_hla <- as.character(dt_filt[get(STATUS_COL) == CONTROL, eid])
+ctrl_x_hla    <- t(prot_mat[, ctrl_eids_hla])         # samples x proteins
 ctrl_ctr_hla  <- colMeans(ctrl_x_hla)
 ctrl_xc_hla   <- sweep(ctrl_x_hla, 2L, ctrl_ctr_hla, "-")
 sv_hla        <- irlba::irlba(ctrl_xc_hla, nv = 2L)
@@ -124,25 +130,24 @@ dt_filt       <- merge(dt_filt, pc_dt, by = "eid", all.x = TRUE)
 # Helper: run_hla_interaction()
 # =============================================================================
 run_hla_interaction <- function(prot_mat_sub, meta_sub,
-                                ms_levels, hc_level = "control",
+                                case_levels, hc_level = CONTROL,
                                 ytd_vec, label) {
     message(sprintf("\nRunning HLA interaction limma: %s  (n=%d)",
                     label, ncol(prot_mat_sub)))
 
     meta_sub <- copy(meta_sub)
     meta_sub[, sex_f       := factor(sex)]
-    meta_sub[, hla_carrier := factor(drb1_1501_carrier)]   # 0/1
-    meta_sub[, ms_binary   := as.integer(ms_status %in% ms_levels)]
+    meta_sub[, hla_carrier := factor(get(HLA_CARRIER_COL))]   # 0/1
+    meta_sub[, case_binary := as.integer(get(STATUS_COL) %in% case_levels)]
     meta_sub[, ytd         := ytd_vec]
 
     # 4-group cell label
     meta_sub[, group4 := paste0(
-        fifelse(ms_binary == 1, "MS", "HC"),
+        fifelse(case_binary == 1, "CASE", "HC"),
         "_HLA",
-        as.character(drb1_1501_carrier)
+        as.character(get(HLA_CARRIER_COL))
     )]
     meta_sub[, group4 := factor(group4)]
-    g_levels <- make.names(levels(meta_sub$group4))
 
     # Build design: no-intercept group4 + additive covariates
     meta_df <- as.data.frame(meta_sub)
@@ -153,10 +158,10 @@ run_hla_interaction <- function(prot_mat_sub, meta_sub,
     colnames(design) <- make.names(colnames(design))
 
     # Map group4 column names after make.names
-    hc0  <- make.names(paste0("group4HC_HLA0"))
-    hc1  <- make.names(paste0("group4HC_HLA1"))
-    ms0  <- make.names(paste0("group4MS_HLA0"))
-    ms1  <- make.names(paste0("group4MS_HLA1"))
+    hc0 <- make.names("group4HC_HLA0")
+    hc1 <- make.names("group4HC_HLA1")
+    ms0 <- make.names("group4CASE_HLA0")
+    ms1 <- make.names("group4CASE_HLA1")
 
     # Verify all four groups exist in design columns
     needed <- c(hc0, hc1, ms0, ms1)
@@ -169,7 +174,7 @@ run_hla_interaction <- function(prot_mat_sub, meta_sub,
         return(NULL)
     }
 
-    # Interaction contrast: (MS_HLA1 - HC_HLA1) - (MS_HLA0 - HC_HLA0)
+    # Interaction contrast: (CASE_HLA1 - HC_HLA1) - (CASE_HLA0 - HC_HLA0)
     contr_str <- sprintf("(%s - %s) - (%s - %s)", ms1, hc1, ms0, hc0)
     message(sprintf("  Contrast: %s", contr_str))
 
@@ -194,71 +199,40 @@ run_hla_interaction <- function(prot_mat_sub, meta_sub,
 # 4. Cohort definitions and runs
 # =============================================================================
 
-# --- All: (pre + post) vs control ---
-message("\n--- Cohort: all (pre+post vs control) ---")
-dt_all  <- dt_filt[ms_status %in% c("pre_onset", "post_onset", "control")]
-eids_all <- as.character(dt_all$eid)
-prot_all <- prot_mat[, eids_all]
-ytd_all  <- dt_all$years_to_diagnosis
-ytd_all[is.na(ytd_all)] <- 0
+run_cohort <- function(label, status_levels, case_levels, abs_ytd = FALSE) {
+    message(sprintf("\n--- Cohort: %s ---", label))
+    sub <- dt_filt[get(STATUS_COL) %in% status_levels]
+    eids <- as.character(sub$eid)
+    ytd <- sub$years_to_diagnosis
+    if (abs_ytd) ytd <- abs(ytd)
+    ytd[is.na(ytd)] <- 0
+    run_hla_interaction(
+        prot_mat_sub = prot_mat[, eids],
+        meta_sub     = sub,
+        case_levels  = case_levels,
+        ytd_vec      = ytd,
+        label        = sprintf("hla_interaction_%s", label)
+    )
+}
 
-res_all <- run_hla_interaction(
-    prot_mat_sub = prot_all,
-    meta_sub     = dt_all,
-    ms_levels    = c("pre_onset", "post_onset"),
-    ytd_vec      = ytd_all,
-    label        = "hla_interaction_all"
-)
-
-# --- Pre: pre_onset vs control ---
-message("\n--- Cohort: pre (pre_onset vs control) ---")
-dt_pre  <- dt_filt[ms_status %in% c("pre_onset", "control")]
-eids_pre <- as.character(dt_pre$eid)
-prot_pre <- prot_mat[, eids_pre]
-ytd_pre  <- dt_pre$years_to_diagnosis
-ytd_pre[is.na(ytd_pre)] <- 0
-
-res_pre <- run_hla_interaction(
-    prot_mat_sub = prot_pre,
-    meta_sub     = dt_pre,
-    ms_levels    = "pre_onset",
-    ytd_vec      = ytd_pre,
-    label        = "hla_interaction_pre"
-)
-
-# --- Post: post_onset vs control ---
-message("\n--- Cohort: post (post_onset vs control) ---")
-dt_post  <- dt_filt[ms_status %in% c("post_onset", "control")]
-eids_post <- as.character(dt_post$eid)
-prot_post <- prot_mat[, eids_post]
-ytd_post  <- abs(dt_post$years_to_diagnosis)
-ytd_post[is.na(ytd_post)] <- 0
-
-res_post <- run_hla_interaction(
-    prot_mat_sub = prot_post,
-    meta_sub     = dt_post,
-    ms_levels    = "post_onset",
-    ytd_vec      = ytd_post,
-    label        = "hla_interaction_post"
-)
+res_all  <- run_cohort("all",  c(PRE_ONSET, POST_ONSET, CONTROL),
+                       c(PRE_ONSET, POST_ONSET))
+res_pre  <- run_cohort("pre",  c(PRE_ONSET, CONTROL),  PRE_ONSET)
+res_post <- run_cohort("post", c(POST_ONSET, CONTROL), POST_ONSET, abs_ytd = TRUE)
 
 # =============================================================================
 # 5. Write outputs
 # =============================================================================
-if (!is.null(res_all)) {
-    fwrite(res_all,  file.path(OUT_DIR, "ms_hla_interaction_all.csv"))
-    message("\nWrote ms_hla_interaction_all.csv  — ",
-            sum(res_all$fdr < FDR_THRESH), " interaction FDR<0.05")
+write_result <- function(res, suffix) {
+    if (is.null(res)) return(invisible(NULL))
+    fname <- glue("{cfg$cohort_short}_hla_interaction_{suffix}.csv")
+    fwrite(res, file.path(OUT_DIR, fname))
+    message(sprintf("Wrote %s — %d interaction FDR<%.2f",
+                    fname, sum(res$fdr < FDR_THRESH), FDR_THRESH))
 }
-if (!is.null(res_pre)) {
-    fwrite(res_pre,  file.path(OUT_DIR, "ms_hla_interaction_pre.csv"))
-    message("Wrote ms_hla_interaction_pre.csv  — ",
-            sum(res_pre$fdr < FDR_THRESH), " interaction FDR<0.05")
-}
-if (!is.null(res_post)) {
-    fwrite(res_post, file.path(OUT_DIR, "ms_hla_interaction_post.csv"))
-    message("Wrote ms_hla_interaction_post.csv — ",
-            sum(res_post$fdr < FDR_THRESH), " interaction FDR<0.05")
-}
+
+write_result(res_all,  "all")
+write_result(res_pre,  "pre")
+write_result(res_post, "post")
 
 message("\nHLA interaction limma complete.")
