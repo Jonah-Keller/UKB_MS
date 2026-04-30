@@ -21,20 +21,21 @@ suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
     library(ggrepel)
+    library(here)
+    library(glue)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
-ALL_DEP_FILE  <- file.path(PROJ_DIR, "results", "endophenotype",
+cfg <- load_disease_config()
+
+ALL_DEP_FILE  <- here::here("results", "endophenotype",
                             "cluster_proteomics",       "cluster_deps_all_contrasts.csv")
-POST_DEP_FILE <- file.path(PROJ_DIR, "results", "endophenotype",
+POST_DEP_FILE <- here::here("results", "endophenotype",
                             "postms_cluster_proteomics", "postms_deps_all_contrasts.csv")
-OUT_DIR <- file.path(PROJ_DIR, "results", "endophenotype", "prepost_concordance")
-FIG_DIR <- file.path(PROJ_DIR, "results", "figures", "5S")
+OUT_DIR <- here::here("results", "endophenotype", "prepost_concordance")
+FIG_DIR <- here::here("results", "figures", "5S")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -67,22 +68,25 @@ for (cname in contrasts) {
     )
     cat(sprintf("  %s: n=%d  r=%.3f  rho=%.3f\n", cname, nrow(m), r, rho))
 
+    sig_all_label <- glue("FDR<0.05 (all {cfg$disease_short_caps})")
     m[, sig := fcase(
         fdr_all  < 0.05 & fdr_post < 0.05, "FDR<0.05 (both)",
-        fdr_all  < 0.05,                   "FDR<0.05 (all MS)",
+        fdr_all  < 0.05,                   sig_all_label,
         fdr_post < 0.05,                   "FDR<0.05 (post-onset)",
         P_all    < 0.05 | P_post < 0.05,   "Nominal (either)",
         default = "NS"
     )]
-    m[, sig := factor(sig, levels = c("FDR<0.05 (both)", "FDR<0.05 (all MS)",
+    m[, sig := factor(sig, levels = c("FDR<0.05 (both)", sig_all_label,
                                        "FDR<0.05 (post-onset)", "Nominal (either)", "NS"))]
 
-    sig_cols <- c(
-        "FDR<0.05 (both)"    = "#7B2FBE",
-        "FDR<0.05 (all MS)"  = CLUST_COLS[cluster_names[cname]],
-        "FDR<0.05 (post-onset)" = "#E6740A",
-        "Nominal (either)"   = "grey60",
-        "NS"                 = "grey88"
+    sig_cols <- setNames(
+        c("#7B2FBE",
+          unname(CLUST_COLS[cluster_names[cname]]),
+          "#E6740A",
+          "grey60",
+          "grey88"),
+        c("FDR<0.05 (both)", sig_all_label,
+          "FDR<0.05 (post-onset)", "Nominal (either)", "NS")
     )
     m[, alpha_val := fcase(sig == "NS", 0.25, default = 0.75)]
 
@@ -114,8 +118,8 @@ for (cname in contrasts) {
                  hjust = 0, vjust = 1, size = 2.8, colour = "grey30") +
         coord_fixed(xlim = c(-xy_lim, xy_lim), ylim = c(-xy_lim, xy_lim)) +
         labs(
-            x        = "logFC  (all MS: pre + post-onset)",
-            y        = "logFC  (post-onset MS only)",
+            x        = glue("logFC  (all {cfg$disease_short_caps}: pre + post-onset)"),
+            y        = glue("logFC  (post-onset {cfg$disease_short_caps} only)"),
             title    = sprintf("%s  %s — protein signature concordance",
                                panel_labels[cname], cluster_names[cname]),
             subtitle = "Each point = one protein; dashed line = perfect concordance"

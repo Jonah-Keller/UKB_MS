@@ -23,21 +23,23 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(scales)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
-source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "celltype_overrep_plot.R"))
 
-DEP_DIR     <- file.path(PROJ_DIR, "results", "endophenotype", "cluster_proteomics")
-OUT_DIR     <- file.path(PROJ_DIR, "results", "endophenotype", "cluster_celltypes")
-FIG_DIR     <- file.path(PROJ_DIR, "results", "figures", "5")
-WALCHLI_CSV <- file.path(PROJ_DIR, "data", "reference", "walchli_avg_expr_by_celltype.csv")
-HPA_FILE    <- file.path(PROJ_DIR, "data", "reference", "hpa_rna_single_cell_type.tsv.zip")
+cfg <- load_disease_config()
+NONE_LABEL <- glue("{cfg$disease_short_caps}-None")
+
+DEP_DIR     <- here::here("results", "endophenotype", "cluster_proteomics")
+OUT_DIR     <- here::here("results", "endophenotype", "cluster_celltypes")
+FIG_DIR     <- here::here("results", "figures", "5")
+WALCHLI_CSV <- here::here("data", "reference", "walchli_avg_expr_by_celltype.csv")
+HPA_FILE    <- here::here("data", "reference", "hpa_rna_single_cell_type.tsv.zip")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -136,8 +138,8 @@ cat(sprintf("\nGSEA summary: %d rows  |  FDR<%.2f: %d  |  FDR<0.05: %d\n",
 # ---------------------------------------------------------------------------
 # Supplementary table sink (etbl_cluster_celltypes in figures.yaml)
 # ---------------------------------------------------------------------------
-supp_table_path <- file.path(
-    PROJ_DIR, "manuscript", "submission", "_build_intermediates",
+supp_table_path <- here::here(
+    "manuscript", "submission", "_build_intermediates",
     "Supplementary Table_Cluster_CellTypes.csv"
 )
 dir.create(dirname(supp_table_path), recursive = TRUE, showWarnings = FALSE)
@@ -173,8 +175,8 @@ for (spec in panel_specs) {
         contrast_labels = setNames(spec$cluster, spec$cluster),
         title_str       = sprintf("%s  %s \u2014 cell-type enrichment (fgsea)",
                                     spec$label, spec$cluster),
-        subtitle_str    = paste0(
-            "Preranked fgsea on limma moderated-t (cluster vs MS-None) | ",
+        subtitle_str    = glue(
+            "Preranked fgsea on limma moderated-t (cluster vs {NONE_LABEL}) | ",
             "NES>0: markers higher in cluster | NES<0: lower | * FDR<0.05"
         )
     )
@@ -195,8 +197,8 @@ p_heat <- make_celltype_heatmap(
     cluster_col  = "cluster",
     value_limits = c(-2.5, 2.5),
     title_str    = "u  Cross-cluster cell-type enrichment",
-    subtitle_str = paste0(
-        "fgsea NES (cluster vs MS-None) | specificity markers | ",
+    subtitle_str = glue(
+        "fgsea NES (cluster vs {NONE_LABEL}) | specificity markers | ",
         "NES>0: higher in cluster | NES<0: lower | * FDR<0.05"
     )
 )

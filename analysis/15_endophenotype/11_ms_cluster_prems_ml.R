@@ -5,9 +5,9 @@
 #
 # Approach:
 #   - Pooled "All pre-onset" baseline: loaded directly from Figure 1 results
-#     (ms_preonset_ml_results.csv). No re-fitting — ensures exact consistency.
+#     ({cohort_short}_preonset_ml_results.csv). No re-fitting — ensures exact consistency.
 #   - Cluster-specific models: same Boruta feature set as Figure 1
-#     (ms_pre_boruta_features.rds), glmnet elastic net.
+#     ({cohort_short}_pre_boruta_features.rds), glmnet elastic net.
 #     PSM: 1:5 NN on age+sex, caliper 0.2 SD.
 #     CV: proper LOOCV with savePredictions="final" (n<30) or 5×10 repeat CV
 #         with held-out 20% test set (n>=30). Train/test split done BEFORE fitting.
@@ -22,24 +22,29 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(caret)
     library(pROC)
     library(MatchIt)
     library(glmnet)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
-QC_FILE       <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-CLUST_FILE    <- file.path(PROJ_DIR, "results", "endophenotype", "ms_prems_cluster_assignments.csv")
-FIG1_AUC_FILE <- file.path(PROJ_DIR, "results", "ml", "ms_preonset_ml_results.csv")
-BORUTA_FILE   <- file.path(PROJ_DIR, "results", "ml", "models", "ms_pre_boruta_features.rds")
-OUT_DIR       <- file.path(PROJ_DIR, "results", "endophenotype", "cluster_prems_ml")
-FIG_DIR       <- file.path(PROJ_DIR, "results", "figures", "5")
+cfg <- load_disease_config()
+
+QC_FILE       <- here::here("data", "ukb", "olink", "processed",
+                            glue("{cfg$cohort_short}_olink_qc.csv"))
+CLUST_FILE    <- here::here("results", "endophenotype",
+                            glue("{cfg$cohort_short}_prems_cluster_assignments.csv"))
+FIG1_AUC_FILE <- here::here("results", "ml",
+                            glue("{cfg$cohort_short}_preonset_ml_results.csv"))
+BORUTA_FILE   <- here::here("results", "ml", "models",
+                            glue("{cfg$cohort_short}_pre_boruta_features.rds"))
+OUT_DIR       <- here::here("results", "endophenotype", "cluster_prems_ml")
+FIG_DIR       <- here::here("results", "figures", "5")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -50,12 +55,17 @@ MIN_CASES  <- 8L          # minimum pre-onset cases to attempt ML
 DEMO_FEATS <- c("age_at_sampling", "sex_num")
 CLUST_COLS["All pre-onset"] <- "grey45"
 
+status_col   <- cfg$cohort_status_col
+pre_state    <- cfg$status_values$pre_onset
+ctrl_state   <- cfg$status_values$control
+case_label   <- cfg$disease_short_caps
+
 # ── 1. Load cohort ────────────────────────────────────────────────────────────
 cat("Loading data...\n")
 qc    <- fread(QC_FILE,    showProgress = FALSE)
 clust <- fread(CLUST_FILE)
 
-meta_cols <- c("eid","ms_status","age_at_sampling","sex","age_at_diagnosis",
+meta_cols <- c("eid", status_col, "age_at_sampling","sex","age_at_diagnosis",
                "years_to_diagnosis","qc_outlier","plate_id","well_position",
                "hla_carrier","prs_score","comorbidity_cluster")
 prot_cols <- setdiff(names(qc), meta_cols)
@@ -64,20 +74,20 @@ prot_cols <- prot_cols[vapply(prot_cols, function(x) is.numeric(qc[[x]]), logica
 qc[, sex_num := as.integer(sex == "Female")]
 
 dt <- qc[qc_outlier == FALSE & !is.na(age_at_sampling) & !is.na(sex) &
-         ms_status %in% c("pre_onset", "control")]
+         get(status_col) %in% c(pre_state, ctrl_state)]
 dt <- merge(dt, clust[, .(eid, cluster)], by = "eid", all.x = TRUE)
-dt[ms_status == "pre_onset", cluster_f := factor(
+dt[get(status_col) == pre_state, cluster_f := factor(
     ifelse(is.na(cluster), "None", paste0("C", cluster)),
     levels = c("None", "C0", "C1", "C2")
 )]
 
-n_pre <- dt[ms_status == "pre_onset", .N, by = cluster_f]
-cat("  Pre-onset MS by cluster:\n"); print(n_pre)
-cat(sprintf("  Total controls: %d\n", sum(dt$ms_status == "control")))
+n_pre <- dt[get(status_col) == pre_state, .N, by = cluster_f]
+cat(glue("  Pre-onset {case_label} by cluster:\n")); print(n_pre)
+cat(sprintf("  Total controls: %d\n", sum(dt[[status_col]] == ctrl_state)))
 
 # ── 2. Load Figure 1 Boruta features (ensures consistency) ───────────────────
 cat("\nLoading Figure 1 Boruta feature set...\n")
-if (!file.exists(BORUTA_FILE)) stop("Boruta features not found — run 04_ms_preonset_ml.R first")
+if (!file.exists(BORUTA_FILE)) stop(glue("Boruta features not found at {BORUTA_FILE} — run upstream pre-onset ML script first"))
 boruta_feats <- readRDS(BORUTA_FILE)
 cat(sprintf("  %d Boruta-confirmed proteins\n", length(boruta_feats)))
 
@@ -90,7 +100,7 @@ cat(sprintf("  Feature set: %d proteins + %d demo = %d total\n",
             length(feat_set)))
 
 # ── 3. Pooled baseline from Figure 1 (no re-fitting) ─────────────────────────
-cat("\nLoading Figure 1 pooled pre-onset AUC...\n")
+cat(glue("\nLoading Figure 1 pooled pre-onset AUC ({basename(FIG1_AUC_FILE)})...\n"))
 fig1_auc <- fread(FIG1_AUC_FILE)
 cat("  Figure 1 results:\n"); print(fig1_auc)
 pooled_auc    <- fig1_auc[model == "glmnet", AUC]
@@ -150,7 +160,8 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
     matched_eids <- sub_psm$eid[m$weights > 0]
     ml_dt <- dt[eid %in% matched_eids]
     ml_dt[, is_case := as.integer(eid %in% pre_eids)]
-    ml_dt[, outcome := factor(fifelse(is_case == 1L, "MS", "Control"), levels = c("MS","Control"))]
+    ml_dt[, outcome := factor(fifelse(is_case == 1L, case_label, "Control"),
+                              levels = c(case_label, "Control"))]
 
     avail_feats <- intersect(feat_set, names(ml_dt))
     # Remove zero-variance features in this cluster's dataset
@@ -169,9 +180,9 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
         }
     }
     ml_dt <- ml_dt[complete.cases(ml_dt[, c("outcome", ..nz_feats)])]
-    n_ms  <- sum(ml_dt$outcome == "MS")
-    cat(sprintf("  PSM dataset: %d MS, %d Control | features: %d\n",
-                n_ms, sum(ml_dt$outcome == "Control"), length(nz_feats)))
+    n_cases  <- sum(ml_dt$outcome == case_label)
+    cat(sprintf("  PSM dataset: %d %s, %d Control | features: %d\n",
+                n_cases, case_label, sum(ml_dt$outcome == "Control"), length(nz_feats)))
 
     ml_df <- as.data.frame(ml_dt[, c("outcome", ..nz_feats)])
 
@@ -198,7 +209,7 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
 
     # AUC from LOOCV held-out predictions
     loocv_preds <- fit$pred
-    if (is.null(loocv_preds) || nrow(loocv_preds) == 0 || !"MS" %in% names(loocv_preds)) {
+    if (is.null(loocv_preds) || nrow(loocv_preds) == 0 || !(case_label %in% names(loocv_preds))) {
         cat("  LOOCV predictions unavailable\n"); return(NULL)
     }
     # Use best-tune predictions
@@ -212,8 +223,8 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
     }
 
     roc_obj <- tryCatch(
-        roc(loocv_best$obs, loocv_best$MS,
-            levels = c("Control","MS"), direction = "<", quiet = TRUE),
+        roc(loocv_best$obs, loocv_best[[case_label]],
+            levels = c("Control", case_label), direction = "<", quiet = TRUE),
         error = function(e) NULL
     )
     if (is.null(roc_obj)) return(NULL)
@@ -235,15 +246,15 @@ fit_cluster_model <- function(cluster_label, pre_eids, ctrl_dt) {
     coef_dt <- coef_dt[coef != 0][order(-abs(coef))]
     fwrite(coef_dt, file.path(OUT_DIR, sprintf("cluster_prems_features_%s.csv", cluster_label)))
 
-    list(cluster = cluster_label, n_cases = n_ms,
+    list(cluster = cluster_label, n_cases = n_cases,
          auc = auc_val, auc_lo = auc_lo, auc_hi = auc_hi, roc = roc_obj)
 }
 
-ctrl_dt     <- dt[ms_status == "control"]
+ctrl_dt     <- dt[get(status_col) == ctrl_state]
 all_results <- list()
 
 for (cl in c("C0","C1","C2")) {
-    pre_eids_cl <- dt[ms_status == "pre_onset" & cluster_f == cl, eid]
+    pre_eids_cl <- dt[get(status_col) == pre_state & cluster_f == cl, eid]
     all_results[[cl]] <- fit_cluster_model(cl, pre_eids_cl, ctrl_dt)
 }
 
@@ -259,7 +270,7 @@ auc_dt <- rbindlist(lapply(c("C0","C1","C2"), function(nm) {
 # Prepend pooled baseline from Figure 1
 pooled_row <- data.table(
     cluster  = "All pre-onset",
-    n_cases  = dt[ms_status == "pre_onset", .N],
+    n_cases  = dt[get(status_col) == pre_state, .N],
     auc      = pooled_auc,
     auc_lo   = pooled_auc_lo,
     auc_hi   = pooled_auc_hi
@@ -285,7 +296,7 @@ p_v <- ggplot(plot_dt, aes(y = cluster, x = auc, colour = cluster)) +
                        expand = expansion(mult = c(0.02, 0.02))) +
     labs(y        = NULL,
          x        = "AUC (95% CI — DeLong)",
-         title    = "v  Pre-MS classifier AUC by subtype",
+         title    = glue("v  Pre-{case_label} classifier AUC by subtype"),
          subtitle = "glmnet | Boruta features (Figure 1) | LOOCV | dashed = chance") +
     theme_ukb(base_size = 9) +
     theme(axis.text.y       = element_text(size = 8.5, face = "bold"),
@@ -323,7 +334,7 @@ if (length(roc_results) >= 1) {
         scale_y_continuous(limits = c(0,1), expand = expansion(mult = 0.02)) +
         labs(x        = "1 - Specificity",
              y        = "Sensitivity",
-             title    = "n2  ROC — subtype-specific pre-MS (LOOCV)",
+             title    = glue("n2  ROC — subtype-specific pre-{case_label} (LOOCV)"),
              subtitle = "glmnet | Boruta features (Figure 1) | exploratory",
              colour   = NULL) +
         theme_ukb(base_size = 9) +
@@ -336,6 +347,5 @@ if (length(roc_results) >= 1) {
 }
 
 cat("\n11_ms_cluster_prems_ml.R complete.\n")
-cat("Note: pooled AUC is from Figure 1 (ms_preonset_ml_results.csv).\n")
+cat(glue("Note: pooled AUC is from Figure 1 ({basename(FIG1_AUC_FILE)}).\n"))
 cat("      Cluster AUCs use LOOCV — treat as exploratory given small n.\n")
-cat("Next: 12_ms_gmm_copresentation.R (multimodal GMM co-presentation model)\n")

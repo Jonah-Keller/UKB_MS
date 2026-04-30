@@ -30,20 +30,24 @@
 
 suppressPackageStartupMessages({
     library(data.table)
+    library(here)
+    library(glue)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
+source(here::here("analysis", "helpers", "disease_config.R"))
 
-ICD_DIR   <- file.path(dirname(PROJ_DIR),
+cfg <- load_disease_config()
+
+ICD_DIR   <- file.path(dirname(here::here()),
                         "CADASIL_Proteome_ML_Keller_2024_Rebuttal",
                         "data", "ukb", "diagnoses", "icd_codes")
-COV_FILE  <- file.path(PROJ_DIR, "data", "ukb", "covariates", "covariate_table.csv")
-RAP_COV   <- file.path(PROJ_DIR, "data", "ukb", "rap_extraction", "covariates_pcs.csv")
-OUT_DIR   <- file.path(PROJ_DIR, "data", "ukb", "genetics", "gwas_cluster")
-dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
+COV_FILE  <- here::here("data", "ukb", "covariates", "covariate_table.csv")
+RAP_COV   <- here::here("data", "ukb", "rap_extraction", "covariates_pcs.csv")
+OUT_DIR   <- here::here("data", "ukb", "genetics", "gwas_cluster")
+PHENO_OUT <- here::here("results", "cluster_gwas",
+                        glue("{cfg$cohort_short}_cluster_phenotype.csv"))
+dir.create(OUT_DIR,            showWarnings = FALSE, recursive = TRUE)
+dir.create(dirname(PHENO_OUT), showWarnings = FALSE, recursive = TRUE)
 
 # ICD blocks defining each cluster
 C1_BLOCKS  <- c("H4", "G5", "M4")
@@ -145,6 +149,20 @@ make_pheno_file(c1_eids, none_eids, "C1",
                 file.path(OUT_DIR, "pheno_C1_vs_none.tsv"))
 make_pheno_file(c2_eids, none_eids, "C2",
                 file.path(OUT_DIR, "pheno_C2_vs_none.tsv"))
+
+# Mirror combined per-cohort summary into results/ so downstream cohort-aware
+# lookup scripts can find it via cfg$cohort_short prefix.
+combined_eids <- union(union(intersect(c1_eids, all_eids),
+                              intersect(c2_eids, all_eids)),
+                       none_eids)
+combined_dt <- data.table(
+    eid = combined_eids,
+    C1  = as.integer(combined_eids %in% intersect(c1_eids, all_eids)),
+    C2  = as.integer(combined_eids %in% intersect(c2_eids, all_eids))
+)
+fwrite(combined_dt, PHENO_OUT)
+cat(sprintf("  Combined phenotype: %d rows -> %s\n",
+            nrow(combined_dt), basename(PHENO_OUT)))
 
 # ── 4. Write covariate file (REGENIE format) ───────────────────────────────────
 cat("\nWriting covariate file...\n")

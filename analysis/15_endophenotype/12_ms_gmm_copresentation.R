@@ -3,7 +3,7 @@
 #
 # Replace the hard k-means cluster assignments (phenotype-only, binary) with a
 # Gaussian Mixture Model fit to the full multimodal feature matrix
-# (ProtPC1-10 + ICD binary codes from ms_endophenotype_features.csv).
+# (ProtPC1-10 + ICD binary codes from {cohort_short}_endophenotype_features.csv).
 #
 # Output:
 #   1. Soft cluster membership probabilities P(C0|pt), P(C1|pt), P(C2|pt)
@@ -28,21 +28,25 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(mclust)
     library(patchwork)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
-FEAT_FILE   <- file.path(PROJ_DIR, "results", "endophenotype", "ms_endophenotype_features.csv")
-CLUST_FILE  <- file.path(PROJ_DIR, "results", "endophenotype", "ms_prems_cluster_assignments.csv")
-QC_FILE     <- file.path(PROJ_DIR, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
-OUT_DIR     <- file.path(PROJ_DIR, "results", "endophenotype", "gmm_copresentation")
-FIG_DIR     <- file.path(PROJ_DIR, "results", "figures", "5")
+cfg <- load_disease_config()
+
+FEAT_FILE   <- here::here("results", "endophenotype",
+                          glue("{cfg$cohort_short}_endophenotype_features.csv"))
+CLUST_FILE  <- here::here("results", "endophenotype",
+                          glue("{cfg$cohort_short}_prems_cluster_assignments.csv"))
+QC_FILE     <- here::here("data", "ukb", "olink", "processed",
+                          glue("{cfg$cohort_short}_olink_qc.csv"))
+OUT_DIR     <- here::here("results", "endophenotype", "gmm_copresentation")
+FIG_DIR     <- here::here("results", "figures", "5")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -268,9 +272,9 @@ if ("hla_carrier" %in% names(clust) && "prs_score" %in% names(clust)) {
                                          "Single-cluster" = "grey65"),
                               guide = "none") +
             scale_y_continuous(limits = c(0, 1), labels = scales::percent_format()) +
-            labs(x = NULL, y = "HLA-DRB1*15:01 carrier rate",
+            labs(x = NULL, y = glue("HLA-{cfg$hla_allele} carrier rate"),
                  title = "q  Co-presenter HLA + PRS",
-                 subtitle = "HLA carrier rate (left) | mean PRS score (right)") +
+                 subtitle = glue("HLA carrier rate (left) | mean {cfg$prs_label} (right)")) +
             theme_ukb(base_size = 9) +
             theme(panel.grid.major.x = element_blank())
 
@@ -281,7 +285,7 @@ if ("hla_carrier" %in% names(clust) && "prs_score" %in% names(clust)) {
             scale_fill_manual(values = c("Co-presenter" = "#7B2FBE",
                                          "Single-cluster" = "grey65"),
                               guide = "none") +
-            labs(x = NULL, y = "Mean PRS score (±SE)") +
+            labs(x = NULL, y = glue("Mean {cfg$prs_label} (±SE)")) +
             theme_ukb(base_size = 9) +
             theme(panel.grid.major.x = element_blank())
 

@@ -17,21 +17,23 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(scales)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
-source(file.path(PROJ_DIR, "analysis", "helpers", "celltype_overrep_plot.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "celltype_overrep_plot.R"))
 
-DEP_DIR     <- file.path(PROJ_DIR, "results", "endophenotype", "postms_cluster_proteomics")
-OUT_DIR     <- file.path(PROJ_DIR, "results", "endophenotype", "postms_cluster_celltypes")
-FIG_DIR     <- file.path(PROJ_DIR, "results", "figures", "5S")
-WALCHLI_CSV <- file.path(PROJ_DIR, "data", "reference", "walchli_avg_expr_by_celltype.csv")
-HPA_FILE    <- file.path(PROJ_DIR, "data", "reference", "hpa_rna_single_cell_type.tsv.zip")
+cfg <- load_disease_config()
+NONE_LABEL <- glue("{cfg$disease_short_caps}-None")
+
+DEP_DIR     <- here::here("results", "endophenotype", "postms_cluster_proteomics")
+OUT_DIR     <- here::here("results", "endophenotype", "postms_cluster_celltypes")
+FIG_DIR     <- here::here("results", "figures", "5S")
+WALCHLI_CSV <- here::here("data", "reference", "walchli_avg_expr_by_celltype.csv")
+HPA_FILE    <- here::here("data", "reference", "hpa_rna_single_cell_type.tsv.zip")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -144,8 +146,8 @@ for (spec in panel_specs) {
                                     spec$cluster),
         title_str       = sprintf("%s  %s \u2014 cell-type enrichment (post-onset)",
                                     spec$label, spec$cluster),
-        subtitle_str    = paste0(
-            "fgsea on limma moderated-t (cluster vs MS-None, post-onset) | ",
+        subtitle_str    = glue(
+            "fgsea on limma moderated-t (cluster vs {NONE_LABEL}, post-onset) | ",
             "NES>0: markers higher in cluster | NES<0: lower | * FDR<0.05"
         )
     )
@@ -165,8 +167,8 @@ p_heat <- make_celltype_heatmap(
     cluster_col  = "cluster",
     value_limits = c(-2.5, 2.5),
     title_str    = "k  Cross-cluster cell-type enrichment (post-onset)",
-    subtitle_str = paste0(
-        "fgsea NES (cluster vs MS-None, post-onset) | specificity markers | ",
+    subtitle_str = glue(
+        "fgsea NES (cluster vs {NONE_LABEL}, post-onset) | specificity markers | ",
         "NES>0: higher in cluster | NES<0: lower | * FDR<0.05"
     )
 )

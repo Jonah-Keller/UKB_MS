@@ -12,20 +12,22 @@
 suppressPackageStartupMessages({
     library(data.table)
     library(ggplot2)
+    library(here)
+    library(glue)
     library(clusterProfiler)
     library(org.Hs.eg.db)
 })
 
-args       <- commandArgs(trailingOnly = FALSE)
-file_arg   <- grep("^--file=", args, value = TRUE)
-SCRIPT_DIR <- if (length(file_arg)) dirname(normalizePath(sub("^--file=", "", file_arg))) else getwd()
-PROJ_DIR   <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
-source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
-source(file.path(PROJ_DIR, "analysis", "helpers", "go_dotplot.R"))
+source(here::here("analysis", "helpers", "disease_config.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "go_dotplot.R"))
 
-DEP_DIR <- file.path(PROJ_DIR, "results", "endophenotype", "postms_cluster_proteomics")
-OUT_DIR <- file.path(PROJ_DIR, "results", "endophenotype", "postms_cluster_pathways")
-FIG_DIR <- file.path(PROJ_DIR, "results", "figures", "5S")
+cfg <- load_disease_config()
+NONE_LABEL <- glue("{cfg$disease_short_caps}-None")
+
+DEP_DIR <- here::here("results", "endophenotype", "postms_cluster_proteomics")
+OUT_DIR <- here::here("results", "endophenotype", "postms_cluster_pathways")
+FIG_DIR <- here::here("results", "figures", "5S")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
 
@@ -90,7 +92,7 @@ for (spec in panel_specs) {
     p <- make_go_dotplot(
         go_dt        = go_dt,
         title_str    = sprintf("%s  %s \u2014 GO:BP enrichment (post-onset)", spec$label, spec$cluster),
-        subtitle_str = sprintf("enrichGO ORA | nominal P<%.2f module vs MS-None | post-onset only", NOM_P),
+        subtitle_str = glue("enrichGO ORA | nominal P<{format(NOM_P, nsmall=2)} module vs {NONE_LABEL} | post-onset only"),
         up_col     = col,
         down_col   = COL_DOWN,
         up_label   = spec$up_label,
