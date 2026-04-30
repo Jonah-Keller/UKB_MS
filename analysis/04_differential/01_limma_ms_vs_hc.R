@@ -1,20 +1,22 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# 01_limma_ms_vs_hc.R  —  Limma differential expression: MS vs healthy controls
+# 01_limma_ms_vs_hc.R  —  Limma differential expression: cases vs healthy controls
 # =============================================================================
 # Replicating Abdelhak et al. 2026 (Nature Medicine) approach in UKB Olink data.
+# Disease cohort, status-value labels, and output filename prefix are read from
+# configs/disease.yaml — no disease-specific values are hardcoded here.
 #
 # Four contrasts:
 #   A. Combined   — (pre_onset + post_onset) vs control  [no ytd; mean_npx adjusted]
 #   B. Pre-onset  — pre_onset vs control                 [no ytd; mean_npx adjusted]
 #   C. Post-onset — post_onset vs control                [abs(ytd); mean_npx adjusted]
 #   D. Pre-onset temporal model (same PSM cohort as B)
-#        protein ~ ms_binary + ytd_ms + mean_npx + age + sex + PC1 + PC2
-#        ytd_ms = ms_binary × years_to_diagnosis (0 for HC)
-#        ms_binary coefficient → MS–HC gap at diagnosis (ytd = 0)
-#        ytd_ms coefficient    → per-year change in gap going back from Dx
-#                                positive = gap larger earlier (early/persistent)
-#                                negative = gap grows near Dx (late-emerging)
+#        protein ~ case_binary + ytd_case + mean_npx + age + sex + PC1 + PC2
+#        ytd_case = case_binary × years_to_diagnosis (0 for HC)
+#        case_binary coefficient → case–HC gap at diagnosis (ytd = 0)
+#        ytd_case  coefficient   → per-year change in gap going back from Dx
+#                                  positive = gap larger earlier (early/persistent)
+#                                  negative = gap grows near Dx (late-emerging)
 #
 # Covariates: age_at_sampling, sex, mean_npx (technical), PC1/PC2 (control-derived)
 # PC derivation: prcomp on healthy controls only; all samples projected in.
@@ -22,16 +24,16 @@
 #   signal contamination, preventing collinearity with the outcome.
 #
 # Input:
-#   data/ukb/olink/processed/ms_olink_qc.csv
+#   data/ukb/olink/processed/<cohort_short>_olink_qc.csv
 #
-# Output:
-#   results/differential/ms_combined_vs_hc.csv
-#   results/differential/ms_pre_vs_hc.csv
-#   results/differential/ms_post_vs_hc.csv
-#   results/differential/ms_pre_temporal.csv   [Contrast D: ms_binary + ytd_ms coefficients]
-#   results/differential/ms_volcano_combined.pdf
-#   results/differential/ms_volcano_pre.pdf
-#   results/differential/ms_volcano_post.pdf
+# Output (filenames templated by cfg$cohort_short):
+#   results/differential/<cohort_short>_combined_vs_hc.csv
+#   results/differential/<cohort_short>_pre_vs_hc.csv
+#   results/differential/<cohort_short>_post_vs_hc.csv
+#   results/differential/<cohort_short>_pre_temporal.csv  [Contrast D]
+#   results/differential/<cohort_short>_volcano_combined.pdf
+#   results/differential/<cohort_short>_volcano_pre.pdf
+#   results/differential/<cohort_short>_volcano_post.pdf
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -44,21 +46,29 @@ suppressPackageStartupMessages({
     library(stringr)
     library(MatchIt)
     library(splines)
+    library(here)
+    library(glue)
 })
 
-# --- Paths ---
-.args      <- commandArgs(trailingOnly = FALSE)
-.file_arg  <- .args[grepl("^--file=", .args)]
-SCRIPT_DIR <- if (length(.file_arg) > 0) dirname(normalizePath(sub("^--file=", "", .file_arg))) else getwd()
-REPO_ROOT  <- normalizePath(file.path(SCRIPT_DIR, "..", ".."), mustWork = FALSE)
-OUT_DIR    <- file.path(REPO_ROOT, "results", "differential")
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
+
+STATUS_COL  <- cfg$cohort_status_col
+PRE         <- cfg$status_values$pre_onset
+POST        <- cfg$status_values$post_onset
+CONTROL     <- cfg$status_values$control
+COMBINED    <- cfg$cohort_short                              # combined-cases factor level
+
+OUT_DIR <- here::here("results", "differential")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-source(file.path(SCRIPT_DIR, "..", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
-QC_FILE <- file.path(REPO_ROOT, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
+QC_FILE <- here::here("data", "ukb", "olink", "processed",
+                       glue::glue("{cfg$cohort_short}_olink_qc.csv"))
 
-CADASIL_DIR <- file.path(dirname(REPO_ROOT), "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
+CADASIL_DIR <- file.path(dirname(here::here()),
+                          "CADASIL_Proteome_ML_Keller_2024_Rebuttal", "data", "ukb")
 
 # PSM match ratio
 PSM_RATIO   <- 10   # 1:10 nearest-neighbour matching
@@ -112,7 +122,7 @@ match_cohort <- function(dt_sub, case_levels,
                          ratio   = PSM_RATIO,
                          caliper = PSM_CALIPER) {
     dt_sub <- copy(dt_sub)
-    dt_sub[, is_case := as.integer(ms_status %in% case_levels)]
+    dt_sub[, is_case := as.integer(get(STATUS_COL) %in% case_levels)]
 
     PSM_VARS <- c("age_at_sampling", "sex_num", "bmi", "ever_smoker",
                   "diabetes", "alcohol_freq")
@@ -151,19 +161,20 @@ match_cohort <- function(dt_sub, case_levels,
 # =============================================================================
 # 1. Load QC'd data
 # =============================================================================
-message("Loading QC'd Olink + MS cohort data...")
+message("Loading QC'd Olink + cohort data...")
 if (!file.exists(QC_FILE)) stop("QC file not found: ", QC_FILE, "\nRun 02_olink_qc/01_olink_qc.R first.")
 dt <- fread(QC_FILE, showProgress = FALSE)
 
 # Meta columns (UMAP1/UMAP2 kept here only to exclude them from protein_cols)
-META_COLS <- c("eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
                "years_to_diagnosis", "sex", "olink_instance",
                "qc_outlier", "UMAP1", "UMAP2", "mean_npx",
                "bmi", "ever_smoker", "diabetes", "alcohol_freq", "sex_num",
                "PC1", "PC2")
 protein_cols <- setdiff(names(dt), META_COLS)
 message(sprintf("  %d participants, %d proteins", nrow(dt), length(protein_cols)))
-message(sprintf("  Status counts: %s", paste(capture.output(print(table(dt$ms_status))), collapse = " ")))
+message(sprintf("  Status counts: %s",
+                paste(capture.output(print(table(dt[[STATUS_COL]]))), collapse = " ")))
 
 # =============================================================================
 # 2. Filter: remove flagged outliers, require complete covariates
@@ -173,8 +184,9 @@ dt_filt <- dt[qc_outlier == FALSE &
               !is.na(sex)]
 
 message(sprintf("  After outlier/covariate filter: %d participants", nrow(dt_filt)))
-message(sprintf("  Status: %s", paste(names(table(dt_filt$ms_status)),
-                                       table(dt_filt$ms_status), sep = "=", collapse = "  ")))
+message(sprintf("  Status: %s",
+                paste(names(table(dt_filt[[STATUS_COL]])),
+                      table(dt_filt[[STATUS_COL]]), sep = "=", collapse = "  ")))
 
 # =============================================================================
 # 2b. Load and merge comorbidity covariates for PSM
@@ -206,7 +218,7 @@ for (i in seq_len(nrow(prot_mat))) {
 # that space.  Control-derived PCs capture technical/batch variance without
 # disease-signal contamination, preventing collinearity with the outcome variable.
 message("Computing control-only PC1/PC2 (truncated SVD via irlba)...")
-ctrl_eids <- as.character(dt_filt[ms_status == "control", eid])
+ctrl_eids <- as.character(dt_filt[get(STATUS_COL) == CONTROL, eid])
 ctrl_x    <- t(prot_mat[, ctrl_eids])                 # samples × proteins
 ctrl_ctr  <- colMeans(ctrl_x)
 ctrl_xc   <- sweep(ctrl_x, 2L, ctrl_ctr, "-")
@@ -233,30 +245,30 @@ run_limma <- function(prot_mat_sub, meta_sub, contrast_str, label,
                       include_mean_npx = FALSE, ytd = NULL) {
     message(sprintf("\nRunning limma: %s  (n=%d)", label, ncol(prot_mat_sub)))
 
-    meta_sub$ms_status_f <- relevel(factor(meta_sub$ms_status), ref = "control")
-    meta_sub$sex_f        <- factor(meta_sub$sex)
+    meta_sub$status_f <- relevel(factor(meta_sub[[STATUS_COL]]), ref = CONTROL)
+    meta_sub$sex_f    <- factor(meta_sub$sex)
 
     if (!is.null(ytd)) {
         meta_sub$ytd <- ytd
         if (include_mean_npx) {
             design <- model.matrix(
-                ~ 0 + ms_status_f + ytd + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
+                ~ 0 + status_f + ytd + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
                 data = meta_sub
             )
         } else {
             design <- model.matrix(
-                ~ 0 + ms_status_f + ytd + age_at_sampling + sex_f + PC1 + PC2,
+                ~ 0 + status_f + ytd + age_at_sampling + sex_f + PC1 + PC2,
                 data = meta_sub
             )
         }
     } else if (include_mean_npx) {
         design <- model.matrix(
-            ~ 0 + ms_status_f + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
+            ~ 0 + status_f + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
             data = meta_sub
         )
     } else {
         design <- model.matrix(
-            ~ 0 + ms_status_f + age_at_sampling + sex_f + PC1 + PC2,
+            ~ 0 + status_f + age_at_sampling + sex_f + PC1 + PC2,
             data = meta_sub
         )
     }
@@ -282,19 +294,20 @@ run_limma <- function(prot_mat_sub, meta_sub, contrast_str, label,
 # =============================================================================
 # 4a. Contrast A: Combined MS (pre + post) vs control  —  PSM + mean_npx
 # =============================================================================
-message("\n--- Contrast A: Combined MS vs HC ---")
-dt_combined_raw <- dt_filt[ms_status %in% c("pre_onset", "post_onset", "control")]
+message("\n--- Contrast A: Combined cases vs HC ---")
+dt_combined_raw <- dt_filt[get(STATUS_COL) %in% c(PRE, POST, CONTROL)]
 dt_combined_raw <- copy(dt_combined_raw)
-dt_combined_raw[ms_status != "control", ms_status := "ms"]
+dt_combined_raw[get(STATUS_COL) != CONTROL, (STATUS_COL) := COMBINED]
 
-dt_combined <- match_cohort(dt_combined_raw, case_levels = "ms")
+dt_combined <- match_cohort(dt_combined_raw, case_levels = COMBINED)
 prot_comb   <- prot_mat[, as.character(dt_combined$eid)]
-meta_comb   <- as.data.frame(dt_combined[, .(eid, ms_status, age_at_sampling,
-                                              sex, PC1, PC2, mean_npx)])
+meta_comb   <- as.data.frame(dt_combined[, c("eid", STATUS_COL, "age_at_sampling",
+                                              "sex", "PC1", "PC2", "mean_npx"),
+                                          with = FALSE])
 rownames(meta_comb) <- as.character(meta_comb$eid)
 
 res_combined <- run_limma(prot_comb, meta_comb,
-                          contrast_str     = "ms_status_fms - ms_status_fcontrol",
+                          contrast_str     = glue::glue("status_f{COMBINED} - status_f{CONTROL}"),
                           label            = "combined_vs_hc",
                           include_mean_npx = TRUE)
 
@@ -302,15 +315,16 @@ res_combined <- run_limma(prot_comb, meta_comb,
 # 4b. Contrast B: Pre-onset vs control  —  PSM
 # =============================================================================
 message("\n--- Contrast B: Pre-onset vs HC ---")
-dt_pre_raw <- dt_filt[ms_status %in% c("pre_onset", "control")]
-dt_pre     <- match_cohort(dt_pre_raw, case_levels = "pre_onset")
+dt_pre_raw <- dt_filt[get(STATUS_COL) %in% c(PRE, CONTROL)]
+dt_pre     <- match_cohort(dt_pre_raw, case_levels = PRE)
 prot_pre   <- prot_mat[, as.character(dt_pre$eid)]
-meta_pre   <- as.data.frame(dt_pre[, .(eid, ms_status, age_at_sampling,
-                                        sex, PC1, PC2, mean_npx)])
+meta_pre   <- as.data.frame(dt_pre[, c("eid", STATUS_COL, "age_at_sampling",
+                                        "sex", "PC1", "PC2", "mean_npx"),
+                                    with = FALSE])
 rownames(meta_pre) <- as.character(meta_pre$eid)
 
 res_pre <- run_limma(prot_pre, meta_pre,
-                     contrast_str     = "ms_status_fpre_onset - ms_status_fcontrol",
+                     contrast_str     = glue::glue("status_f{PRE} - status_f{CONTROL}"),
                      label            = "pre_onset_vs_hc",
                      include_mean_npx = TRUE)
 
@@ -318,50 +332,52 @@ res_pre <- run_limma(prot_pre, meta_pre,
 # 4c. Contrast C: Post-onset vs control  —  PSM
 # =============================================================================
 message("\n--- Contrast C: Post-onset vs HC ---")
-dt_post_raw <- dt_filt[ms_status %in% c("post_onset", "control")]
-dt_post     <- match_cohort(dt_post_raw, case_levels = "post_onset")
+dt_post_raw <- dt_filt[get(STATUS_COL) %in% c(POST, CONTROL)]
+dt_post     <- match_cohort(dt_post_raw, case_levels = POST)
 prot_post   <- prot_mat[, as.character(dt_post$eid)]
-meta_post   <- as.data.frame(dt_post[, .(eid, ms_status, age_at_sampling,
-                                          sex, PC1, PC2, mean_npx, years_to_diagnosis)])
+meta_post   <- as.data.frame(dt_post[, c("eid", STATUS_COL, "age_at_sampling",
+                                          "sex", "PC1", "PC2", "mean_npx",
+                                          "years_to_diagnosis"),
+                                      with = FALSE])
 rownames(meta_post) <- as.character(meta_post$eid)
 ytd_c <- abs(meta_post$years_to_diagnosis)
 ytd_c[is.na(ytd_c)] <- 0
 
 res_post <- run_limma(prot_post, meta_post,
-                      contrast_str     = "ms_status_fpost_onset - ms_status_fcontrol",
+                      contrast_str     = glue::glue("status_f{POST} - status_f{CONTROL}"),
                       label            = "post_onset_vs_hc",
                       ytd              = ytd_c,
                       include_mean_npx = TRUE)
 
 # =============================================================================
-# 4d. Contrast D: Pre-onset temporal model — ytd_ms interaction
+# 4d. Contrast D: Pre-onset temporal model — ytd_case interaction
 # Reuses the PSM-matched pre-onset + HC cohort from Contrast B.
 #
-# ytd_ms = ms_binary × years_to_diagnosis
-#        = years_to_diagnosis  for pre-onset MS (positive = further from Dx)
-#        = 0                   for HC
+# ytd_case = case_binary × years_to_diagnosis
+#          = years_to_diagnosis  for pre-onset cases (positive = further from Dx)
+#          = 0                   for HC
 #
 # Two coefficients extracted per protein:
-#   ms_binary → MS–HC gap at time of diagnosis (ytd = 0)
-#   ytd_ms    → per-year change in gap going back from Dx
-#               +ve: gap is larger further from Dx  (early/persistent signal)
-#               −ve: gap grows as Dx approaches     (late-emerging signal)
+#   case_binary → case–HC gap at time of diagnosis (ytd = 0)
+#   ytd_case    → per-year change in gap going back from Dx
+#                 +ve: gap is larger further from Dx  (early/persistent signal)
+#                 −ve: gap grows as Dx approaches     (late-emerging signal)
 # =============================================================================
 message("\n--- Contrast D: Pre-onset temporal model ---")
 
 dt_pre_t  <- copy(dt_pre)
-dt_pre_t[, ms_binary := as.integer(ms_status == "pre_onset")]
-dt_pre_t[, ytd_ms    := ms_binary * fifelse(is.na(years_to_diagnosis), 0,
-                                              years_to_diagnosis)]
+dt_pre_t[, case_binary := as.integer(get(STATUS_COL) == PRE)]
+dt_pre_t[, ytd_case    := case_binary * fifelse(is.na(years_to_diagnosis), 0,
+                                                  years_to_diagnosis)]
 
 prot_pre_t <- prot_mat[, as.character(dt_pre_t$eid)]
-meta_pre_t <- as.data.frame(dt_pre_t[, .(eid, ms_binary, ytd_ms, mean_npx,
+meta_pre_t <- as.data.frame(dt_pre_t[, .(eid, case_binary, ytd_case, mean_npx,
                                            age_at_sampling, sex, PC1, PC2)])
 meta_pre_t$sex_f <- factor(meta_pre_t$sex)
 rownames(meta_pre_t) <- as.character(meta_pre_t$eid)
 
 design_t <- model.matrix(
-    ~ ms_binary + ytd_ms + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
+    ~ case_binary + ytd_case + mean_npx + age_at_sampling + sex_f + PC1 + PC2,
     data = meta_pre_t
 )
 colnames(design_t) <- make.names(colnames(design_t))
@@ -369,12 +385,12 @@ colnames(design_t) <- make.names(colnames(design_t))
 fit_t <- lmFit(prot_pre_t, design_t)
 fit_t <- eBayes(fit_t)
 
-ms_coef          <- as.data.frame(topTable(fit_t, coef = "ms_binary",
+ms_coef          <- as.data.frame(topTable(fit_t, coef = "case_binary",
                                             sort.by = "P", n = Inf))
 ms_coef$protein  <- rownames(ms_coef)
 ms_coef$fdr_ms   <- p.adjust(ms_coef$P.Value, method = "BH")
 
-ytd_coef         <- as.data.frame(topTable(fit_t, coef = "ytd_ms",
+ytd_coef         <- as.data.frame(topTable(fit_t, coef = "ytd_case",
                                              sort.by = "P", n = Inf))
 ytd_coef$protein <- rownames(ytd_coef)
 ytd_coef$fdr_ytd <- p.adjust(ytd_coef$P.Value, method = "BH")
@@ -396,48 +412,56 @@ message(sprintf("  Temporal slope FDR<%.2f: %d proteins", FDR_THRESH, n_ytd_sig)
 # =============================================================================
 # 5. Write result CSVs
 # =============================================================================
-fwrite(res_combined, file.path(OUT_DIR, "ms_combined_vs_hc.csv"))
-fwrite(res_pre,      file.path(OUT_DIR, "ms_pre_vs_hc.csv"))
-fwrite(res_post,     file.path(OUT_DIR, "ms_post_vs_hc.csv"))
-fwrite(res_temporal, file.path(OUT_DIR, "ms_pre_temporal.csv"))
+fname_combined <- glue::glue("{cfg$cohort_short}_combined_vs_hc.csv")
+fname_pre      <- glue::glue("{cfg$cohort_short}_pre_vs_hc.csv")
+fname_post     <- glue::glue("{cfg$cohort_short}_post_vs_hc.csv")
+fname_temporal <- glue::glue("{cfg$cohort_short}_pre_temporal.csv")
+
+fwrite(res_combined, file.path(OUT_DIR, fname_combined))
+fwrite(res_pre,      file.path(OUT_DIR, fname_pre))
+fwrite(res_post,     file.path(OUT_DIR, fname_post))
+fwrite(res_temporal, file.path(OUT_DIR, fname_temporal))
 message("\nResult files written:")
-message("  ms_combined_vs_hc.csv  — ", sum(res_combined$adj.P.Val < FDR_THRESH), " DEPs at FDR<0.05")
-message("  ms_pre_vs_hc.csv       — ", sum(res_pre$adj.P.Val < FDR_THRESH), " DEPs at FDR<0.05")
-message("  ms_post_vs_hc.csv      — ", sum(res_post$adj.P.Val < FDR_THRESH), " DEPs at FDR<0.05")
-message("  ms_pre_temporal.csv    — ", n_ms_sig, " MS-effect | ", n_ytd_sig, " temporal-slope DEPs")
+message("  ", fname_combined, "  -- ", sum(res_combined$adj.P.Val < FDR_THRESH), " DEPs at FDR<0.05")
+message("  ", fname_pre,      "  -- ", sum(res_pre$adj.P.Val      < FDR_THRESH), " DEPs at FDR<0.05")
+message("  ", fname_post,     "  -- ", sum(res_post$adj.P.Val     < FDR_THRESH), " DEPs at FDR<0.05")
+message("  ", fname_temporal, "  -- ", n_ms_sig, " case-effect | ", n_ytd_sig, " temporal-slope DEPs")
 
 # =============================================================================
 # 6. Volcano plots
 # =============================================================================
 make_volcano <- function(res, title, out_file) {
-    highlight <- c("nefl", "mog", "gfap", "il3", "aif1", "sirt6",
-                   "dock10", "kcnd2", "spag8", "cdin1")
+    highlight <- cfg$volcano_highlight_proteins
+    up_label   <- glue::glue("Up in {cfg$disease_short_caps}")
+    down_label <- glue::glue("Down in {cfg$disease_short_caps}")
     res$sig       <- res$adj.P.Val < FDR_THRESH
     res$label     <- ifelse(res$sig & (abs(res$logFC) > LOGFC_LABEL |
                                         res$protein %in% highlight),
                             res$protein, NA)
     res$direction <- case_when(
-        res$sig & res$logFC > 0 ~ "Up in MS",
-        res$sig & res$logFC < 0 ~ "Down in MS",
+        res$sig & res$logFC > 0 ~ up_label,
+        res$sig & res$logFC < 0 ~ down_label,
         TRUE                    ~ "NS"
     )
 
-    n_up   <- sum(res$direction == "Up in MS",   na.rm = TRUE)
-    n_down <- sum(res$direction == "Down in MS", na.rm = TRUE)
+    n_up   <- sum(res$direction == up_label,   na.rm = TRUE)
+    n_down <- sum(res$direction == down_label, na.rm = TRUE)
+
+    colour_values <- setNames(c(COL_PRE_UP, COL_DOWN, "grey75"),
+                               c(up_label, down_label, "NS"))
+    colour_labels <- setNames(
+        c(sprintf("%s (%d)", up_label, n_up),
+          sprintf("%s (%d)", down_label, n_down),
+          "NS"),
+        c(up_label, down_label, "NS")
+    )
 
     p <- ggplot(res, aes(x = logFC, y = -log10(P.Value),
                           colour = direction, label = label)) +
         geom_point(size = 0.55, alpha = 0.65) +
         geom_text_repel(size = 2.4, max.overlaps = 25, na.rm = TRUE,
                         colour = "grey20", segment.size = 0.3) +
-        scale_colour_manual(
-            values = c("Up in MS" = COL_PRE_UP, "Down in MS" = COL_DOWN, "NS" = "grey75"),
-            labels = c(
-                "Up in MS"   = sprintf("Up in MS (%d)", n_up),
-                "Down in MS" = sprintf("Down in MS (%d)", n_down),
-                "NS"         = "NS"
-            )
-        ) +
+        scale_colour_manual(values = colour_values, labels = colour_labels) +
         geom_hline(yintercept = -log10(max(res$P.Value[res$sig], na.rm = TRUE)),
                    linetype = "dashed", colour = "grey50", linewidth = 0.35) +
         theme_ukb(base_size = 11) +
@@ -446,18 +470,23 @@ make_volcano <- function(res, title, out_file) {
             legend.key.size  = unit(0.9, "lines"),
             strip.background = element_blank()
         ) +
-        labs(title = title, x = expression(log[2]~FC~(MS~vs~HC)),
-             y = expression(-log[10](italic(P))), colour = NULL)
+        labs(title = title,
+             x = bquote(log[2]~FC~(.(cfg$disease_short_caps)~vs~HC)),
+             y = expression(-log[10](italic(P))),
+             colour = NULL)
 
     ggsave(out_file, p, width = 7, height = 6, device = cairo_pdf)
     message(sprintf("  Volcano saved: %s", basename(out_file)))
 }
 
-make_volcano(res_combined, "MS combined vs HC",
-             file.path(OUT_DIR, "ms_volcano_combined.pdf"))
-make_volcano(res_pre, "MS pre-onset vs HC",
-             file.path(OUT_DIR, "ms_volcano_pre.pdf"))
-make_volcano(res_post, "MS post-onset vs HC",
-             file.path(OUT_DIR, "ms_volcano_post.pdf"))
+make_volcano(res_combined,
+             glue::glue("{cfg$disease_short_caps} combined vs HC"),
+             file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_volcano_combined.pdf")))
+make_volcano(res_pre,
+             glue::glue("{cfg$disease_short_caps} pre-onset vs HC"),
+             file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_volcano_pre.pdf")))
+make_volcano(res_post,
+             glue::glue("{cfg$disease_short_caps} post-onset vs HC"),
+             file.path(OUT_DIR, glue::glue("{cfg$cohort_short}_volcano_post.pdf")))
 
-message("\nLimma MS vs HC complete.")
+message("\nLimma cases vs HC complete.")

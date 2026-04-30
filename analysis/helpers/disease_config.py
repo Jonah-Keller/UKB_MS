@@ -50,6 +50,8 @@ class DiseaseConfig:
 
     cns_injury_markers: List[str]
     top_presymptomatic_deps: List[str]
+    trajectory_proteins: List[str]
+    volcano_highlight_proteins: List[str]
 
     @property
     def all_exclusion_codes(self) -> frozenset:

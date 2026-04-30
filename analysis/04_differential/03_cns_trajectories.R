@@ -1,27 +1,28 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# 03_cns_trajectories.R — CNS biomarker trajectories: NEFL, MOG, GFAP, ERBB2
+# 03_cns_trajectories.R — CNS biomarker trajectories
 # Cross-sectional pseudo-longitudinal analysis replicating Abdelhak 2026 Fig. 3
-# Approach: RCS regression within MS cases across years_to_diagnosis
+# Approach: RCS regression within cases across years_to_diagnosis.
+# Target proteins, cohort, and status-value labels are read from
+# configs/disease.yaml (cfg$trajectory_proteins, cfg$status_values, etc.).
 # =============================================================================
-# For each protein (NEFL, MOG, GFAP):
-#   1. Fit restricted cubic spline (ns, df=3) on MS cases vs years_to_diagnosis,
+# For each protein in cfg$trajectory_proteins:
+#   1. Fit restricted cubic spline (ns, df=3) on cases vs years_to_diagnosis,
 #      adjusting for age_at_sampling, sex, PC1, PC2 (control-derived)
 #   2. Predict over grid −12 to +6 years (0.25-yr intervals)
 #   3. HC reference: age/sex-adjusted mean ± 1.96 SE
-#   4. Identify earliest divergence year (predicted MS CI outside HC CI)
-#   5. Plot trajectory + HC band + annotation; combine into 3-panel figure
+#   4. Identify earliest divergence year (predicted case CI outside HC CI)
+#   5. Plot trajectory + HC band + annotation; combine into N-panel figure
 #   6. Write per-protein PDFs, combined PDF, and summary CSV
 #
 # Input:
-#   data/ukb/olink/processed/ms_olink_qc.csv
+#   data/ukb/olink/processed/<cohort_short>_olink_qc.csv
 #
 # Outputs:
-#   results/differential/cns_trajectory_nefl.pdf
-#   results/differential/cns_trajectory_mog.pdf
-#   results/differential/cns_trajectory_gfap.pdf
+#   results/differential/cns_trajectory_<protein>.pdf  (one per trajectory_proteins entry)
 #   results/differential/cns_trajectories_combined.pdf
 #   results/differential/cns_trajectories.csv
+#   results/differential/cns_trajectories_divergence.csv
 # =============================================================================
 
 suppressPackageStartupMessages({
@@ -32,24 +33,31 @@ suppressPackageStartupMessages({
     library(splines)
     library(boot)
     library(patchwork)
+    library(here)
+    library(glue)
 })
+
+source(here::here("analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
+
+STATUS_COL <- cfg$cohort_status_col
+PRE        <- cfg$status_values$pre_onset
+POST       <- cfg$status_values$post_onset
+CONTROL    <- cfg$status_values$control
 
 # =============================================================================
 # Paths
 # =============================================================================
-.args      <- commandArgs(trailingOnly = FALSE)
-.file_arg  <- .args[grepl("^--file=", .args)]
-SCRIPT_DIR <- if (length(.file_arg) > 0) dirname(normalizePath(sub("^--file=", "", .file_arg))) else getwd()
-REPO_ROOT  <- normalizePath(file.path(SCRIPT_DIR, "..", ".."), mustWork = FALSE)
-OUT_DIR    <- file.path(REPO_ROOT, "results", "differential")
+OUT_DIR <- here::here("results", "differential")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 
-QC_FILE <- file.path(REPO_ROOT, "data", "ukb", "olink", "processed", "ms_olink_qc.csv")
+QC_FILE <- here::here("data", "ukb", "olink", "processed",
+                       glue::glue("{cfg$cohort_short}_olink_qc.csv"))
 
 # =============================================================================
 # Constants
 # =============================================================================
-PROTEINS   <- c("NEFL", "MOG", "GFAP", "ERBB2")   # target proteins (will resolve to actual col names)
+PROTEINS   <- cfg$trajectory_proteins              # target proteins (will resolve to actual col names)
 # Sign convention (Abdelhak 2026 standard): negative = before onset, positive = after onset.
 # Our years_to_diagnosis column uses the OPPOSITE sign (>0 = presymptomatic), so we negate
 # inside analyse_protein() when constructing years_to_dx for the model and plot.
@@ -64,27 +72,27 @@ HC_COLOR   <- "grey60"    # grey for HC reference band
 
 set.seed(42)
 
-source(file.path(REPO_ROOT, "analysis", "helpers", "ukb_theme.R"))
+source(here::here("analysis", "helpers", "ukb_theme.R"))
 
 # =============================================================================
 # 1. Load QC'd data
 # =============================================================================
-message("Loading QC'd Olink + MS cohort data...")
+message("Loading QC'd Olink + cohort data...")
 if (!file.exists(QC_FILE)) stop("QC file not found: ", QC_FILE, "\nRun 02_olink_qc/01_olink_qc.R first.")
 dt <- fread(QC_FILE, showProgress = FALSE)
 
-META_COLS <- c("eid", "ms_status", "age_at_sampling", "age_at_diagnosis",
+META_COLS <- c("eid", STATUS_COL, "age_at_sampling", "age_at_diagnosis",
                "years_to_diagnosis", "sex", "olink_instance",
                "qc_outlier", "UMAP1", "UMAP2", "mean_npx",
                "PC1", "PC2")
 protein_cols <- setdiff(names(dt), META_COLS)
 
 # Source control-derived PC helper (matches 01_limma_ms_vs_hc.R pattern)
-source(file.path(REPO_ROOT, "analysis", "helpers", "limma_utils.R"))
+source(here::here("analysis", "helpers", "limma_utils.R"))
 message(sprintf("  %d participants, %d proteins", nrow(dt), length(protein_cols)))
 message(sprintf("  Status counts: %s",
-                paste(names(table(dt$ms_status)),
-                      as.integer(table(dt$ms_status)),
+                paste(names(table(dt[[STATUS_COL]])),
+                      as.integer(table(dt[[STATUS_COL]])),
                       sep = "=", collapse = "  ")))
 
 # =============================================================================
@@ -112,7 +120,7 @@ resolve_col <- function(target, available) {
 # =============================================================================
 message("\nApplying master QC filter...")
 dt_filt <- dt[qc_outlier == FALSE &
-              ms_status %in% c("pre_onset", "post_onset", "control") &
+              get(STATUS_COL) %in% c(PRE, POST, CONTROL) &
               !is.na(age_at_sampling) &
               !is.na(sex)]
 
@@ -126,8 +134,8 @@ dt_filt <- merge(dt_filt, pc_dt, by = "eid", all.x = TRUE)
 dt_filt <- dt_filt[!is.na(PC1) & !is.na(PC2)]
 message(sprintf("  After filter: %d participants", nrow(dt_filt)))
 message(sprintf("  Status: %s",
-                paste(names(table(dt_filt$ms_status)),
-                      as.integer(table(dt_filt$ms_status)),
+                paste(names(table(dt_filt[[STATUS_COL]])),
+                      as.integer(table(dt_filt[[STATUS_COL]])),
                       sep = "=", collapse = "  ")))
 
 # Factor encoding (sex) — used consistently below
@@ -163,7 +171,7 @@ analyse_protein <- function(prot_name, dt_in) {
     # ------------------------------------------------------------------
     # 4b. HC subset: controls with valid PCs (already filtered above)
     # ------------------------------------------------------------------
-    hc_sub <- dt_in[ms_status == "control" & !is.na(get(col_nm))]
+    hc_sub <- dt_in[get(STATUS_COL) == CONTROL & !is.na(get(col_nm))]
     n_hc   <- nrow(hc_sub)
     message(sprintf("  HC in reference: %d", n_hc))
 
@@ -369,7 +377,7 @@ make_traj_plot <- function(res, prot_name) {
         coord_cartesian(ylim = c(y_lo, y_hi)) +
         labs(
             title = prot_name,
-            x     = "Years relative to MS diagnosis (negative = before onset)",
+            x     = glue::glue("Years relative to {cfg$disease_short_caps} diagnosis (negative = before onset)"),
             y     = "NPX (normalized)"
         ) +
         theme_ukb()
@@ -399,7 +407,8 @@ make_traj_plot <- function(res, prot_name) {
 
     # --- Sample size footnote in subtitle ---
     p <- p + labs(
-        subtitle = sprintf("MS n=%d  |  HC n=%d", res$n_ms, res$n_hc)
+        subtitle = sprintf("%s n=%d  |  HC n=%d",
+                            cfg$disease_short_caps, res$n_ms, res$n_hc)
     )
 
     p
@@ -456,8 +465,12 @@ if (length(valid_plots) >= 1) {
     # (patchwork handles this via collect_guides or axis labelling)
     combined <- patchwork::wrap_plots(valid_plots, nrow = 1) +
         patchwork::plot_annotation(
-            title   = "CNS biomarker trajectories relative to MS diagnosis",
-            caption = "RCS spline (df=3); blue ribbon = 95% prediction CI (MS cases). Grey band = HC mean +/- 1 SD (age/sex adjusted, n~45K). Arrow = earliest presymptomatic divergence.",
+            title   = glue::glue("CNS biomarker trajectories relative to {cfg$disease_short_caps} diagnosis"),
+            caption = glue::glue(
+                "RCS spline (df=3); blue ribbon = 95% prediction CI ({cfg$disease_short_caps} cases). ",
+                "Grey band = HC mean +/- 1 SD (age/sex adjusted). ",
+                "Arrow = earliest presymptomatic divergence."
+            ),
             theme   = theme(
                 plot.title   = element_text(size = 12, face = "plain"),
                 plot.caption = element_text(size = 8, colour = "grey40")

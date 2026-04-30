@@ -71,3 +71,21 @@ top_presymptomatic_deps:
   - "il3"
   - "aif1"
   - "sirt6"
+
+# Proteins shown in the per-protein CNS trajectory panels (Fig. 2 / Fig. 3).
+# Read by analysis/04_differential/03_cns_trajectories.R
+trajectory_proteins:  ["NEFL", "MOG", "GFAP", "ERBB2"]
+
+# Proteins always labelled on volcano plots regardless of effect-size cutoff.
+# Read by analysis/04_differential/01_limma_ms_vs_hc.R
+volcano_highlight_proteins:
+  - "nefl"
+  - "mog"
+  - "gfap"
+  - "il3"
+  - "aif1"
+  - "sirt6"
+  - "dock10"
+  - "kcnd2"
+  - "spag8"
+  - "cdin1"
