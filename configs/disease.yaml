@@ -20,6 +20,11 @@ disease_short_caps:  "MS"
 project_short:       "ukb_ms_proteomics"
 project_title:       "Pre-diagnostic comorbidity endophenotypes reveal proteomic and genetic heterogeneity in multiple sclerosis"
 
+# Optional secondary cohort for cross-disease comparison (analysis/11_cross_disease/).
+# Filename prefix matching results/differential/<comparison_cohort_short>_*.csv.
+# Leave as empty string ("") to skip cross-disease comparison.
+comparison_cohort_short: "als"
+
 # ── Cohort definition ──────────────────────────────────────────────────────
 # Read by analysis/01_cohort/ and analysis/helpers/ukb_disease_outcomes.py
 icd_codes: ["G35"]                          # primary case ICD-10 codes

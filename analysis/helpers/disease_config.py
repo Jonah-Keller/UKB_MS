@@ -51,6 +51,8 @@ class DiseaseConfig:
     cns_injury_markers: List[str]
     top_presymptomatic_deps: List[str]
 
+    comparison_cohort_short: str = ""
+
     @property
     def all_exclusion_codes(self) -> frozenset:
         out: List[str] = []

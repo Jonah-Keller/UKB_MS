@@ -19,6 +19,7 @@ suppressPackageStartupMessages({
     library(ggplot2)
     library(ggrepel)
     library(patchwork)
+    library(glue)
 })
 
 # ── Path resolution ───────────────────────────────────────────────────────────
@@ -31,6 +32,17 @@ SCRIPT_DIR <- if (length(file_arg)) {
 }
 PROJ_DIR <- normalizePath(file.path(SCRIPT_DIR, "..", ".."))
 source(file.path(PROJ_DIR, "analysis", "helpers", "ukb_theme.R"))
+source(file.path(PROJ_DIR, "analysis", "helpers", "disease_config.R"))
+cfg <- load_disease_config()
+
+PRIMARY_SHORT <- cfg$cohort_short
+SECOND_SHORT  <- cfg$comparison_cohort_short
+if (is.null(SECOND_SHORT) || !nzchar(SECOND_SHORT)) {
+    stop("comparison_cohort_short is empty in configs/disease.yaml; ",
+         "set it (e.g., \"als\") to enable cross-disease comparison.")
+}
+PRIMARY_CAPS <- cfg$disease_short_caps
+SECOND_CAPS  <- toupper(SECOND_SHORT)
 
 DIFF_DIR   <- file.path(PROJ_DIR, "results", "differential")
 OUT_DIR    <- file.path(PROJ_DIR, "results", "cross_disease")
@@ -40,7 +52,7 @@ FDR_THR <- 0.05
 
 # ── Load all six DEP result files ─────────────────────────────────────────────
 load_deps <- function(disease, contrast) {
-    fname <- file.path(DIFF_DIR, sprintf("%s_%s_vs_hc.csv", disease, contrast))
+    fname <- file.path(DIFF_DIR, glue("{disease}_{contrast}_vs_hc.csv"))
     dt <- fread(fname)
     dt[, disease   := disease]
     dt[, contrast  := contrast]
@@ -50,19 +62,19 @@ load_deps <- function(disease, contrast) {
     dt
 }
 
-ms_comb  <- load_deps("ms",  "combined")
-ms_pre   <- load_deps("ms",  "pre")
-ms_post  <- load_deps("ms",  "post")
-als_comb <- load_deps("als", "combined")
-als_pre  <- load_deps("als", "pre")
-als_post <- load_deps("als", "post")
+ms_comb  <- load_deps(PRIMARY_SHORT, "combined")
+ms_pre   <- load_deps(PRIMARY_SHORT, "pre")
+ms_post  <- load_deps(PRIMARY_SHORT, "post")
+als_comb <- load_deps(SECOND_SHORT,  "combined")
+als_pre  <- load_deps(SECOND_SHORT,  "pre")
+als_post <- load_deps(SECOND_SHORT,  "post")
 
-cat(sprintf("MS  combined DEPs: %d  |  ALS combined DEPs: %d\n",
-            sum(ms_comb$sig),  sum(als_comb$sig)))
-cat(sprintf("MS  pre-onset DEPs: %d |  ALS pre-onset DEPs: %d\n",
-            sum(ms_pre$sig),   sum(als_pre$sig)))
-cat(sprintf("MS  post-onset DEPs: %d | ALS post-onset DEPs: %d\n",
-            sum(ms_post$sig),  sum(als_post$sig)))
+cat(sprintf("%s combined DEPs: %d  |  %s combined DEPs: %d\n",
+            PRIMARY_CAPS, sum(ms_comb$sig),  SECOND_CAPS, sum(als_comb$sig)))
+cat(sprintf("%s pre-onset DEPs: %d |  %s pre-onset DEPs: %d\n",
+            PRIMARY_CAPS, sum(ms_pre$sig),   SECOND_CAPS, sum(als_pre$sig)))
+cat(sprintf("%s post-onset DEPs: %d | %s post-onset DEPs: %d\n",
+            PRIMARY_CAPS, sum(ms_post$sig),  SECOND_CAPS, sum(als_post$sig)))
 
 
 # ── Shared / unique sets ───────────────────────────────────────────────────────
@@ -80,20 +92,17 @@ sets_comb <- shared_combined(ms_comb,  als_comb)
 sets_pre  <- shared_combined(ms_pre,   als_pre)
 sets_post <- shared_combined(ms_post,  als_post)
 
-cat("\n=== Combined contrast ===\n")
-cat(sprintf("  MS-only: %d  |  ALS-only: %d  |  Shared: %d\n",
-            length(sets_comb$ms_only), length(sets_comb$als_only), length(sets_comb$shared)))
-cat("  Shared proteins:", paste(sort(sets_comb$shared), collapse=", "), "\n")
-
-cat("\n=== Pre-onset contrast ===\n")
-cat(sprintf("  MS-only: %d  |  ALS-only: %d  |  Shared: %d\n",
-            length(sets_pre$ms_only), length(sets_pre$als_only), length(sets_pre$shared)))
-cat("  Shared proteins:", paste(sort(sets_pre$shared), collapse=", "), "\n")
-
-cat("\n=== Post-onset contrast ===\n")
-cat(sprintf("  MS-only: %d  |  ALS-only: %d  |  Shared: %d\n",
-            length(sets_post$ms_only), length(sets_post$als_only), length(sets_post$shared)))
-cat("  Shared proteins:", paste(sort(sets_post$shared), collapse=", "), "\n")
+print_overlap <- function(label, sets) {
+    cat(sprintf("\n=== %s contrast ===\n", label))
+    cat(sprintf("  %s-only: %d  |  %s-only: %d  |  Shared: %d\n",
+                PRIMARY_CAPS, length(sets$ms_only),
+                SECOND_CAPS,  length(sets$als_only),
+                length(sets$shared)))
+    cat("  Shared proteins:", paste(sort(sets$shared), collapse=", "), "\n")
+}
+print_overlap("Combined",   sets_comb)
+print_overlap("Pre-onset",  sets_pre)
+print_overlap("Post-onset", sets_post)
 
 
 # ── Shared-protein detail table ────────────────────────────────────────────────
@@ -113,7 +122,8 @@ shared_pre_dt   <- build_shared_table(ms_pre,   als_pre,   "pre_onset")
 shared_post_dt  <- build_shared_table(ms_post,  als_post,  "post_onset")
 
 all_shared <- rbind(shared_comb_dt, shared_pre_dt, shared_post_dt, fill = TRUE)
-fwrite(all_shared, file.path(OUT_DIR, "ms_als_shared_proteins.csv"))
+PAIR_PREFIX <- glue("{PRIMARY_SHORT}_{SECOND_SHORT}")
+fwrite(all_shared, file.path(OUT_DIR, glue("{PAIR_PREFIX}_shared_proteins.csv")))
 cat(sprintf("\nShared protein table written: %d rows\n", nrow(all_shared)))
 
 # Print combined table
@@ -131,11 +141,13 @@ scatter_dt <- merge(
 )
 
 # Colour category
+LBL_PRIM_ONLY   <- glue("{PRIMARY_CAPS} only")
+LBL_SECOND_ONLY <- glue("{SECOND_CAPS} only")
 scatter_dt[, group := fcase(
     ms_sig == TRUE  & als_sig == TRUE  & (ms_logFC > 0) == (als_logFC > 0), "Shared (concordant)",
     ms_sig == TRUE  & als_sig == TRUE  & (ms_logFC > 0) != (als_logFC > 0), "Shared (discordant)",
-    ms_sig == TRUE  & als_sig == FALSE, "MS only",
-    ms_sig == FALSE & als_sig == TRUE,  "ALS only",
+    ms_sig == TRUE  & als_sig == FALSE, LBL_PRIM_ONLY,
+    ms_sig == FALSE & als_sig == TRUE,  LBL_SECOND_ONLY,
     default = "NS"
 )]
 
@@ -143,39 +155,33 @@ scatter_dt[, label := fifelse(
     group %in% c("Shared (concordant)", "Shared (discordant)"), toupper(protein), NA_character_
 )]
 
-SCATTER_COLS <- c(
-    "Shared (concordant)"  = "#CC0066",
-    "Shared (discordant)"  = "#E6A817",
-    "MS only"              = "#56B4E9",
-    "ALS only"             = "#2B4C7E",
-    "NS"                   = "grey80"
+SCATTER_COLS <- setNames(
+    c("#CC0066", "#E6A817", "#56B4E9", "#2B4C7E", "grey80"),
+    c("Shared (concordant)", "Shared (discordant)",
+      LBL_PRIM_ONLY, LBL_SECOND_ONLY, "NS")
 )
-SCATTER_ALPHA <- c(
-    "Shared (concordant)"  = 0.95,
-    "Shared (discordant)"  = 0.95,
-    "MS only"              = 0.7,
-    "ALS only"             = 0.7,
-    "NS"                   = 0.25
+SCATTER_ALPHA <- setNames(
+    c(0.95, 0.95, 0.7, 0.7, 0.25),
+    c("Shared (concordant)", "Shared (discordant)",
+      LBL_PRIM_ONLY, LBL_SECOND_ONLY, "NS")
 )
-SCATTER_SIZE <- c(
-    "Shared (concordant)"  = 2.0,
-    "Shared (discordant)"  = 2.0,
-    "MS only"              = 1.4,
-    "ALS only"             = 1.4,
-    "NS"                   = 0.7
+SCATTER_SIZE <- setNames(
+    c(2.0, 2.0, 1.4, 1.4, 0.7),
+    c("Shared (concordant)", "Shared (discordant)",
+      LBL_PRIM_ONLY, LBL_SECOND_ONLY, "NS")
 )
 
 # Force NS to bottom layer
-scatter_dt[, group_f := factor(group, levels = c("NS", "MS only", "ALS only",
+scatter_dt[, group_f := factor(group, levels = c("NS", LBL_PRIM_ONLY, LBL_SECOND_ONLY,
                                                    "Shared (discordant)",
                                                    "Shared (concordant)"))]
 
 n_labels <- c(
     sprintf("Shared concordant n=%d",  sum(scatter_dt$group == "Shared (concordant)")),
     sprintf("Shared discordant n=%d",  sum(scatter_dt$group == "Shared (discordant)")),
-    sprintf("MS only n=%d",            sum(scatter_dt$group == "MS only")),
-    sprintf("ALS only n=%d",           sum(scatter_dt$group == "ALS only")),
-    sprintf("NS n=%d",                 sum(scatter_dt$group == "NS"))
+    sprintf("%s n=%d", LBL_PRIM_ONLY,   sum(scatter_dt$group == LBL_PRIM_ONLY)),
+    sprintf("%s n=%d", LBL_SECOND_ONLY, sum(scatter_dt$group == LBL_SECOND_ONLY)),
+    sprintf("NS n=%d",                  sum(scatter_dt$group == "NS"))
 )
 
 p_scatter <- ggplot(scatter_dt, aes(x = ms_logFC, y = als_logFC,
@@ -199,15 +205,16 @@ p_scatter <- ggplot(scatter_dt, aes(x = ms_logFC, y = als_logFC,
     scale_alpha_manual(values = SCATTER_ALPHA, guide = "none") +
     scale_size_manual(values  = SCATTER_SIZE,  guide = "none") +
     labs(
-        x     = "MS logFC (combined vs HC)",
-        y     = "ALS logFC (combined vs HC)",
-        title = "Cross-disease logFC: MS vs ALS (all 2,911 proteins)"
+        x     = glue("{PRIMARY_CAPS} logFC (combined vs HC)"),
+        y     = glue("{SECOND_CAPS} logFC (combined vs HC)"),
+        title = glue("Cross-disease logFC: {PRIMARY_CAPS} vs {SECOND_CAPS} (all 2,911 proteins)")
     ) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_als_logfc_scatter.pdf"),
+SCATTER_PDF <- glue("{PAIR_PREFIX}_logfc_scatter.pdf")
+ggsave(file.path(OUT_DIR, SCATTER_PDF),
        p_scatter, width = 6, height = 5.5, device = cairo_pdf)
-cat("  Saved: ms_als_logfc_scatter.pdf\n")
+cat(sprintf("  Saved: %s\n", SCATTER_PDF))
 
 
 # ── Panel C: Pre-onset scatter ─────────────────────────────────────────────────
@@ -217,11 +224,13 @@ pre_scatter <- merge(
     by = "protein"
 )
 
+PRE_PRIM   <- glue("{PRIMARY_CAPS} pre-onset only")
+PRE_SECOND <- glue("{SECOND_CAPS} pre-onset only")
 pre_scatter[, group := fcase(
     ms_sig & als_sig  & (ms_logFC > 0) == (als_logFC > 0), "Shared (concordant)",
     ms_sig & als_sig  & (ms_logFC > 0) != (als_logFC > 0), "Shared (discordant)",
-    ms_sig & !als_sig, "MS pre-onset only",
-    !ms_sig & als_sig, "ALS pre-onset only",
+    ms_sig & !als_sig, PRE_PRIM,
+    !ms_sig & als_sig, PRE_SECOND,
     default = "NS"
 )]
 
@@ -229,30 +238,27 @@ pre_scatter[, label := fifelse(
     ms_sig | als_sig, toupper(protein), NA_character_
 )]
 
-PRE_COLS <- c(
-    "Shared (concordant)"  = "#CC0066",
-    "Shared (discordant)"  = "#E6A817",
-    "MS pre-onset only"    = "#56B4E9",
-    "ALS pre-onset only"   = "#2B4C7E",
-    "NS"                   = "grey80"
+PRE_COLS <- setNames(
+    c("#CC0066", "#E6A817", "#56B4E9", "#2B4C7E", "grey80"),
+    c("Shared (concordant)", "Shared (discordant)", PRE_PRIM, PRE_SECOND, "NS")
 )
 
 pre_n_labels <- c(
-    sprintf("Shared concordant n=%d",    sum(pre_scatter$group == "Shared (concordant)")),
-    sprintf("Shared discordant n=%d",    sum(pre_scatter$group == "Shared (discordant)")),
-    sprintf("MS pre-onset only n=%d",    sum(pre_scatter$group == "MS pre-onset only")),
-    sprintf("ALS pre-onset only n=%d",   sum(pre_scatter$group == "ALS pre-onset only")),
-    sprintf("NS n=%d",                   sum(pre_scatter$group == "NS"))
+    sprintf("Shared concordant n=%d",  sum(pre_scatter$group == "Shared (concordant)")),
+    sprintf("Shared discordant n=%d",  sum(pre_scatter$group == "Shared (discordant)")),
+    sprintf("%s n=%d", PRE_PRIM,        sum(pre_scatter$group == PRE_PRIM)),
+    sprintf("%s n=%d", PRE_SECOND,      sum(pre_scatter$group == PRE_SECOND)),
+    sprintf("NS n=%d",                  sum(pre_scatter$group == "NS"))
 )
 
-pre_scatter[, group_f := factor(group, levels = c("NS", "MS pre-onset only", "ALS pre-onset only",
+pre_scatter[, group_f := factor(group, levels = c("NS", PRE_PRIM, PRE_SECOND,
                                                     "Shared (discordant)",
                                                     "Shared (concordant)"))]
 
-PRE_SIZE  <- c("Shared (concordant)"=2.2, "Shared (discordant)"=2.2,
-               "MS pre-onset only"=1.6,   "ALS pre-onset only"=1.6, "NS"=0.7)
-PRE_ALPHA <- c("Shared (concordant)"=1.0, "Shared (discordant)"=1.0,
-               "MS pre-onset only"=0.8,   "ALS pre-onset only"=0.8, "NS"=0.2)
+PRE_SIZE  <- setNames(c(2.2, 2.2, 1.6, 1.6, 0.7),
+                      c("Shared (concordant)","Shared (discordant)", PRE_PRIM, PRE_SECOND, "NS"))
+PRE_ALPHA <- setNames(c(1.0, 1.0, 0.8, 0.8, 0.2),
+                      c("Shared (concordant)","Shared (discordant)", PRE_PRIM, PRE_SECOND, "NS"))
 
 p_pre <- ggplot(pre_scatter, aes(x = ms_logFC, y = als_logFC,
                                   colour = group_f, alpha = group_f, size = group_f)) +
@@ -275,35 +281,38 @@ p_pre <- ggplot(pre_scatter, aes(x = ms_logFC, y = als_logFC,
     scale_alpha_manual(values = PRE_ALPHA, guide = "none") +
     scale_size_manual(values  = PRE_SIZE,  guide = "none") +
     labs(
-        x     = "MS logFC (pre-onset vs HC)",
-        y     = "ALS logFC (pre-onset vs HC)",
-        title = "Pre-onset presymptomatic signals: MS vs ALS"
+        x     = glue("{PRIMARY_CAPS} logFC (pre-onset vs HC)"),
+        y     = glue("{SECOND_CAPS} logFC (pre-onset vs HC)"),
+        title = glue("Pre-onset presymptomatic signals: {PRIMARY_CAPS} vs {SECOND_CAPS}")
     ) +
     theme_ukb()
 
-ggsave(file.path(OUT_DIR, "ms_als_preonset_scatter.pdf"),
+PRE_PDF <- glue("{PAIR_PREFIX}_preonset_scatter.pdf")
+ggsave(file.path(OUT_DIR, PRE_PDF),
        p_pre, width = 5.5, height = 5, device = cairo_pdf)
-cat("  Saved: ms_als_preonset_scatter.pdf\n")
+cat(sprintf("  Saved: %s\n", PRE_PDF))
 
 
 # ── Panel D: Venn-style upset counts bar chart ────────────────────────────────
-# Simple count bars — MS-only / ALS-only / Shared, per contrast
-venn_counts <- rbind(
-    data.table(contrast="Combined",  group="MS only",  n=length(sets_comb$ms_only)),
-    data.table(contrast="Combined",  group="ALS only", n=length(sets_comb$als_only)),
-    data.table(contrast="Combined",  group="Shared",   n=length(sets_comb$shared)),
-    data.table(contrast="Pre-onset", group="MS only",  n=length(sets_pre$ms_only)),
-    data.table(contrast="Pre-onset", group="ALS only", n=length(sets_pre$als_only)),
-    data.table(contrast="Pre-onset", group="Shared",   n=length(sets_pre$shared)),
-    data.table(contrast="Post-onset",group="MS only",  n=length(sets_post$ms_only)),
-    data.table(contrast="Post-onset",group="ALS only", n=length(sets_post$als_only)),
-    data.table(contrast="Post-onset",group="Shared",   n=length(sets_post$shared))
+contrast_sets <- list(
+    Combined     = sets_comb,
+    `Pre-onset`  = sets_pre,
+    `Post-onset` = sets_post
 )
+venn_counts <- rbindlist(lapply(names(contrast_sets), function(label) {
+    s <- contrast_sets[[label]]
+    data.table(
+        contrast = label,
+        group    = c(LBL_PRIM_ONLY, LBL_SECOND_ONLY, "Shared"),
+        n        = c(length(s$ms_only), length(s$als_only), length(s$shared))
+    )
+}))
 
 venn_counts[, contrast_f := factor(contrast, levels = c("Pre-onset","Combined","Post-onset"))]
-venn_counts[, group_f    := factor(group,    levels = c("ALS only","Shared","MS only"))]
+venn_counts[, group_f    := factor(group,    levels = c(LBL_SECOND_ONLY, "Shared", LBL_PRIM_ONLY))]
 
-VENN_COLS <- c("MS only" = "#56B4E9", "ALS only" = "#2B4C7E", "Shared" = "#CC0066")
+VENN_COLS <- setNames(c("#56B4E9", "#2B4C7E", "#CC0066"),
+                      c(LBL_PRIM_ONLY, LBL_SECOND_ONLY, "Shared"))
 
 p_venn <- ggplot(venn_counts, aes(x = contrast_f, y = n, fill = group_f)) +
     geom_col(position = "stack", width = 0.6, colour = "white", linewidth = 0.3) +
@@ -314,31 +323,35 @@ p_venn <- ggplot(venn_counts, aes(x = contrast_f, y = n, fill = group_f)) +
     labs(
         x     = NULL,
         y     = "Number of DEPs (FDR < 0.05)",
-        title = "DEP overlap: MS vs ALS (by contrast)"
+        title = glue("DEP overlap: {PRIMARY_CAPS} vs {SECOND_CAPS} (by contrast)")
     ) +
     theme_ukb() +
     theme(legend.position = "right")
 
-ggsave(file.path(OUT_DIR, "ms_als_dep_counts.pdf"),
+VENN_PDF <- glue("{PAIR_PREFIX}_dep_counts.pdf")
+ggsave(file.path(OUT_DIR, VENN_PDF),
        p_venn, width = 4.5, height = 4, device = cairo_pdf)
-cat("  Saved: ms_als_dep_counts.pdf\n")
+cat(sprintf("  Saved: %s\n", VENN_PDF))
 
 
 # ── Combined figure (3-panel): counts + combined scatter + pre-onset scatter ──
 p_combined <- (p_venn | p_scatter | p_pre) +
     plot_annotation(
-        title   = "Cross-disease proteomics: Multiple Sclerosis vs ALS",
-        subtitle = sprintf("MS: %d combined DEPs | ALS: %d combined DEPs | %d shared",
-                           sum(ms_comb$sig), sum(als_comb$sig), length(sets_comb$shared)),
+        title   = glue("Cross-disease proteomics: {cfg$disease_long} vs {SECOND_CAPS}"),
+        subtitle = sprintf("%s: %d combined DEPs | %s: %d combined DEPs | %d shared",
+                           PRIMARY_CAPS, sum(ms_comb$sig),
+                           SECOND_CAPS,  sum(als_comb$sig),
+                           length(sets_comb$shared)),
         theme   = theme(
             plot.title    = element_text(size = 11, face = "plain"),
             plot.subtitle = element_text(size = 9,  colour = "grey40")
         )
     )
 
-ggsave(file.path(OUT_DIR, "ms_als_combined_figure.pdf"),
+COMBINED_PDF <- glue("{PAIR_PREFIX}_combined_figure.pdf")
+ggsave(file.path(OUT_DIR, COMBINED_PDF),
        p_combined, width = 15, height = 5.5, device = cairo_pdf)
-cat("  Saved: ms_als_combined_figure.pdf\n")
+cat(sprintf("  Saved: %s\n", COMBINED_PDF))
 
 
 # ── Direction concordance summary ─────────────────────────────────────────────
