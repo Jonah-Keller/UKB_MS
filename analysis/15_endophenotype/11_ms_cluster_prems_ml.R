@@ -43,7 +43,8 @@ FIG1_AUC_FILE <- here::here("results", "ml",
                             glue("{cfg$cohort_short}_preonset_ml_results.csv"))
 BORUTA_FILE   <- here::here("results", "ml", "models",
                             glue("{cfg$cohort_short}_pre_boruta_features.rds"))
-OUT_DIR       <- here::here("results", "endophenotype", "cluster_prems_ml")
+OUT_DIR       <- here::here("results", "endophenotype",
+                            glue("{cfg$cohort_short}_cluster_prems_ml"))
 FIG_DIR       <- here::here("results", "figures", "5")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)

@@ -35,7 +35,8 @@ QC_FILE    <- here::here("data", "ukb", "olink", "processed",
 CLUST_FILE <- here::here("results", "endophenotype",
                          glue("{cfg$cohort_short}_prems_cluster_assignments.csv"))
 FIG_DIR    <- here::here("results", "figures", "5")
-OUT_DIR    <- here::here("results", "endophenotype", "cluster_proteomics")
+OUT_DIR    <- here::here("results", "endophenotype",
+                         glue("{cfg$cohort_short}_cluster_proteomics"))
 dir.create(OUT_DIR,  showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR,  showWarnings = FALSE, recursive = TRUE)
 

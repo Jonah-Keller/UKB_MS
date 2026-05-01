@@ -31,9 +31,11 @@ source(here::here("analysis", "helpers", "ukb_theme.R"))
 cfg <- load_disease_config()
 
 ALL_DEP_FILE  <- here::here("results", "endophenotype",
-                            "cluster_proteomics",       "cluster_deps_all_contrasts.csv")
+                            glue("{cfg$cohort_short}_cluster_proteomics"),
+                            "cluster_deps_all_contrasts.csv")
 POST_DEP_FILE <- here::here("results", "endophenotype",
-                            "postms_cluster_proteomics", "postms_deps_all_contrasts.csv")
+                            glue("{cfg$cohort_short}_postms_cluster_proteomics"),
+                            "postms_deps_all_contrasts.csv")
 OUT_DIR <- here::here("results", "endophenotype", "prepost_concordance")
 FIG_DIR <- here::here("results", "figures", "5S")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
@@ -47,7 +49,8 @@ post_deps <- fread(POST_DEP_FILE)
 # Cluster set discovered from the all-cohort cluster DEPs file rather than
 # hardcoded to k=3.  Each Ck_vs_None contrast that has DEPs gets a panel
 # letter starting at "l" (l, m, n, o, ...).
-.all_dep_file <- here::here("results", "endophenotype", "cluster_proteomics",
+.all_dep_file <- here::here("results", "endophenotype",
+                             glue("{cfg$cohort_short}_cluster_proteomics"),
                              "cluster_deps_all_contrasts.csv")
 if (!file.exists(.all_dep_file)) {
     cat(sprintf("Concordance stage skipped: %s not found.\n",

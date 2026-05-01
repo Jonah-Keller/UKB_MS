@@ -23,8 +23,10 @@ source(here::here("analysis", "helpers", "go_dotplot.R"))
 
 cfg <- load_disease_config()
 
-DEP_DIR <- here::here("results", "endophenotype", "cluster_proteomics")
-OUT_DIR <- here::here("results", "endophenotype", "cluster_pathways")
+DEP_DIR <- here::here("results", "endophenotype",
+                      glue("{cfg$cohort_short}_cluster_proteomics"))
+OUT_DIR <- here::here("results", "endophenotype",
+                      glue("{cfg$cohort_short}_cluster_pathways"))
 FIG_DIR <- here::here("results", "figures", "5")
 dir.create(OUT_DIR, showWarnings = FALSE, recursive = TRUE)
 dir.create(FIG_DIR, showWarnings = FALSE, recursive = TRUE)
