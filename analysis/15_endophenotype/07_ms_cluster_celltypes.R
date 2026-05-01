@@ -35,8 +35,10 @@ source(here::here("analysis", "helpers", "celltype_overrep_plot.R"))
 cfg <- load_disease_config()
 NONE_LABEL <- glue("{cfg$disease_short_caps}-None")
 
-DEP_DIR     <- here::here("results", "endophenotype", "cluster_proteomics")
-OUT_DIR     <- here::here("results", "endophenotype", "cluster_celltypes")
+DEP_DIR     <- here::here("results", "endophenotype",
+                          glue("{cfg$cohort_short}_cluster_proteomics"))
+OUT_DIR     <- here::here("results", "endophenotype",
+                          glue("{cfg$cohort_short}_cluster_celltypes"))
 FIG_DIR     <- here::here("results", "figures", "5")
 WALCHLI_CSV <- here::here("data", "reference", "walchli_avg_expr_by_celltype.csv")
 HPA_FILE    <- here::here("data", "reference", "hpa_rna_single_cell_type.tsv.zip")

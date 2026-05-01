@@ -135,18 +135,3 @@ top_n_one_direction <- function(dt,
     out
 }
 
-# Self-test --------------------------------------------------------------------
-if (sys.nframe() == 0L) {
-    set.seed(1)
-    test_dt <- data.table::data.table(
-        protein  = paste0("P", 1:30),
-        logFC    = c(runif(15, 0, 2), runif(15, -2, 0)),
-        P.Value  = sort(runif(30, 0, 0.5)),
-        adj.P.Val = sort(runif(30, 0, 0.6))
-    )
-    sel <- top_n_by_direction(test_dt, n_each = 5L)
-    cat("top_n_by_direction self-test:\n")
-    cat("  up:   ",  paste(sel$up, collapse = ", "), "\n")
-    cat("  down: ",  paste(sel$down, collapse = ", "), "\n")
-    cat("  ordered_by:", paste(attr(sel, "ordered_by"), collapse = " / "), "\n")
-}

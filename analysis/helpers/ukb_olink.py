@@ -10,9 +10,7 @@ Usage:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 # Columns that are metadata, not protein NPX values
@@ -41,7 +39,7 @@ def load_olink_wide(path: Path | str) -> pd.DataFrame:
         raise FileNotFoundError(
             f"Olink file not found: {path}\n"
             "Expected: data/ukb/olink/i0/olink_instance_0_extracted_data.csv\n"
-            "Extract from UKB RAP or use make_mock_olink() for testing."
+            "Extract from UKB-RAP before running this stage."
         )
     df = pd.read_csv(path, low_memory=False)
     df.columns = [c.removeprefix("olink_instance_0.") for c in df.columns]
@@ -83,27 +81,3 @@ def flag_npx_outliers(
     return (medians - mu).abs() > sd_threshold * sigma
 
 
-def make_mock_olink(
-    n: int = 300,
-    n_proteins: int = 50,
-    seed: int = 42,
-    eids: Optional[list[int]] = None,
-) -> pd.DataFrame:
-    """Create a mock Olink wide DataFrame for pipeline testing.
-
-    Includes key proteins from both papers so downstream scripts can
-    find them by name.
-    """
-    rng = np.random.default_rng(seed)
-    named_proteins = [
-        "nefl", "mog", "gfap", "nrgn", "il3", "aif1", "sirt6", "dock10",
-        "kcnd2", "sanbr", "vwa1", "spag8", "cdin1", "lctl", "insm2",
-        "chit1", "gpnmb", "lgals3", "s100a12", "chi3l1", "ctsh", "spp1",
-    ]
-    filler = [f"protein_{i}" for i in range(n_proteins - len(named_proteins))]
-    all_proteins = named_proteins + filler
-
-    data = rng.standard_normal((n, len(all_proteins)))
-    df = pd.DataFrame(data, columns=all_proteins)
-    df.insert(0, "eid", eids if eids is not None else range(1000, 1000 + n))
-    return df

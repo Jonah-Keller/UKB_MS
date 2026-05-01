@@ -27,7 +27,6 @@ sys.path.insert(0, str(REPO_ROOT / "analysis"))
 # --- CONFIG ---
 SEED = 42
 N_SUBSET = 500
-rng = np.random.default_rng(SEED)
 
 DATA_DIR = REPO_ROOT.parent / "CADASIL_Proteome_ML_Keller_2024_Rebuttal" / "data" / "ukb"
 OUTPUT_FILE = REPO_ROOT / "data" / "ukb" / "covariates" / "covariate_table.csv"
@@ -242,40 +241,6 @@ def extract_hla_drb1_1501(hla_df: pd.DataFrame) -> pd.Series:
 
 
 # ============================================================================
-# Mock covariate table
-# ============================================================================
-
-def make_mock_covariates(n: int = 1000) -> pd.DataFrame:
-    print("  Creating mock covariate table...")
-    pcs = {f"PC{i}": rng.standard_normal(n) for i in range(1, 41)}
-    from sklearn.decomposition import PCA  # noqa: PLC0415
-    pc_arr = np.column_stack([pcs[f"PC{i}"] for i in range(1, 11)])
-    try:
-        from umap import UMAP
-        coords = UMAP(n_components=2, random_state=SEED).fit_transform(pc_arr)
-        umap1, umap2 = coords[:, 0], coords[:, 1]
-    except Exception:
-        umap1 = rng.standard_normal(n)
-        umap2 = rng.standard_normal(n)
-
-    return pd.DataFrame({
-        "eid": range(1000, 1000 + n),
-        "age_i0": rng.normal(55, 10, n).clip(30, 80),
-        "sex": rng.integers(0, 2, n),
-        "bmi": rng.normal(26, 4, n).clip(15, 50),
-        "townsend": rng.normal(0, 3, n),
-        "assessment_center": rng.integers(11001, 11030, n),
-        "smoking": rng.choice([0, 1, 2], n, p=[0.5, 0.3, 0.2]),
-        **pcs,
-        "UMAP1": umap1,
-        "UMAP2": umap2,
-        "hla_drb1_1501_carrier": rng.choice(
-            [True, False, pd.NA], n, p=[0.15, 0.80, 0.05]
-        ),
-    })
-
-
-# ============================================================================
 # Main
 # ============================================================================
 
@@ -301,10 +266,10 @@ def build_covariate_table(debug: bool = False) -> pd.DataFrame:
                 cov[name] = s.values[:len(cov)] if len(s) == len(cov) else s
 
     if cov is None:
-        print("WARNING: No covariate source files found — using mock covariates.")
-        mock = make_mock_covariates(N_SUBSET if debug else 1000)
-        mock.to_csv(OUTPUT_FILE, index=False)
-        return mock
+        raise FileNotFoundError(
+            "No covariate source files found. Extract covariates from UKB-RAP "
+            "and place under data/ukb/covariates/ before running this stage."
+        )
 
     if debug:
         cov = cov.sample(n=min(N_SUBSET, len(cov)), random_state=SEED).reset_index(drop=True)

@@ -229,11 +229,18 @@ cat(sprintf("  Saved: %s_dti_interaction_volcano.pdf\n", cfg$cohort_short))
 # ── 4. Heatmap — top proteins across all FA tracts ────────────────────────────
 cat("Creating interaction heatmap...\n")
 
-# Select proteins with at least one FA association p<0.01
-top_prots_fa <- fa_res[int_pval < 0.01, unique(protein)]
+# Select proteins with at least one FA association p<0.01, capped at the top
+# 30 by min p per protein.  Without the cap, cohorts with many DEPs (stroke)
+# blow past ggsave's 50-inch heatmap-width limit.
+HEATMAP_MAX <- 30L
+prot_min_p  <- fa_res[, .(min_p = min(int_pval)), by = protein][order(min_p)]
+top_prots_fa <- prot_min_p[min_p < 0.01, protein]
 if (length(top_prots_fa) < 5) {
-    # fall back to top 15 by min p per protein
-    top_prots_fa <- fa_res[, min(int_pval), by = protein][order(V1)][1:15, protein]
+    top_prots_fa <- prot_min_p[1:min(15L, .N), protein]
+} else if (length(top_prots_fa) > HEATMAP_MAX) {
+    cat(sprintf("  %d proteins met p<0.01; capping heatmap at top %d.\n",
+                length(top_prots_fa), HEATMAP_MAX))
+    top_prots_fa <- prot_min_p[1:HEATMAP_MAX, protein]
 }
 cat(sprintf("  Proteins for heatmap: %d\n", length(top_prots_fa)))
 
